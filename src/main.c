@@ -1,11 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "parser.h"
-#include "index.h"
-#include "ranking.h"
-#include "crawler.h"
-#include "metrics.h"
+#include "../include/parser.h"
+#include "../include/index.h"
+#include "../include/ranking.h"
+#include "../include/crawler.h"
+#include "../include/metrics.h"
 
 // Initialize stopwords
 extern int is_stopword(const char *word); // Forward declaration
@@ -179,15 +179,8 @@ int main(int argc, char* argv[])
     }
     
     printf("\nSearching for: %s\n", user_query);
-    printf("\nTop results:\n");
-    rank_bm25(user_query, total_docs, 10);
-    
-    return 0;
-    char query[256];
-    fgets(query, sizeof(query), stdin);
-
     printf("\nTop results (BM25):\n");
-    rank_bm25(query, total_docs, 10); // Top 10 results
-
+    rank_bm25(user_query, total_docs, 10); // Top 10 results
+    
     return 0;
 }
