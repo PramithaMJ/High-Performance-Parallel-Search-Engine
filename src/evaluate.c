@@ -1,12 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "parser.h"
-#include "index.h"
-#include "ranking.h"
-#include "metrics.h"
-#include "utils.h"
-#include "crawler.h"
+#include "../include/parser.h"
+#include "../include/index.h"
+#include "../include/ranking.h"
+#include "../include/metrics.h"
+#include "../include/utils.h"
+#include "../include/crawler.h"
 
 // Sample queries for evaluation
 const char *sample_queries[] = {

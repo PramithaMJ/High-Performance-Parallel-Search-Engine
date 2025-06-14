@@ -1,7 +1,7 @@
-#include "parser.h"
-#include "utils.h"
-#include "index.h"
-#include "metrics.h"
+#include "../include/parser.h"
+#include "../include/utils.h"
+#include "../include/index.h"
+#include "../include/metrics.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

@@ -1,4 +1,4 @@
-#include "crawler.h"
+#include "../include/crawler.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +8,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>    // For directory operations
+#include "../include/metrics.h"   // For performance metrics
 
 // Define constants - these are moved to the top for global reference
 #define MAX_URLS 1000
@@ -1029,6 +1030,9 @@ static int is_valid_crawl_url(const char* url, const char* base_domain) {
 
 // Function to recursively crawl a website starting from a URL
 int crawl_website(const char* start_url, int maxDepth, int maxPages) {
+    // Start measuring crawling time
+    start_timer();
+    
     // Reset the visited URLs
     visited_count = 0;
     
@@ -1390,6 +1394,10 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
     // Clean up curl global state
     curl_global_cleanup();
     
-    printf("\nCrawling completed. Crawled %d pages.\n", pages_crawled);
+    // Record crawling time
+    metrics.crawling_time = stop_timer();
+    
+    printf("\nCrawling completed. Crawled %d pages in %.2f ms.\n", 
+           pages_crawled, metrics.crawling_time);
     return pages_crawled;
 }
