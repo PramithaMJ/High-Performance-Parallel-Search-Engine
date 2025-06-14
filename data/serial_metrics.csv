@@ -1,0 +1,16 @@
+Metric,Value
+ParsingTime_ms,0.00
+TokenizingTime_ms,0.00
+StemmingTime_ms,0.00
+IndexingTime_ms,0.19
+QueryProcessingTime_ms,0.53
+TotalExecutionTime_ms,0.00
+InitialMemoryUsage_KB,2490368
+FinalMemoryUsage_KB,2785280
+PeakMemoryUsage_KB,0
+MemoryIncrease_KB,294912
+Documents,0
+TotalTokens,0
+UniqueTerms,0
+QueriesProcessed,5
+AvgQueryLatency_ms,0.11
