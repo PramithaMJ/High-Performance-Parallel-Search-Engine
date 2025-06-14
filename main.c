@@ -25,6 +25,9 @@ int main(int argc, char* argv[])
     // Process command line arguments
     int url_processed = 0;
     
+    // First clear any existing index to make sure we rebuild it from scratch
+    extern void clear_index(); // Forward declaration for the function we'll add
+    
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-u") == 0 && i + 1 < argc) {
             // Download URL content
@@ -57,6 +60,9 @@ int main(int argc, char* argv[])
     printf("Initializing stopwords...\n");
     is_stopword("test");
     printf("Stopwords loaded.\n");
+    
+    // Clear any existing index
+    clear_index();
     
     printf("Building index from dataset directory...\n");
     int total_docs = build_index("dataset");

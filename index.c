@@ -24,7 +24,8 @@ int build_index(const char *folder_path)
 
     while ((entry = readdir(dir)) != NULL)
     {
-        if (entry->d_name[0] != '.' && strstr(entry->d_name, ".txt"))
+        // Process all files except hidden files (those starting with .)
+        if (entry->d_name[0] != '.')
         {
             char path[256];
             snprintf(path, sizeof(path), "%s/%s", folder_path, entry->d_name);
@@ -114,4 +115,18 @@ const char* get_doc_filename(int doc_id)
         return documents[doc_id].filename;
     }
     return "Unknown Document";
+}
+
+// Function to clear the index for rebuilding
+void clear_index()
+{
+    // Free any allocated memory for terms
+    for (int i = 0; i < index_size; i++) {
+        // In this implementation, we're using fixed-size arrays, so no need to free anything
+    }
+    
+    // Reset all counters and data structures
+    index_size = 0;
+    memset(doc_lengths, 0, sizeof(doc_lengths));
+    memset(documents, 0, sizeof(documents));
 }
