@@ -1,6 +1,6 @@
-#include "index.h"
-#include "parser.h"
-#include "metrics.h"
+#include "../include/index.h"
+#include "../include/parser.h"
+#include "../include/metrics.h"
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h> // For free function
@@ -133,4 +133,33 @@ void clear_index()
     index_size = 0;
     memset(doc_lengths, 0, sizeof(doc_lengths));
     memset(documents, 0, sizeof(documents));
+}
+
+// Function to print the contents of the inverted index
+void print_index()
+{
+    printf("Inverted Index Contents:\n");
+    printf("Total Terms: %d\n", index_size);
+    
+    for (int i = 0; i < index_size; i++) {
+        printf("Term: '%s' (%d docs)\n", index_data[i].term, index_data[i].posting_count);
+        printf("  Postings: ");
+        
+        for (int j = 0; j < index_data[i].posting_count; j++) {
+            printf("(doc:%d, freq:%d) ", 
+                   index_data[i].postings[j].doc_id,
+                   index_data[i].postings[j].freq);
+            
+            if (j > 5 && index_data[i].posting_count > 10) {
+                printf("... and %d more", index_data[i].posting_count - j - 1);
+                break;
+            }
+        }
+        printf("\n");
+        
+        if (i > 30 && index_size > 50) {
+            printf("... and %d more terms\n", index_size - i - 1);
+            break;
+        }
+    }
 }
