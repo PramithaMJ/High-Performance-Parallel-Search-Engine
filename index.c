@@ -1,5 +1,6 @@
 #include "index.h"
 #include "parser.h"
+#include "metrics.h"
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h> // For free function
@@ -60,6 +61,9 @@ void add_token(const char *token, int doc_id)
     if (!token || strlen(token) == 0 || strlen(token) > 100) {
         return;
     }
+    
+    // Count the token for metrics
+    metrics.total_tokens++;
 
     for (int i = 0; i < index_size; ++i)
     {

@@ -1,6 +1,7 @@
 #include "parser.h"
 #include "utils.h"
 #include "index.h"
+#include "metrics.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,6 +9,9 @@
 
 int parse_file(const char *filepath, int doc_id)
 {
+    // Start timing for parsing
+    start_timer();
+    
     FILE *fp = fopen(filepath, "r");
     if (!fp) {
         printf("Could not open file: %s\n", filepath);
@@ -38,22 +42,36 @@ int parse_file(const char *filepath, int doc_id)
 
     tokenize(content, doc_id);
     free(content);
+    
+    // Record parsing time
+    metrics.parsing_time += stop_timer();
     return 1;
 }
 
 void tokenize(char *text, int doc_id)
 {
+    // Start timing for tokenization
+    start_timer();
+    
     char *token = strtok(text, " \t\n\r.,;:!?\"()[]{}<>");
     while (token)
     {
         to_lowercase(token);
         if (!is_stopword(token))
         {
+            // Start timing stemming
+            start_timer();
             char *stemmed = stem(token);
+            // Record stemming time
+            metrics.stemming_time += stop_timer();
+            
             add_token(stemmed, doc_id);
         }
         token = strtok(NULL, " \t\n\r.,;:!?\"()[]{}<>");
     }
+    
+    // Record tokenizing time
+    metrics.tokenizing_time += stop_timer();
 }
 
 void to_lowercase(char *str)
