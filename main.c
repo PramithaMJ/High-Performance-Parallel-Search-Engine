@@ -17,20 +17,34 @@ void print_usage(const char* program_name) {
     printf("Usage: %s [options]\n", program_name);
     printf("Options:\n");
     printf("  -u URL     Download and index content from URL\n");
+    printf("  -c URL     Crawl website starting from URL (follows links)\n");
+    printf("  -m USER    Crawl Medium profile for user (e.g., -m @username)\n");
+    printf("  -d NUM     Maximum crawl depth (default: 2)\n");
+    printf("  -p NUM     Maximum pages to crawl (default: 10)\n");
     printf("  -h         Show this help message\n");
+    printf("\n");
+    printf("Examples:\n");
+    printf("  %s -c https://medium.com/@lpramithamj\n", program_name);
+    printf("  %s -m @lpramithamj\n", program_name);
+    printf("  %s -c https://example.com -d 3 -p 20\n", program_name);
 }
+
+// Forward declaration for crawling function
+extern int crawl_website(const char* start_url, int maxDepth, int maxPages);
 
 int main(int argc, char* argv[])
 {
     // Process command line arguments
     int url_processed = 0;
+    int max_depth = 2;  // Default crawl depth
+    int max_pages = 10; // Default max pages to crawl
     
     // First clear any existing index to make sure we rebuild it from scratch
     extern void clear_index(); // Forward declaration for the function we'll add
     
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-u") == 0 && i + 1 < argc) {
-            // Download URL content
+            // Download single URL content
             const char* url = argv[i + 1];
             printf("Downloading content from URL: %s\n", url);
             char* filepath = download_url(url);
@@ -45,6 +59,81 @@ int main(int argc, char* argv[])
             
             // Skip the URL parameter
             i++;
+        } else if (strcmp(argv[i], "-c") == 0 && i + 1 < argc) {
+            // Crawl website starting from URL
+            const char* url = argv[i + 1];
+            printf("Starting website crawl from URL: %s\n", url);
+            
+            // Special handling for Medium.com URLs
+            if (strstr(url, "medium.com") != NULL) {
+                printf("Detected Medium.com URL. Optimizing crawler settings for Medium...\n");
+                
+                // For Medium profile URLs, use more aggressive crawling
+                if (strstr(url, "medium.com/@") != NULL) {
+                    if (max_pages < 20) max_pages = 20; // Increase default for profiles
+                    printf("Medium profile detected. Will crawl up to %d pages.\n", max_pages);
+                }
+            }
+            
+            int pages_crawled = crawl_website(url, max_depth, max_pages);
+            
+            if (pages_crawled > 0) {
+                printf("Successfully crawled %d pages from %s\n", pages_crawled, url);
+                url_processed = 1;
+            } else {
+                printf("Failed to crawl website from URL\n");
+                return 1;
+            }
+            
+            // Skip the URL parameter
+            i++;
+        } else if (strcmp(argv[i], "-d") == 0 && i + 1 < argc) {
+            // Set maximum crawl depth
+            max_depth = atoi(argv[i+1]);
+            if (max_depth < 1) max_depth = 1;
+            if (max_depth > 5) {
+                printf("Warning: High crawl depth may take a long time. Limited to 5.\n");
+                max_depth = 5;
+            }
+            i++;
+        } else if (strcmp(argv[i], "-p") == 0 && i + 1 < argc) {
+            // Set maximum pages to crawl
+            max_pages = atoi(argv[i+1]);
+            if (max_pages < 1) max_pages = 1;
+            if (max_pages > 100) {
+                printf("Warning: High page limit may take a long time. Limited to 100.\n");
+                max_pages = 100;
+            }
+            i++;
+        } else if (strcmp(argv[i], "-m") == 0 && i + 1 < argc) {
+            // Special option for Medium profile crawling
+            const char* username = argv[i + 1];
+            char medium_url[256];
+            
+            // Check if it already has @ prefix
+            if (username[0] == '@') {
+                snprintf(medium_url, sizeof(medium_url), "https://medium.com/%s", username);
+            } else {
+                snprintf(medium_url, sizeof(medium_url), "https://medium.com/@%s", username);
+            }
+            
+            printf("Crawling Medium profile: %s\n", medium_url);
+            
+            // Use higher limits for Medium profiles
+            int profile_max_depth = 3;
+            int profile_max_pages = 25;
+            
+            int pages_crawled = crawl_website(medium_url, profile_max_depth, profile_max_pages);
+            
+            if (pages_crawled > 0) {
+                printf("Successfully crawled %d pages from Medium profile %s\n", pages_crawled, username);
+                url_processed = 1;
+            } else {
+                printf("Failed to crawl Medium profile\n");
+                return 1;
+            }
+            
+            i++; // Skip the username parameter
         } else if (strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
             return 0;
