@@ -1,0 +1,145 @@
+I am Pramitha Mihiranga Jayasooriya.
+
+PramithaMJ
+Home
+My Skills
+Projects
+Achievments
+Certificates
+About Me
+My Blogs
+Contact Me
+Resume
+
+Computer Engineer
+Hi,I'm Pramitha Jayasooriya
+I'm a passionate computer engineer with a deep love for DevOps, SRE and software development, driven by a strong desire to learn and grow. I'm constantly seeking new opportunities to expand my knowledge and skills in these areas, eager to contribute to innovative projects and drive positive change through technology.
+Download CV  cta
+Pramitha
+
+
+
+
+
+About Me
+
+I am Pramitha Jayasooriya, a third-year undergraduate of the Faculty of Engineering, University of Ruhuna. I am reading for a BSc. (Hons.) Degree in Computer Engineering. I am very interested in Devops, SRE, computer programming and software development. I have done several projects related to these areas. I do my best to honor their commitment. In addition, I want to develop a positive outlook on life and strive to be a respected member of the society. I believe everything is an Art when you put your consciousness in it.
+Recent Projects
+LifePill
+Medicine finding and personal healthcare systems.
+LifePill is a software application designed to address the challenges of finding rare medicines and managing prescriptions efficiently
+Tube Object
+Services
+Mobile Application
+AR Visionary Explora.
+Mobile application designed to enhance the furniture e-commerce experience through the integration of augmented reality (AR) technology.
+Cone Object
+Services
+Web Application
+Personal Finance Tracker.
+This is a fully functional web application designed to help users manage their personal finances and track their expenses. You can add expenses and income, manage your money, and gain insights from the data and visualizing.
+Capsule Object
+Services
+Desktop Application
+Point Of Sale.
+It provides an efficient and intuitive interface for managing sales and performing various operations related to product management and user roles.
+Services
+My Skills...
+Backend Development
+Backend Development
+
+Frontend Development
+Frontend Development
+
+Mobile Development
+Mobile Development
+
+Database Development
+Database Management
+
+DevOps
+DevOps
+
+Others
+Others
+
+Exposing My Odyssey throught Competitive Ventures...
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Few good words about me!
+
+Latest Blogs...
+Trace the Path: Distributed Tracing with Zipkin in Microservices-1
+#Microservices#Distribute Tracer#Zipkin#Java
+31 May, 2024
+Why do we need to use Circuit Bracker Pattern inside Microservices?
+#Microservices#Circuit Bracker#Design patterns#Java
+7 April, 2024
+[Solved] Cross-Site Request Forgery (CSRF) Attacks with Spring Security
+#Spring#CSRF Attack#CSRF protection#Java#SpringSecurity
+8 March, 2024
+Synchronizing Spring: The Artistry of Data Transfer Objects (DTOs) for Effortless Communication in Your Boot Applications
+#Java#SpringBoot#DTO#Spring#DesignPatterns
+17 February, 2024
+Monolithic vs. SOA vs. Microservices Architecture: A Java Perspective
+#Java#Monolithic#SOA#Microservices#Architecture
+8 February, 2024
+Art of Clean Code: Understanding the SOLID Principles in Java
+#Java#OOD#SOLID#DesignPatterns#CleanCode
+1 February, 2024
+Mastering Spring Data JPA Testing: A Comprehensive Guide to Repository Layer Testing.
+#Java#Spring#Testing#JPA#Repository#Mockito#JUnit
+28 December, 2023
+Microservices Unleashed: Elevating Software Development
+#Java#Spring#Microservices#Architecture#DesignPatterns
+11 December, 2023
+The Magic of Git & GitHub
+#Git#GitHub#VersionControl#SoftwareDevelopment
+28 February, 2024
+< >
+Days I Code...
+Jun
+Jul
+Aug
+Sep
+Oct
+Nov
+Dec
+Jan
+Feb
+Mar
+Apr
+May
+1541 contributions in the last year
+Less
+More
+Get in touch
+Facebook
+LinkedId
+Github
+Medium
+Twitter
+Instagram
+your name
+enter working email id
+your message
+Submit
+© 2024 Built and Design by @PramithaMJ
+Reach out to me via
+Twitter
+ 
+Instagram
+ 
+Gmail

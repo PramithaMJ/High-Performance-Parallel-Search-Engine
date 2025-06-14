@@ -1,0 +1,63 @@
+#include "parser.h"
+#include "utils.h"
+#include "index.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
+int parse_file(const char *filepath, int doc_id)
+{
+    FILE *fp = fopen(filepath, "r");
+    if (!fp) {
+        printf("Could not open file: %s\n", filepath);
+        return 0;
+    }
+
+    fseek(fp, 0, SEEK_END);
+    long len = ftell(fp);
+    rewind(fp);
+    
+    // Guard against very large files
+    if (len > 10000000) { // 10MB limit
+        printf("File too large: %s (%ld bytes)\n", filepath, len);
+        fclose(fp);
+        return 0;
+    }
+
+    char *content = malloc(len + 1);
+    if (!content) {
+        printf("Memory allocation failed for file: %s\n", filepath);
+        fclose(fp);
+        return 0;
+    }
+    
+    size_t read_bytes = fread(content, 1, len, fp);
+    content[read_bytes] = '\0';
+    fclose(fp);
+
+    tokenize(content, doc_id);
+    free(content);
+    return 1;
+}
+
+void tokenize(char *text, int doc_id)
+{
+    char *token = strtok(text, " \t\n\r.,;:!?\"()[]{}<>");
+    while (token)
+    {
+        to_lowercase(token);
+        if (!is_stopword(token))
+        {
+            char *stemmed = stem(token);
+            add_token(stemmed, doc_id);
+        }
+        token = strtok(NULL, " \t\n\r.,;:!?\"()[]{}<>");
+    }
+}
+
+void to_lowercase(char *str)
+{
+    for (; *str; ++str)
+        *str = tolower(*str);
+}
