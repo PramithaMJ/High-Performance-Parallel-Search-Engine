@@ -1,0 +1,95 @@
+SitemapSign upSign inMedium LogoWriteSign upSign in
+
+Why do we need to use Circuit Bracker Pattern inside Microservices?Pramitha JayasooriyaFollow3 min read·Apr 7, 2024--ListenShareIn today’s world of distributed systems and microservices architecture, ensuring resilience and fault tolerance is crucial. As microservices communicate with each other over networks that can be unreliable, services may fail, leading to cascading failures and degraded performance. The Circuit Breaker pattern offers a solution to this problem by providing a mechanism to detect and handle failures gracefully, thereby improving the overall reliability of the system.
+
+What is the Circuit Breaker Pattern?The Circuit Breaker Pattern, inspired by its electrical counterpart, is a design pattern used in software development to handle faults and failures in distributed systems. It is implemented as a state machine that monitors the health of a service or resource. When the number of failures exceeds a predefined threshold, the circuit breaker trips and prevents further calls to the failing service for a specified period. During this time, the circuit breaker redirects calls to a fallback mechanism, such as returning cached data or providing a default response, thus preventing the failure from propagating through the system.
+
+Why Use the Circuit Breaker Pattern in Microservices?In a microservices architecture, where services are independent and communicate over networks, failures are inevitable. A failure in one service can potentially impact other services that depend on it, leading to a domino effect of failures across the system. By implementing the Circuit Breaker pattern, developers can isolate and contain failures, preventing them from spreading and causing widespread outages. Additionally, the Circuit Breaker pattern helps to improve system resilience by providing mechanisms for fault tolerance, graceful degradation, and recovery.
+
+Implementing the Circuit Breaker PatternLet’s illustrate the implementation of the Circuit Breaker pattern in a simple microservice scenario using Java and Spring Boot.
+
+Dependencies:<dependencies>
+
+ <dependency>
+
+ <groupId>org.springframework.boot</groupId>
+
+ <artifactId>spring-boot-starter-web</artifactId>
+
+ </dependency>
+
+ <dependency>
+
+ <groupId>org.springframework.cloud</groupId>
+
+ <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+
+ </dependency>
+
+</dependencies>
+
+Circuit Breaker Configuration:import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+
+import org.springframework.stereotype.Service;@Service
+
+public class ServiceA {
+
+ @CircuitBreaker(name = "serviceA")
+
+ public String callServiceB() {
+
+ // Call to Service B
+
+ // Return response or throw exception if failed
+
+ }
+
+}
+
+Fallback Method:import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+
+import org.springframework.stereotype.Service;@Service
+
+public class ServiceA {
+
+ @CircuitBreaker(name = "serviceA", fallbackMethod = "fallback")
+
+ public String callServiceB() {
+
+ // Call to Service B
+
+ // Return response or throw exception if failed
+
+ }
+
+ public String fallback(Exception e) {
+
+ return "Fallback response";
+
+ }
+
+}
+
+Circuit Breaker Configuration (application.properties):resilience4j.circuitbreaker.instances.serviceA.register-health-indicator=true
+
+resilience4j.circuitbreaker.instances.serviceA.failure-rate-threshold=50
+
+resilience4j.circuitbreaker.instances.serviceA.wait-duration-in-open-state=5000
+
+resilience4j.circuitbreaker.instances.serviceA.sliding-window-size=5
+
+Conclusion:The Circuit Breaker pattern is a valuable tool for ensuring resilience in microservices architectures. By implementing this pattern, developers can mitigate the impact of failures, prevent cascading failures, and improve the overall reliability of their systems. Through proper configuration and integration with frameworks like Spring Boot and Resilience4j, developers can build robust and fault-tolerant microservices that can withstand the challenges of distributed computing.~ By Pramitha Jayasooriya
+
+Contact DetailsFor further information or to discuss potential opportunities, please feel free to connect with me on my professional and social platforms:
+
+LinkedIn: Pramitha-Jayasooriya
+
+GitHub: PramithaMJ
+
+Personal Website: PramithaMJ.me
+
+Email : lpramithamj@gmail.comLooking forward to connecting with you!MicroservicesCircuit BreakerSpring BootJavaDesign Patterns----Follow
+
+Written by Pramitha Jayasooriya35 followers·47 followingAspiring Computer Engineer with a specialized focus on backend technologies. BSc. Eng . (Hons.) Degree in Computer Engineering (UG).Follow
+
+No responses yetHelpStatusAboutCareersPressBlogPrivacyRulesTermsText to speech 
