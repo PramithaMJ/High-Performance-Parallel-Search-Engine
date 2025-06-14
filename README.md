@@ -12,125 +12,60 @@ A comprehensive search engine implementation that uses the BM25 ranking algorith
 - Command line interface with multiple operation modes
 - URL normalization and handling
 
+## Project Structure
+
+The project is organized using the following directory structure:
+
+- `bin/`: Contains all executable files
+  - `search_engine`: Main search engine executable
+  - `evaluate`: Evaluation tool for search results
+  - `test_url_normalization`: Test for URL normalization
+  - `test_medium_urls`: Test for Medium URL handling
+  
+- `src/`: Contains all source code (.c files)
+  - Core components: main, parser, index, ranking, crawler, etc.
+  
+- `include/`: Contains all header files (.h files)
+  - Declarations and interfaces for all components
+  
+- `obj/`: Contains object files (.o files) generated during compilation
+  
+- `data/`: Contains text data files used by the application
+  - `stopwords.txt`: List of words to ignore during indexing and searching
+  - `medium_url_fixes.txt`: Special handling rules for Medium URLs
+  - `serial_metrics.csv`: Performance metrics data
+  
+- `dataset/`: Contains the document corpus to be indexed
+  
+- `tests/`: Contains test source files
+  - Test implementations for various components
+  
+- `scripts/`: Contains utility shell scripts
+  - `benchmark.sh`: Script for performance benchmarking
+  - `run_benchmark.sh`: Script to execute benchmarks
+
 ## Required Files
 
 - `dataset/`: Directory containing text documents to be indexed
-- `stopwords.txt`: File containing stopwords, one per line
+- `data/stopwords.txt`: File containing stopwords, one per line
 
-## Dependencies
+## Building the Project
 
-- libcurl: Required for web crawling functionality
-
-## Compilation
-
-### Full Build (Including Tests)
-```bash
-make
+To build the entire project including tests:
+```
+make all
 ```
 
-### Production Build (Without Tests)
-```bash
+For a production build (without tests):
+```
 make production
 ```
 
-### Cleaning Build Files
-```bash
+To clean the build:
+```
 make clean
 ```
 
-## Running
+## Dependencies
 
-### Basic Operation (Local Dataset Only)
-```bash
-./search_engine
-```
-
-By default, the search engine will:
-1. Load stopwords from `stopwords.txt`
-2. Build an index from text documents in the `dataset/` directory
-3. Prompt for a search query
-4. Return top 10 documents matching the query
-
-### Web URL Operations
-
-#### Download and Index a Single URL
-```bash
-./search_engine -u https://example.com
-```
-
-#### Crawl and Index a Website (Following Links)
-```bash
-./search_engine -c https://example.com -d 2 -p 10
-```
-
-#### Crawl and Index a Medium Profile
-```bash
-./search_engine -m @username
-```
-
-### Command Line Options
-
-- `-u URL`: Download and index content from a specific URL
-- `-c URL`: Crawl a website starting from the specified URL (follows links)
-- `-m USER`: Crawl a Medium profile for a specific user (e.g., `-m @username`)
-- `-d NUM`: Set maximum crawl depth (default: 2, max: 5)
-- `-p NUM`: Set maximum pages to crawl (default: 10, max: 100)
-- `-h`: Display help information
-
-## Adding New Content
-
-### Local Documents
-Add new text files to the `dataset/` directory. The search engine will automatically index them on the next run.
-
-### Web Content
-Use the web crawling features to automatically download and index content from the web:
-
-```bash
-# Download a single page
-./search_engine -u https://example.com/article.html
-
-# Crawl a website (depth=3, max pages=20)
-./search_engine -c https://example.com -d 3 -p 20
-
-# Crawl a Medium profile
-./search_engine -m @username
-```
-
-All crawled content is saved to the `dataset/` directory and becomes part of your search corpus.
-
-## Optimizing Search Quality
-
-### Adding Stopwords
-
-Edit the `stopwords.txt` file and add one stopword per line.
-
-Example format:
-```
-the
-a
-an
-in
-of
-```
-
-### Crawl Parameters
-
-- Adjust the depth parameter (`-d`) to control how deeply the crawler follows links
-- Set the page limit (`-p`) to control the maximum number of pages to download
-- For Medium profiles, the crawler automatically optimizes settings for better article extraction
-
-## Examples
-
-```bash
-# Basic search using local documents
-./search_engine
-
-# Download and search Wikipedia content
-./search_engine -u https://en.wikipedia.org/wiki/Information_retrieval
-
-# Crawl a technical blog limited to 15 pages
-./search_engine -c https://techblog.example.com -p 15
-
-# Crawl a Medium profile with default settings
-./search_engine -m @popular_writer
-```
+- libcurl (for web crawling)
