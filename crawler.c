@@ -8,6 +8,17 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
+// Define constants - these are moved to the top for global reference
+#define MAX_URLS 1000
+#define MAX_URL_LENGTH 512
+
+// Forward declarations
+static char* normalize_url(const char* url);
+static char* extract_base_domain(const char* url);
+static int has_visited(const char* url);
+static void mark_visited(const char* url);
+static void extract_links(const char* html, const char* base_url, char** urls, int* url_count, int max_urls);
+
 // Callback function for libcurl to write data to a file
 // Structure to hold the downloaded data
 struct MemoryStruct {
@@ -432,8 +443,15 @@ static int visited_count = 0;
 
 // Function to check if a URL has been visited
 static int has_visited(const char* url) {
+    if (!url) return 1;  // Treat NULL URLs as already visited
+    
+    // First normalize the URL for consistent comparison
+    char* normalized = normalize_url(url);
+    if (!normalized || normalized[0] == '\0') return 1; // Treat empty URLs as visited
+    
+    // Safe comparison with visited URLs
     for (int i = 0; i < visited_count; i++) {
-        if (strcmp(visited_urls[i], url) == 0) {
+        if (visited_urls[i][0] != '\0' && strcmp(visited_urls[i], normalized) == 0) {
             return 1;
         }
     }
@@ -442,8 +460,22 @@ static int has_visited(const char* url) {
 
 // Function to mark a URL as visited
 static void mark_visited(const char* url) {
+    if (!url) return;  // Don't try to mark NULL URLs
+    
+    // First normalize the URL for consistent storage
+    char* normalized = normalize_url(url);
+    if (!normalized || normalized[0] == '\0') return; // Don't mark empty URLs
+    
+    // Check if already in our visited list
+    for (int i = 0; i < visited_count; i++) {
+        if (visited_urls[i][0] != '\0' && strcmp(visited_urls[i], normalized) == 0) {
+            return; // Already marked
+        }
+    }
+    
+    // Add to visited list if space is available
     if (visited_count < MAX_URLS) {
-        strncpy(visited_urls[visited_count], url, MAX_URL_LENGTH - 1);
+        strncpy(visited_urls[visited_count], normalized, MAX_URL_LENGTH - 1);
         visited_urls[visited_count][MAX_URL_LENGTH - 1] = '\0';
         visited_count++;
     }
@@ -451,7 +483,13 @@ static void mark_visited(const char* url) {
 
 // Function to extract the base domain from a URL
 static char* extract_base_domain(const char* url) {
-    static char domain[MAX_URL_LENGTH];
+    // Thread-local static buffer to avoid issues with multiple calls
+    static __thread char domain[MAX_URL_LENGTH];
+    
+    if (!url || strlen(url) == 0) {
+        domain[0] = '\0';
+        return domain;
+    }
     
     // Initialize the domain
     strncpy(domain, url, MAX_URL_LENGTH - 1);
@@ -473,7 +511,17 @@ static char* extract_base_domain(const char* url) {
 
 // Function to normalize a URL (remove tracking params, fragments, etc.)
 static char* normalize_url(const char* url) {
-    static char normalized[MAX_URL_LENGTH * 2];
+    // Use thread-local static buffer to avoid issues with multiple calls
+    static __thread char normalized[MAX_URL_LENGTH * 2];
+    
+    // Always initialize to empty string first
+    memset(normalized, 0, sizeof(normalized));
+    
+    if (!url || strlen(url) == 0) {
+        return normalized;
+    }
+    
+    // Safe copy with null termination
     strncpy(normalized, url, MAX_URL_LENGTH * 2 - 1);
     normalized[MAX_URL_LENGTH * 2 - 1] = '\0';
     
@@ -482,13 +530,19 @@ static char* normalize_url(const char* url) {
     if (fragment) *fragment = '\0';
     
     // Remove common tracking parameters
-    // This is a simplified approach - a more comprehensive solution would parse the URL properly
     char* query = strchr(normalized, '?');
     if (query) {
-        // For simplicity, we'll just keep essential parameters
-        // For medium.com, often the important part is before the query string
+        // For medium.com, remove all query params as they're typically tracking
         if (strstr(normalized, "medium.com") != NULL) {
-            *query = '\0';  // For medium.com, remove all query params
+            *query = '\0';
+        } else {
+            // For other sites, try to keep important query params but remove common tracking ones
+            // This is just a simple example - could be extended with more parameters
+            if (strstr(query, "utm_") != NULL || 
+                strstr(query, "fbclid=") != NULL || 
+                strstr(query, "gclid=") != NULL) {
+                *query = '\0';
+            }
         }
     }
     
@@ -501,248 +555,190 @@ static char* normalize_url(const char* url) {
     return normalized;
 }
 
+// Process a URL found in HTML and add it to the list if valid
+static void process_extracted_url(const char* url_text, int url_len, const char* base_url, const char* base_domain, 
+                                char** urls, int* url_count, int max_urls) {
+    if (url_len <= 0 || url_len >= MAX_URL_LENGTH || *url_count >= max_urls) 
+        return;
+        
+    // Allocate and copy the URL
+    char* new_url = malloc(MAX_URL_LENGTH);
+    if (!new_url) return;
+    
+    strncpy(new_url, url_text, url_len);
+    new_url[url_len] = '\0';
+    
+    // Skip javascript: urls, mailto: links, tel: links, data: URIs
+    if (strncmp(new_url, "javascript:", 11) == 0 ||
+        strncmp(new_url, "mailto:", 7) == 0 ||
+        strncmp(new_url, "tel:", 4) == 0 ||
+        strncmp(new_url, "data:", 5) == 0 ||
+        strncmp(new_url, "#", 1) == 0) {  // Skip page anchors
+        free(new_url);
+        return;
+    }
+    
+    // Handle relative URLs
+    if (strncmp(new_url, "http", 4) != 0) {
+        // Convert relative URL to absolute URL
+        char* absolute_url = malloc(MAX_URL_LENGTH * 2);
+        if (!absolute_url) {
+            free(new_url);
+            return;
+        }
+        
+        if (new_url[0] == '/') {
+            if (new_url[1] == '/') {
+                // Protocol-relative URL (//example.com/path)
+                // Extract protocol from base_url
+                const char* protocol_end = strstr(base_url, "://");
+                if (protocol_end) {
+                    int protocol_len = protocol_end - base_url + 1; // Include the colon
+                    strncpy(absolute_url, base_url, protocol_len);
+                    absolute_url[protocol_len] = '\0';
+                    strcat(absolute_url, new_url + 2); // Skip the //
+                } else {
+                    // Default to https if we can't determine
+                    sprintf(absolute_url, "https:%s", new_url);
+                }
+            } else {
+                // URL starts with /, so append to domain
+                sprintf(absolute_url, "%s%s", base_domain, new_url);
+            }
+        } else {
+            // URL is relative to current page
+            strcpy(absolute_url, base_url);
+            
+            // Remove everything after the last slash in base_url
+            char* last_slash = strrchr(absolute_url, '/');
+            if (last_slash && last_slash != absolute_url + strlen(absolute_url) - 1) {
+                *(last_slash + 1) = '\0';
+            } else if (!last_slash) {
+                // If no slash in the URL after domain, add one
+                strcat(absolute_url, "/");
+            }
+            
+            strcat(absolute_url, new_url);
+        }
+        
+        free(new_url);
+        new_url = absolute_url;
+    }
+    
+    // Normalize the URL to avoid duplicates
+    char* normalized_url = normalize_url(new_url);
+    
+    // Only duplicate valid normalized URLs
+    char* final_url = NULL;
+    if (normalized_url && normalized_url[0] != '\0') {
+        final_url = strdup(normalized_url);
+    }
+    
+    // Free the original URL - only if it's not NULL
+    if (new_url) {
+        free(new_url);
+        new_url = NULL;
+    }
+    
+    // Early return if no valid URL
+    if (!final_url) return;
+    
+    // Check if the URL is valid and not already visited/queued
+    int is_valid = 0;
+    int is_duplicate = 0;
+    
+    // Check if it's already visited
+    if (has_visited(final_url)) {
+        is_duplicate = 1;
+    } else {
+        // Also check if it's already in our current extraction list
+        for (int i = 0; i < *url_count; i++) {
+            if (urls[i] && strcmp(urls[i], final_url) == 0) {
+                is_duplicate = 1;
+                break;
+            }
+        }
+    }
+    
+    if (!is_duplicate) {
+        if (strstr(base_url, "medium.com") != NULL && strstr(final_url, "medium.com") != NULL) {
+            // For Medium we allow all URLs within medium.com
+            is_valid = 1;
+        } else if (base_domain && strstr(final_url, base_domain) != NULL) {
+            // For other sites, use stricter domain checking
+            is_valid = 1;
+        }
+    }
+    
+    // Add URL to the list or free it
+    if (is_valid && !is_duplicate && *url_count < max_urls) {
+        urls[*url_count] = final_url;
+        (*url_count)++;
+    } else {
+        free(final_url);
+    }
+}
+
 // Function to extract links from HTML content
 static void extract_links(const char* html, const char* base_url, char** urls, int* url_count, int max_urls) {
-    const char* ptr = html;
-    const char* href;
-    const char* base_domain = extract_base_domain(base_url);
+    if (!html || !base_url || !urls || !url_count || max_urls <= 0) return;
     
-    // Search for both href=" and href=' patterns
+    const char* ptr = html;
+    const char* base_domain = extract_base_domain(base_url);
+    if (!base_domain || base_domain[0] == '\0') return;
+    
+    *url_count = 0;  // Initialize count
+    
     while (*ptr && *url_count < max_urls) {
         // Look for anchor tags with href attributes (handle both quote styles)
         const char* href_double = strstr(ptr, "href=\"");
         const char* href_single = strstr(ptr, "href='");
         
+        if (!href_double && !href_single) break;  // No more links
+        
         // Find which quote style appears first
         if (href_double && href_single) {
-            href = (href_double < href_single) ? href_double : href_single;
-            char quote = (href == href_double) ? '\"' : '\'';
-            ptr = href + 6; // Move past "href=" and the quote
-            const char* end = strchr(ptr, quote);
-            
-            if (end) {
-                int url_len = end - ptr;
-                if (url_len > 0 && url_len < MAX_URL_LENGTH) {
-                    char* new_url = malloc(MAX_URL_LENGTH);
-                    if (!new_url) continue;
-                    
-                    // Copy the URL
-                    strncpy(new_url, ptr, url_len);
-                    new_url[url_len] = '\0';
-                    
-                    // Skip javascript: urls, mailto: links, tel: links, data: URIs
-                    if (strncmp(new_url, "javascript:", 11) == 0 ||
-                        strncmp(new_url, "mailto:", 7) == 0 ||
-                        strncmp(new_url, "tel:", 4) == 0 ||
-                        strncmp(new_url, "data:", 5) == 0) {
-                        free(new_url);
-                        ptr = end + 1;
-                        continue;
-                    }
-                    
-                    // Handle relative URLs
-                    if (strncmp(new_url, "http", 4) != 0) {
-                        // Skip URLs starting with # (page anchors)
-                        if (new_url[0] == '#') {
-                            free(new_url);
-                            ptr = end + 1;
-                            continue;
-                        }
-                        
-                        // Convert relative URL to absolute URL
-                        char* absolute_url = malloc(MAX_URL_LENGTH * 2);
-                        if (!absolute_url) {
-                            free(new_url);
-                            ptr = end + 1;
-                            continue;
-                        }
-                        
-                        if (new_url[0] == '/') {
-                            if (new_url[1] == '/') {
-                                // Protocol-relative URL (//example.com/path)
-                                // Extract protocol from base_url
-                                const char* protocol_end = strstr(base_url, "://");
-                                if (protocol_end) {
-                                    int protocol_len = protocol_end - base_url + 1; // Include the colon
-                                    strncpy(absolute_url, base_url, protocol_len);
-                                    absolute_url[protocol_len] = '\0';
-                                    strcat(absolute_url, new_url + 2); // Skip the //
-                                } else {
-                                    // Default to https if we can't determine
-                                    sprintf(absolute_url, "https:%s", new_url);
-                                }
-                            } else {
-                                // URL starts with /, so append to domain
-                                sprintf(absolute_url, "%s%s", base_domain, new_url);
-                            }
-                        } else {
-                            // URL is relative to current page
-                            strcpy(absolute_url, base_url);
-                            
-                            // Remove everything after the last slash in base_url
-                            char* last_slash = strrchr(absolute_url, '/');
-                            if (last_slash && last_slash != absolute_url + strlen(absolute_url) - 1) {
-                                *(last_slash + 1) = '\0';
-                            } else if (!last_slash) {
-                                // If no slash in the URL after domain, add one
-                                strcat(absolute_url, "/");
-                            }
-                            
-                            strcat(absolute_url, new_url);
-                        }
-                        
-                        free(new_url);
-                        new_url = absolute_url;
-                    }
-                    
-                    // Normalize the URL to avoid duplicates
-                    char* normalized_url = normalize_url(new_url);
-                    free(new_url);
-                    new_url = strdup(normalized_url);
-                    
-                    // Special handling for medium.com URLs
-                    if (strstr(new_url, "medium.com") != NULL) {
-                        // Check if it's a user profile or article
-                        if (strstr(new_url, "medium.com/@") != NULL || 
-                            strstr(new_url, "medium.com/p/") != NULL ||
-                            strstr(new_url, "medium.com/tag/") != NULL) {
-                            // It's valid, keep it
-                        }
-                        // Else could add more filters here
-                    }
-                    
-                    // Check if the URL belongs to the same site
-                    // For medium.com, allow crawling within medium.com
-                    if (strstr(base_url, "medium.com") != NULL && strstr(new_url, "medium.com") != NULL) {
-                        urls[*url_count] = new_url;
-                        (*url_count)++;
-                    } 
-                    // For other sites, use stricter domain checking
-                    else if (strstr(new_url, base_domain) != NULL) {
-                        urls[*url_count] = new_url;
-                        (*url_count)++;
-                    } else {
-                        free(new_url);
-                    }
+            if (href_double < href_single) {
+                // Double quote comes first
+                ptr = href_double + 6;  // Move past href="
+                const char* end = strchr(ptr, '\"');
+                if (end) {
+                    process_extracted_url(ptr, end - ptr, base_url, base_domain, urls, url_count, max_urls);
+                    ptr = end + 1;
+                } else {
+                    ptr++;  // No end quote found, move forward
                 }
-                
-                ptr = end + 1;
             } else {
-                ptr++; // No end quote found, move forward
+                // Single quote comes first
+                ptr = href_single + 6;  // Move past href='
+                const char* end = strchr(ptr, '\'');
+                if (end) {
+                    process_extracted_url(ptr, end - ptr, base_url, base_domain, urls, url_count, max_urls);
+                    ptr = end + 1;
+                } else {
+                    ptr++;  // No end quote found, move forward
+                }
             }
         } else if (href_double) {
-            href = href_double;
-            ptr = href + 6;
+            // Only double quotes
+            ptr = href_double + 6;
             const char* end = strchr(ptr, '\"');
-            // Process as before for double quotes
-            // Similar processing as above
             if (end) {
-                int url_len = end - ptr;
-                if (url_len > 0 && url_len < MAX_URL_LENGTH) {
-                    // Process URL (similar to above)
-                    char* new_url = malloc(MAX_URL_LENGTH);
-                    if (!new_url) {
-                        ptr = end + 1;
-                        continue;
-                    }
-                    
-                    // Copy the URL
-                    strncpy(new_url, ptr, url_len);
-                    new_url[url_len] = '\0';
-                    
-                    // Skip javascript:, mailto:, etc.
-                    if (strncmp(new_url, "javascript:", 11) == 0 ||
-                        strncmp(new_url, "mailto:", 7) == 0 ||
-                        strncmp(new_url, "tel:", 4) == 0 ||
-                        strncmp(new_url, "data:", 5) == 0) {
-                        free(new_url);
-                        ptr = end + 1;
-                        continue;
-                    }
-                    
-                    // Process relative URLs (similar to above)
-                    if (strncmp(new_url, "http", 4) != 0) {
-                        // Same relative URL processing as above
-                        if (new_url[0] == '#') {
-                            free(new_url);
-                            ptr = end + 1;
-                            continue;
-                        }
-                        
-                        char* absolute_url = malloc(MAX_URL_LENGTH * 2);
-                        if (!absolute_url) {
-                            free(new_url);
-                            ptr = end + 1;
-                            continue;
-                        }
-                        
-                        // Same URL resolution as above
-                        if (new_url[0] == '/') {
-                            if (new_url[1] == '/') {
-                                // Protocol-relative URL
-                                const char* protocol_end = strstr(base_url, "://");
-                                if (protocol_end) {
-                                    int protocol_len = protocol_end - base_url + 1;
-                                    strncpy(absolute_url, base_url, protocol_len);
-                                    absolute_url[protocol_len] = '\0';
-                                    strcat(absolute_url, new_url + 2);
-                                } else {
-                                    sprintf(absolute_url, "https:%s", new_url);
-                                }
-                            } else {
-                                sprintf(absolute_url, "%s%s", base_domain, new_url);
-                            }
-                        } else {
-                            // Relative to current page
-                            strcpy(absolute_url, base_url);
-                            char* last_slash = strrchr(absolute_url, '/');
-                            if (last_slash && last_slash != absolute_url + strlen(absolute_url) - 1) {
-                                *(last_slash + 1) = '\0';
-                            } else if (!last_slash) {
-                                strcat(absolute_url, "/");
-                            }
-                            strcat(absolute_url, new_url);
-                        }
-                        
-                        free(new_url);
-                        new_url = absolute_url;
-                    }
-                    
-                    // Normalize URL
-                    char* normalized_url = normalize_url(new_url);
-                    free(new_url);
-                    new_url = strdup(normalized_url);
-                    
-                    // Domain check (same as above)
-                    if (strstr(base_url, "medium.com") != NULL && strstr(new_url, "medium.com") != NULL) {
-                        urls[*url_count] = new_url;
-                        (*url_count)++;
-                    } else if (strstr(new_url, base_domain) != NULL) {
-                        urls[*url_count] = new_url;
-                        (*url_count)++;
-                    } else {
-                        free(new_url);
-                    }
-                }
-                ptr = end + 1;
-            } else {
-                ptr++;
-            }
-        } else if (href_single) {
-            href = href_single;
-            ptr = href + 6;
-            const char* end = strchr(ptr, '\'');
-            // Process as before for single quotes
-            // Similar processing as above
-            if (end) {
-                // Similar URL processing as above
+                process_extracted_url(ptr, end - ptr, base_url, base_domain, urls, url_count, max_urls);
                 ptr = end + 1;
             } else {
                 ptr++;
             }
         } else {
-            // No more href found
-            break;
+            // Only single quotes
+            ptr = href_single + 6;
+            const char* end = strchr(ptr, '\'');
+            if (end) {
+                process_extracted_url(ptr, end - ptr, base_url, base_domain, urls, url_count, max_urls);
+                ptr = end + 1;
+            } else {
+                ptr++;
+            }
         }
     }
 }
@@ -1005,7 +1001,16 @@ static int is_valid_crawl_url(const char* url, const char* base_domain) {
     
     // For medium.com URLs, add special handling
     if (strstr(url, "medium.com") != NULL) {
-        // Allow profile pages and article pages
+        // Exclude specific Medium paths that cause issues
+        if (strstr(url, "medium.com/m/signin") != NULL || 
+            strstr(url, "medium.com/m/signout") != NULL ||
+            strstr(url, "medium.com/plans") != NULL ||
+            strstr(url, "help.medium.com") != NULL ||
+            strstr(url, "policy.medium.com") != NULL) {
+            return 0;
+        }
+        
+        // Allow specific Medium paths
         if (strstr(url, "medium.com/@") != NULL ||       // Profile pages
             strstr(url, "/p/") != NULL ||                // Article pages
             strstr(url, "/tag/") != NULL ||              // Tag pages
@@ -1013,7 +1018,7 @@ static int is_valid_crawl_url(const char* url, const char* base_domain) {
             strstr(url, "medium.com/") != NULL) {        // Publication pages
             return 1;
         }
-    } else if (strstr(url, base_domain) != NULL) {
+    } else if (base_domain != NULL && strstr(url, base_domain) != NULL) {
         // For other domains, require that the URL contains our base domain
         return 1;
     }
@@ -1034,10 +1039,22 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
     
     // Normalize and add start URL to queue
     char* normalized_start_url = normalize_url(start_url);
+    if (!normalized_start_url || normalized_start_url[0] == '\0') {
+        printf("Invalid starting URL: %s\n", start_url);
+        return 0;
+    }
+    
+    // Safely add to queue
     queue[rear] = strdup(normalized_start_url);
+    if (!queue[rear]) {
+        printf("Memory allocation failed for starting URL\n");
+        return 0;
+    }
+    
     depth[rear] = 1;
     rear = (rear + 1) % MAX_URLS;
     
+    // Mark as visited
     mark_visited(normalized_start_url);
     
     printf("Starting crawl from: %s (max depth: %d, max pages: %d)\n", normalized_start_url, maxDepth, maxPages);
@@ -1091,63 +1108,134 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
             curl_easy_cleanup(curl);
             
             if (res == CURLE_OK && chunk.size > 100) {  // Ensure we have some content
-                // Save the content to a file
-                char* filename = download_url(current_url);
-                if (filename) {
-                    printf("  Downloaded to %s (%zu bytes)\n", filename, chunk.size);
-                    pages_crawled++;
-                    failed_downloads = 0;  // Reset consecutive failure counter
+                if (chunk.memory == NULL) {
+                    fprintf(stderr, "  Downloaded content is NULL for %s\n", current_url);
+                    failed_downloads++;
+                } else {
+                    // Save the content to a file, but check if we already downloaded it
+                    // to avoid processing the same content twice
+                    char* normalized_current = normalize_url(current_url);
+                    int already_processed = 0;
                     
-                    // If we have not reached max depth, extract links and add to queue
-                    if (current_depth < maxDepth) {
-                        char* extracted_urls[MAX_URLS];
-                        int url_count = 0;
-                        
-                        // Pass the current URL as base URL for relative link resolution
-                        extract_links(chunk.memory, current_url, extracted_urls, &url_count, MAX_URLS);
-                        printf("  Found %d links\n", url_count);
-                        
-                        // Add new URLs to the queue
-                        int added_urls = 0;
-                        for (int i = 0; i < url_count && rear != (front - 1 + MAX_URLS) % MAX_URLS && added_urls < 20; i++) {
-                            if (!has_visited(extracted_urls[i]) && is_valid_crawl_url(extracted_urls[i], base_domain)) {
-                                queue[rear] = extracted_urls[i];
-                                depth[rear] = current_depth + 1;
-                                rear = (rear + 1) % MAX_URLS;
-                                
-                                mark_visited(extracted_urls[i]);
-                                printf("  Queued: %s\n", extracted_urls[i]);
-                                added_urls++;
-                            } else {
-                                free(extracted_urls[i]); // Free if already visited or invalid
+                    // Verify this URL hasn't already been processed in this session
+                    for (int i = 0; i < visited_count; i++) {
+                        if (strcmp(visited_urls[i], normalized_current) == 0) {
+                            if (i < pages_crawled) {  // Only count as processed if it was successfully processed
+                                already_processed = 1;
+                                break;
                             }
                         }
-                        
-                        // Free any remaining URLs
-                        for (int i = added_urls; i < url_count; i++) {
-                            free(extracted_urls[i]);
+                    }
+                    
+                    if (already_processed) {
+                        printf("  Already processed this URL, skipping download\n");
+                        // Still count as success
+                        pages_crawled++;
+                    } else {
+                        // Download and process the URL
+                        char* filename = download_url(current_url);
+                        if (filename) {
+                            printf("  Downloaded to %s (%zu bytes)\n", filename, chunk.size);
+                            pages_crawled++;
+                            failed_downloads = 0;  // Reset consecutive failure counter
+                            
+                            // If we have not reached max depth, extract links and add to queue
+                            if (current_depth < maxDepth) {
+                                char* extracted_urls[MAX_URLS];
+                                int url_count = 0;
+                                
+                                // Pass the current URL as base URL for relative link resolution
+                                extract_links(chunk.memory, current_url, extracted_urls, &url_count, MAX_URLS);
+                                printf("  Found %d links\n", url_count);
+                                
+                                // Add new URLs to the queue
+                                int added_urls = 0;
+                                for (int i = 0; i < url_count && rear != (front - 1 + MAX_URLS) % MAX_URLS && added_urls < 20; i++) {
+                                    // Make sure URL is not NULL before proceeding
+                                    if (!extracted_urls[i]) continue;
+                                    
+                                    // First check if URL is valid for crawling before doing anything else
+                                    // This avoids unnecessary processing and potential memory issues
+                                    if (!is_valid_crawl_url(extracted_urls[i], base_domain)) {
+                                        free(extracted_urls[i]); 
+                                        extracted_urls[i] = NULL;
+                                        continue;
+                                    }
+                                    
+                                    // Check if already visited, but make a copy to compare
+                                    char* url_copy = strdup(extracted_urls[i]);
+                                    if (!url_copy) {
+                                        // Memory allocation failure, just free and continue
+                                        free(extracted_urls[i]);
+                                        extracted_urls[i] = NULL;
+                                        continue;
+                                    }
+                                    
+                                    if (has_visited(url_copy)) {
+                                        // Already visited, don't add to queue
+                                        free(url_copy);
+                                        free(extracted_urls[i]); 
+                                        extracted_urls[i] = NULL;
+                                        continue;
+                                    }
+                                    
+                                    // URL is valid and not visited, add to queue
+                                    free(url_copy); // Free the copy used for comparison
+                                    queue[rear] = extracted_urls[i];
+                                    depth[rear] = current_depth + 1;
+                                    rear = (rear + 1) % MAX_URLS;
+                                    
+                                    // Now mark it as visited
+                                    mark_visited(extracted_urls[i]);
+                                    printf("  Queued: %s\n", extracted_urls[i]);
+                                    added_urls++;
+                                    
+                                    // Mark as processed to avoid double-free
+                                    extracted_urls[i] = NULL;
+                                }
+                                
+                                // Free any remaining URLs
+                                for (int i = 0; i < url_count; i++) {
+                                    if (extracted_urls[i] != NULL) {
+                                        free(extracted_urls[i]);
+                                        extracted_urls[i] = NULL;
+                                    }
+                                }
+                            } // Close the if(current_depth < maxDepth) block
+                        } else {
+                            failed_downloads++;
+                            printf("  Failed to save content from: %s\n", current_url);
                         }
                     }
-                } else {
-                    failed_downloads++;
-                    printf("  Failed to save content from: %s\n", current_url);
-                }
+                } // Close the else block after the already_processed check
             } else {
+                fprintf(stderr, "  Failed to download or process content from: %s (size: %zu bytes)\n", 
+                        current_url, chunk.size);
                 failed_downloads++;
-                fprintf(stderr, "  Failed to download: %s - %s\n", current_url, 
-                        (res != CURLE_OK) ? curl_easy_strerror(res) : "Content too small");
             }
-            
-            free(chunk.memory);
+            // Free the memory chunk
+            if (chunk.memory) {
+                free(chunk.memory);
+                chunk.memory = NULL;
+            }
         } else {
+            fprintf(stderr, "  curl_easy_init() failed for %s\n", current_url);
             failed_downloads++;
-            fprintf(stderr, "  Failed to initialize curl for: %s\n", current_url);
         }
         
         // Add a small delay between requests to be nice to servers (200-500ms)
         usleep((rand() % 300 + 200) * 1000);
         
         free(current_url);
+    }
+    
+    // Clean up any remaining URLs in the queue
+    while (front != rear) {
+        if (queue[front] != NULL) {
+            free(queue[front]);
+            queue[front] = NULL;
+        }
+        front = (front + 1) % MAX_URLS;
     }
     
     // Clean up curl global state
