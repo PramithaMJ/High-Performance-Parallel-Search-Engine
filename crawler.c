@@ -7,6 +7,7 @@
 #include <curl/curl.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <dirent.h>    // For directory operations
 
 // Define constants - these are moved to the top for global reference
 #define MAX_URLS 1000
@@ -1118,19 +1119,160 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
                     int already_processed = 0;
                     
                     // Verify this URL hasn't already been processed in this session
-                    for (int i = 0; i < visited_count; i++) {
-                        if (strcmp(visited_urls[i], normalized_current) == 0) {
-                            if (i < pages_crawled) {  // Only count as processed if it was successfully processed
-                                already_processed = 1;
-                                break;
+                    // Check if this URL has actually been downloaded to the dataset directory
+                    char potential_filename[512];
+                    
+                    // Try to construct the potential filename for this URL
+                    if (strstr(current_url, "medium.com") != NULL) {
+                        // For Medium URLs, we need to check multiple potential filenames
+                        // First try to find it using the title
+                        struct stat st;
+                        char medium_dir_pattern[256];
+                        snprintf(medium_dir_pattern, sizeof(medium_dir_pattern), "dataset/medium_%s", strrchr(normalized_current, '@'));
+                        
+                        // Check if any file in the dataset directory matches our URL pattern
+                        DIR* dir = opendir("dataset");
+                        if (dir) {
+                            struct dirent* entry;
+                            while ((entry = readdir(dir))) {
+                                if (strstr(entry->d_name, "medium_") && 
+                                    (strstr(entry->d_name, strrchr(normalized_current, '@') ? strrchr(normalized_current, '@') + 1 : "") ||
+                                     strstr(entry->d_name, normalized_current))) {
+                                    already_processed = 1;
+                                    break;
+                                }
                             }
+                            closedir(dir);
+                        }
+                    } else {
+                        // For other URLs, try the standard filename
+                        snprintf(potential_filename, sizeof(potential_filename), "dataset/%s", get_url_filename(current_url));
+                        if (access(potential_filename, F_OK) == 0) {
+                            already_processed = 1;
                         }
                     }
                     
                     if (already_processed) {
-                        printf("  Already processed this URL, skipping download\n");
+                        printf("  Already downloaded this URL to dataset, skipping download\n");
                         // Still count as success
                         pages_crawled++;
+                        
+                        // Extract links from the page even if already downloaded
+                        if (current_depth < maxDepth) {
+                            char* extracted_urls[MAX_URLS];
+                            int url_count = 0;
+                            
+                            // Read the file from disk to extract links
+                            FILE* f = NULL;
+                            
+                            if (strstr(current_url, "medium.com") != NULL) {
+                                // We need to find the filename for medium URLs
+                                DIR* dir = opendir("dataset");
+                                if (dir) {
+                                    struct dirent* entry;
+                                    while ((entry = readdir(dir))) {
+                                        if (strstr(entry->d_name, "medium_")) {
+                                            // Open the file and check if it contains our URL
+                                            char full_path[1024];
+                                            snprintf(full_path, sizeof(full_path), "dataset/%s", entry->d_name);
+                                            FILE* check_file = fopen(full_path, "r");
+                                            if (check_file) {
+                                                char line[1024];
+                                                if (fgets(line, sizeof(line), check_file)) {
+                                                    // Check if the first line contains our URL
+                                                    if (strstr(line, current_url) != NULL) {
+                                                        fclose(check_file);
+                                                        f = fopen(full_path, "r");
+                                                        break;
+                                                    }
+                                                }
+                                                fclose(check_file);
+                                            }
+                                        }
+                                    }
+                                    closedir(dir);
+                                }
+                            } else {
+                                // For other URLs, use the standard filename
+                                char file_path[512];
+                                snprintf(file_path, sizeof(file_path), "dataset/%s", get_url_filename(current_url));
+                                f = fopen(file_path, "r");
+                            }
+                            
+                            // If we found the file, download the URL again just to extract links
+                            // but don't save it to disk
+                            if (f) {
+                                fclose(f);
+                                // Download URL temporarily to extract links
+                                CURL* link_curl = curl_easy_init();
+                                if (link_curl) {
+                                    struct MemoryStruct link_chunk;
+                                    link_chunk.memory = malloc(1);
+                                    link_chunk.size = 0;
+                                    
+                                    curl_easy_setopt(link_curl, CURLOPT_URL, current_url);
+                                    curl_easy_setopt(link_curl, CURLOPT_WRITEFUNCTION, write_data_callback);
+                                    curl_easy_setopt(link_curl, CURLOPT_WRITEDATA, (void*)&link_chunk);
+                                    curl_easy_setopt(link_curl, CURLOPT_TIMEOUT, 30L);
+                                    
+                                    CURLcode link_res = curl_easy_perform(link_curl);
+                                    curl_easy_cleanup(link_curl);
+                                    
+                                    if (link_res == CURLE_OK && link_chunk.size > 0) {
+                                        // Extract links from HTML
+                                        extract_links(link_chunk.memory, current_url, extracted_urls, &url_count, MAX_URLS);
+                                        printf("  Found %d links from already downloaded page\n", url_count);
+                                        
+                                        // Add new URLs to the queue
+                                        int added_urls = 0;
+                                        for (int i = 0; i < url_count && rear != (front - 1 + MAX_URLS) % MAX_URLS && added_urls < 20; i++) {
+                                            if (!extracted_urls[i]) continue;
+                                            
+                                            if (!is_valid_crawl_url(extracted_urls[i], base_domain)) {
+                                                free(extracted_urls[i]);
+                                                extracted_urls[i] = NULL;
+                                                continue;
+                                            }
+                                            
+                                            char* url_copy = strdup(extracted_urls[i]);
+                                            if (!url_copy) {
+                                                free(extracted_urls[i]);
+                                                extracted_urls[i] = NULL;
+                                                continue;
+                                            }
+                                            
+                                            if (has_visited(url_copy)) {
+                                                free(url_copy);
+                                                free(extracted_urls[i]);
+                                                extracted_urls[i] = NULL;
+                                                continue;
+                                            }
+                                            
+                                            free(url_copy);
+                                            queue[rear] = extracted_urls[i];
+                                            depth[rear] = current_depth + 1;
+                                            rear = (rear + 1) % MAX_URLS;
+                                            mark_visited(extracted_urls[i]);
+                                            printf("  Queued: %s\n", extracted_urls[i]);
+                                            added_urls++;
+                                            extracted_urls[i] = NULL;
+                                        }
+                                        
+                                        // Free any remaining URLs
+                                        for (int i = 0; i < url_count; i++) {
+                                            if (extracted_urls[i] != NULL) {
+                                                free(extracted_urls[i]);
+                                                extracted_urls[i] = NULL;
+                                            }
+                                        }
+                                    }
+                                    
+                                    if (link_chunk.memory) {
+                                        free(link_chunk.memory);
+                                    }
+                                }
+                            }
+                        }
                     } else {
                         // Download and process the URL
                         char* filename = download_url(current_url);
@@ -1206,8 +1348,8 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
                             failed_downloads++;
                             printf("  Failed to save content from: %s\n", current_url);
                         }
-                    }
                 } // Close the else block after the already_processed check
+            }
             } else {
                 fprintf(stderr, "  Failed to download or process content from: %s (size: %zu bytes)\n", 
                         current_url, chunk.size);
@@ -1218,9 +1360,16 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
                 free(chunk.memory);
                 chunk.memory = NULL;
             }
+            
+            
+            // Safely free the memory chunk
+            if (chunk.memory) {
+                free(chunk.memory);
+                chunk.memory = NULL;
+            }
         } else {
-            fprintf(stderr, "  curl_easy_init() failed for %s\n", current_url);
             failed_downloads++;
+            fprintf(stderr, "  Failed to initialize curl for: %s\n", current_url);
         }
         
         // Add a small delay between requests to be nice to servers (200-500ms)
