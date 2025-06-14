@@ -2,11 +2,14 @@
 #include "parser.h"
 #include <dirent.h>
 #include <stdio.h>
+#include <stdlib.h> // For free function
 #include <string.h>
+#include <libgen.h> // For basename function
 
 InvertedIndex index_data[10000];
 int index_size = 0;
 int doc_lengths[1000] = {0};
+Document documents[1000]; // Array to store document filenames
 
 int build_index(const char *folder_path)
 {
@@ -28,6 +31,14 @@ int build_index(const char *folder_path)
             printf("Processing file: %s\n", path);
             if (parse_file(path, doc_id))
             {
+                // Store the filename (basename) for this document
+                // Use a safer approach to get the filename
+                char *path_copy = strdup(path);
+                char *filename = basename(path_copy);
+                strncpy(documents[doc_id].filename, filename, MAX_FILENAME_LEN - 1);
+                documents[doc_id].filename[MAX_FILENAME_LEN - 1] = '\0';
+                free(path_copy); // Free the duplicated path
+                
                 printf("Successfully parsed file: %s (doc_id: %d)\n", path, doc_id);
                 doc_id++;
             }
@@ -94,4 +105,13 @@ int get_doc_length(int doc_id)
 int get_doc_count()
 {
     return index_size;
+}
+
+// Function to get the filename for a document ID
+const char* get_doc_filename(int doc_id)
+{
+    if (doc_id >= 0 && doc_id < 1000) {
+        return documents[doc_id].filename;
+    }
+    return "Unknown Document";
 }

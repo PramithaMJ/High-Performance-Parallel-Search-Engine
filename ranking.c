@@ -2,6 +2,9 @@
 #include "parser.h"
 #include "utils.h"
 #include "index.h"
+
+// Forward declaration of get_doc_filename
+extern const char* get_doc_filename(int doc_id);
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -69,6 +72,6 @@ void rank_bm25(const char *query, int total_docs, int top_k)
     for (int i = 0; i < top_k && i < result_count; ++i)
     {
         if (results[i].score > 0)
-            printf("Doc %d - Score: %.4f\n", results[i].doc_id, results[i].score);
+            printf("File: %s - Score: %.4f\n", get_doc_filename(results[i].doc_id), results[i].score);
     }
 }

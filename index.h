@@ -1,10 +1,18 @@
 #ifndef INDEX_H
 #define INDEX_H
 
+#define MAX_FILENAME_LEN 256
+
+// Document structure to store file names
+typedef struct {
+    char filename[MAX_FILENAME_LEN];
+} Document;
+
 int build_index(const char *folder_path);
 void add_token(const char *token, int doc_id);
 int get_doc_length(int doc_id);
 int get_doc_count();
+const char* get_doc_filename(int doc_id);
 void print_index();
 
 typedef struct

@@ -34,7 +34,7 @@ int main()
     }
     
     printf("\nSearching for: %s\n", user_query);
-    printf("\nTop results (BM25):\n");
+    printf("\nTop results:\n");
     rank_bm25(user_query, total_docs, 10);
     
     return 0;
