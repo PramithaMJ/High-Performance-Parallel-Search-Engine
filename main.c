@@ -5,6 +5,7 @@
 #include "index.h"
 #include "ranking.h"
 #include "crawler.h"
+#include "metrics.h"
 
 // Initialize stopwords
 extern int is_stopword(const char *word); // Forward declaration
@@ -34,6 +35,12 @@ extern int crawl_website(const char* start_url, int maxDepth, int maxPages);
 
 int main(int argc, char* argv[])
 {
+    // Initialize metrics
+    init_metrics();
+    
+    // Start timing total execution
+    start_timer();
+    
     // Process command line arguments
     int url_processed = 0;
     int max_depth = 2;  // Default crawl depth

@@ -2,6 +2,7 @@
 #include "parser.h"
 #include "utils.h"
 #include "index.h"
+#include "metrics.h"
 
 // Forward declaration of get_doc_filename
 extern const char* get_doc_filename(int doc_id);
@@ -25,6 +26,9 @@ int cmp(const void *a, const void *b)
 
 void rank_bm25(const char *query, int total_docs, int top_k)
 {
+    // Start timing for query processing
+    start_timer();
+    
     char query_copy[256];
     strcpy(query_copy, query);
 
