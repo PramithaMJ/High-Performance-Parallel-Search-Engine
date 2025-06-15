@@ -6,6 +6,7 @@
 #include "../include/ranking.h"
 #include "../include/crawler.h"
 #include "../include/metrics.h"
+#include "../include/benchmark.h"
 
 // Initialize stopwords
 extern int is_stopword(const char *word); // Forward declaration
@@ -181,6 +182,26 @@ int main(int argc, char* argv[])
     printf("\nSearching for: %s\n", user_query);
     printf("\nTop results (BM25):\n");
     rank_bm25(user_query, total_docs, 10); // Top 10 results
+    
+    // Calculate total execution time
+    metrics.total_time = stop_timer();
+    metrics.memory_usage_after = get_current_memory_usage();
+    
+    // Print all metrics
+    print_metrics();
+    
+    // Load baseline metrics and calculate speedup
+    init_baseline_metrics("data/serial_metrics.csv");
+    extern SpeedupMetrics speedup_metrics;  // Declare the external variable
+    calculate_speedup(&speedup_metrics);
+    
+    // Option to save current metrics as new baseline
+    char save_option;
+    printf("\nSave current performance as new baseline? (y/n): ");
+    scanf("%c", &save_option);
+    if (save_option == 'y' || save_option == 'Y') {
+        save_as_baseline("data/serial_metrics.csv");
+    }
     
     return 0;
 }

@@ -1,8 +1,8 @@
-#include "ranking.h"
-#include "parser.h"
-#include "utils.h"
-#include "index.h"
-#include "metrics.h"
+#include "../include/ranking.h"
+#include "../include/parser.h"
+#include "../include/utils.h"
+#include "../include/index.h"
+#include "../include/metrics.h"
 
 // Forward declaration of get_doc_filename
 extern const char* get_doc_filename(int doc_id);
@@ -73,6 +73,16 @@ void rank_bm25(const char *query, int total_docs, int top_k)
     }
 
     qsort(results, result_count, sizeof(Result), cmp);
+    
+    // Record query processing time
+    double query_time = stop_timer();
+    metrics.query_processing_time = query_time;
+    
+    // Record query latency for statistical purposes
+    record_query_latency(query_time);
+    
+    printf("Query processed in %.2f ms\n", query_time);
+    
     for (int i = 0; i < top_k && i < result_count; ++i)
     {
         if (results[i].score > 0)

@@ -14,6 +14,9 @@ Document documents[1000]; // Array to store document filenames
 
 int build_index(const char *folder_path)
 {
+    // Start measuring indexing time
+    start_timer();
+    
     printf("Opening directory: %s\n", folder_path);
     DIR *dir = opendir(folder_path);
     if (!dir) {
@@ -52,6 +55,14 @@ int build_index(const char *folder_path)
     }
 
     closedir(dir);
+    
+    // Record indexing time
+    metrics.indexing_time = stop_timer();
+    printf("Indexing completed for %d documents in %.2f ms\n", doc_id, metrics.indexing_time);
+    
+    // Update index statistics
+    update_index_stats(doc_id, metrics.total_tokens, index_size);
+    
     return doc_id;
 }
 
