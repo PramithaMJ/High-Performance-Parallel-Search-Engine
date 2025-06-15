@@ -1,0 +1,39 @@
+# Medium URL Memory Management Fixes
+
+## Problem Summary
+Double-free error occurs when crawling Medium URLs, especially profile URLs like https://medium.com/@lpramithamj.
+
+## Root Causes
+1. Inconsistent normalization of URLs leads to same URL being processed multiple times
+2. Thread-safety issues with URL normalization function
+3. Lack of proper validation for Medium-specific URL patterns
+4. Double-freeing of memory due to improper tracking of processed URLs
+
+## Fixed Components
+
+1. normalize_url function:
+   - Added thread-local static buffer with __thread keyword
+   - Always initialize buffer to prevent garbage data
+   - Added special handling for Medium profile URLs (@username)
+   - Improved handling of URL fragments and query parameters
+
+2. is_valid_crawl_url function:
+   - Added normalization of URLs before comparison
+   - Added exclusion of problematic Medium paths (signin, account pages)
+   - Better validation of Medium profile and article URLs
+
+3. URL processing:
+   - Added deduplication of URLs using normalized forms
+   - Added pauses between Medium URL requests to prevent rate limiting
+   - Fixed double-free issues by consistently marking processed URLs
+
+## Testing
+- Created test_medium_urls.c to verify URL normalization
+- Created test_url_normalization.c for basic URL cleanup tests
+- Test confirms proper handling of various Medium URL formats
+
+## Impact
+- Fixed medium.com/@username URL crawling
+- Eliminated double-free memory errors
+- Better URL normalization and deduplication
+- Improved rate limiting for Medium API requests
