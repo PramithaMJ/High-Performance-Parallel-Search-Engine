@@ -596,23 +596,6 @@ static void process_extracted_url(const char* url_text, int url_len, const char*
         return;
     }
     
-    // Special handling for Medium URLs
-    int is_medium_url = strstr(base_url, "medium.com") != NULL;
-    if (is_medium_url) {
-        // Check for special Medium profile cases
-        if (new_url[0] == '@') {
-            // Convert @username to full URL
-            char* absolute_url = malloc(MAX_URL_LENGTH * 2);
-            if (!absolute_url) {
-                free(new_url);
-                return;
-            }
-            sprintf(absolute_url, "https://medium.com/%s", new_url);
-            free(new_url);
-            new_url = absolute_url;
-        }
-    }
-    
     // Handle relative URLs
     if (strncmp(new_url, "http", 4) != 0) {
         // Convert relative URL to absolute URL
@@ -723,176 +706,98 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
     
     *url_count = 0;  // Initialize count
     
-    // Special handling for Medium profiles
-    int is_medium_profile = strstr(base_url, "medium.com/@") != NULL;
-    
     // Determine HTML length to divide work among threads
     size_t html_len = strlen(html);
-    int num_threads = omp_get_max_threads();
-    omp_lock_t url_lock;
-    omp_init_lock(&url_lock);
+    int chunk_size = 10000; // Process in chunks of approximately 10KB
+    int num_chunks = (html_len / chunk_size) + 1;
     
-    // For Medium profiles, use fewer threads for better link extraction
-    if (is_medium_profile && num_threads > 2) {
-        num_threads = 2; // Use fewer threads to avoid splitting link structures
-        printf("  Using %d threads for Medium profile link extraction\n", num_threads);
-    }
+    // Use a thread-local array to store URLs found by each thread
+    omp_lock_t url_count_lock;
+    omp_init_lock(&url_count_lock);
     
-    // Parallel section to extract URLs
-    #pragma omp parallel num_threads(num_threads)
+    // Parallel section to extract URLs from different parts of HTML
+    #pragma omp parallel
     {
-        // Each thread processes a section of HTML
+        const char* thread_ptr;
         int thread_id = omp_get_thread_num();
-        size_t chunk_size = html_len / num_threads;
-        size_t start_pos = thread_id * chunk_size;
-        size_t end_pos = (thread_id == num_threads - 1) ? html_len : (thread_id + 1) * chunk_size;
+        int num_threads = omp_get_num_threads();
+        size_t thread_start, thread_end;
         
-        // For all threads except first, find the first '<' character to get a clean start point
+        // Each thread processes a section of the HTML
+        thread_start = (html_len / num_threads) * thread_id;
+        thread_end = (thread_id == num_threads - 1) ? html_len : (html_len / num_threads) * (thread_id + 1);
+        
+        // Find a good starting point (beginning of a tag or text)
         if (thread_id > 0) {
-            while (start_pos < end_pos && html[start_pos] != '<')
-                start_pos++;
+            // Find the first '<' character after thread_start
+            while (thread_start < html_len && html[thread_start] != '<' && thread_start < thread_end) {
+                thread_start++;
+            }
         }
         
-        // Thread-local buffer for URLs before adding to shared list
-        char* local_urls[100];
-        int local_count = 0;
+        thread_ptr = html + thread_start;
+        const char* ptr = thread_ptr;
+        const char* end_ptr = html + thread_end;
         
-        // Search for URLs in this thread's chunk
-        const char* ptr = html + start_pos;
-        const char* end_ptr = html + end_pos;
+        // Thread local variables for extracted URLs
+        char* thread_urls[100]; // Each thread can extract up to 100 URLs
+        int thread_url_count = 0;
+    
+    while (ptr < end_ptr && *url_count < max_urls) {
+        // Look for anchor tags with href attributes (handle both quote styles)
+        const char* href_double = strstr(ptr, "href=\"");
+        const char* href_single = strstr(ptr, "href='");
+        // Look for anchor tags with href attributes (handle both quote styles)
+        const char* href_double = strstr(ptr, "href=\"");
+        const char* href_single = strstr(ptr, "href='");
         
-        // For Medium profiles, look for specific link patterns
-        if (is_medium_profile) {
-            // Medium profiles have links in different formats
-            const char* article_patterns[] = {
-                "href=\"/", 
-                "href=\"https://medium.com/",
-                "href=\"@",
-                "href=\"https://",
-                "data-action-value=\"https://medium.com/"
-            };
-            
-            for (int i = 0; i < sizeof(article_patterns)/sizeof(article_patterns[0]); i++) {
-                const char* search_ptr = ptr;
-                while (search_ptr < end_ptr && local_count < 100) {
-                    const char* pattern_start = strstr(search_ptr, article_patterns[i]);
-                    if (!pattern_start || pattern_start >= end_ptr) break;
-                    
-                    // Find the starting position after the pattern
-                    const char* url_start = pattern_start + strlen(article_patterns[i]);
-                    if (strcmp(article_patterns[i], "href=\"/") == 0) {
-                        // Special case for relative URLs
-                        char rel_url[MAX_URL_LENGTH] = "https://medium.com";
-                        strncat(rel_url, url_start - 1, MAX_URL_LENGTH - strlen(rel_url) - 1);
-                        const char* quote_end = strchr(rel_url, '"');
-                        if (quote_end) {
-                            ((char*)quote_end)[0] = '\0'; // Remove end quote
-                            
-                            // Process the relative URL if it's valid
-                            if (strlen(rel_url) > strlen("https://medium.com")) {
-                                process_extracted_url(rel_url, strlen(rel_url), base_url, base_domain, 
-                                                     local_urls, &local_count, 100);
-                            }
-                        }
-                    } else if (strncmp(article_patterns[i], "href=\"@", 7) == 0) {
-                        // Handle username references
-                        char username_url[MAX_URL_LENGTH] = "https://medium.com/";
-                        strncat(username_url, url_start - 1, MAX_URL_LENGTH - strlen(username_url) - 1);
-                        const char* quote_end = strchr(username_url, '"');
-                        if (quote_end) {
-                            ((char*)quote_end)[0] = '\0'; // Remove end quote
-                            process_extracted_url(username_url, strlen(username_url), base_url, base_domain, 
-                                                local_urls, &local_count, 100);
-                        }
-                    } else {
-                        // Regular URL handling
-                        const char* url_end = strchr(url_start, '"');
-                        if (url_end && url_end < end_ptr) {
-                            int url_len = url_end - url_start;
-                            if (url_len > 0 && url_len < MAX_URL_LENGTH) {
-                                process_extracted_url(url_start, url_len, base_url, base_domain, 
-                                                    local_urls, &local_count, 100);
-                            }
-                        }
-                    }
-                    
-                    // Move past this URL for next iteration
-                    search_ptr = url_start + 1;
+        if (!href_double && !href_single) break;  // No more links
+        
+        // Find which quote style appears first
+        if (href_double && href_single) {
+            if (href_double < href_single) {
+                // Double quote comes first
+                ptr = href_double + 6;  // Move past href="
+                const char* end = strchr(ptr, '\"');
+                if (end) {
+                    process_extracted_url(ptr, end - ptr, base_url, base_domain, urls, url_count, max_urls);
+                    ptr = end + 1;
+                } else {
+                    ptr++;  // No end quote found, move forward
                 }
+            } else {
+                // Single quote comes first
+                ptr = href_single + 6;  // Move past href='
+                const char* end = strchr(ptr, '\'');
+                if (end) {
+                    process_extracted_url(ptr, end - ptr, base_url, base_domain, urls, url_count, max_urls);
+                    ptr = end + 1;
+                } else {
+                    ptr++;  // No end quote found, move forward
+                }
+            }
+        } else if (href_double) {
+            // Only double quotes
+            ptr = href_double + 6;
+            const char* end = strchr(ptr, '\"');
+            if (end) {
+                process_extracted_url(ptr, end - ptr, base_url, base_domain, urls, url_count, max_urls);
+                ptr = end + 1;
+            } else {
+                ptr++;
             }
         } else {
-            // Regular URL extraction for non-Medium profiles
-            while (ptr < end_ptr && local_count < 100) {
-                // Look for href attributes
-                const char* href_start = NULL;
-                const char* href_end = NULL;
-                
-                // Search for "href=" in both quote styles
-                const char* href_double = strstr(ptr, "href=\"");
-                const char* href_single = strstr(ptr, "href='");
-                
-                if (!href_double && !href_single) break;
-                
-                if (href_double && href_single) {
-                    // Use whichever comes first
-                    if (href_double < href_single) {
-                        href_start = href_double + 6;  // Skip past href="
-                        href_end = strchr(href_start, '"');
-                    } else {
-                        href_start = href_single + 6;  // Skip past href='
-                        href_end = strchr(href_start, '\'');
-                    }
-                } else if (href_double) {
-                    href_start = href_double + 6;
-                    href_end = strchr(href_start, '"');
-                } else {
-                    href_start = href_single + 6;
-                    href_end = strchr(href_start, '\'');
-                }
-                
-                // If we found both start and end of the URL and it's within our chunk
-                if (href_start && href_end && href_end < end_ptr) {
-                    int url_len = href_end - href_start;
-                    if (url_len > 0 && url_len < MAX_URL_LENGTH) {
-                        process_extracted_url(href_start, url_len, base_url, base_domain, 
-                                            local_urls, &local_count, 100);
-                    }
-                    ptr = href_end + 1;  // Move past this URL
-                } else {
-                    // If we found the start but not the end within this chunk
-                    if (href_start && !href_end) {
-                        ptr = end_ptr;  // End processing for this thread
-                    } else {
-                        ptr++;  // Move forward one character
-                    }
-                }
-            }
-        }
-        
-        // After processing, merge thread-local URLs into the global list with lock protection
-        if (local_count > 0) {
-            omp_set_lock(&url_lock);
-            for (int i = 0; i < local_count && *url_count < max_urls; i++) {
-                if (local_urls[i]) {
-                    urls[*url_count] = local_urls[i];
-                    (*url_count)++;
-                    local_urls[i] = NULL; // Prevent double-free
-                }
-            }
-            omp_unset_lock(&url_lock);
-            
-            // Free any remaining URLs that didn't make it to the global list
-            for (int i = 0; i < local_count; i++) {
-                if (local_urls[i]) {
-                    free(local_urls[i]);
-                    local_urls[i] = NULL;
-                }
+            // Only single quotes
+            ptr = href_single + 6;
+            const char* end = strchr(ptr, '\'');
+            if (end) {
+                process_extracted_url(ptr, end - ptr, base_url, base_domain, urls, url_count, max_urls);
+                ptr = end + 1;
+            } else {
+                ptr++;
             }
         }
     }
-    
-    // Clean up
-    omp_destroy_lock(&url_lock);
 }
 
 // Function to extract page title from HTML
@@ -1158,12 +1063,7 @@ static int is_valid_crawl_url(const char* url, const char* base_domain) {
             strstr(url, "medium.com/m/signout") != NULL ||
             strstr(url, "medium.com/plans") != NULL ||
             strstr(url, "help.medium.com") != NULL ||
-            strstr(url, "policy.medium.com") != NULL ||
-            strstr(url, "statuspage.medium.com") != NULL ||
-            strstr(url, "medium.com/about") != NULL ||
-            strstr(url, "medium.com/jobs") != NULL ||
-            strstr(url, "medium.com/_/graphql") != NULL ||
-            strstr(url, "cdn-client.medium.com") != NULL) {
+            strstr(url, "policy.medium.com") != NULL) {
             return 0;
         }
         
@@ -1238,61 +1138,48 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
     // Start crawling in parallel
     #pragma omp parallel num_threads(num_threads) shared(queue, depth, front, rear, pages_crawled, failed_downloads, queue_lock)
     {
-        while (1) {
-            char* current_url = NULL;
-            int current_depth = 0;
-            int thread_id = omp_get_thread_num();
-            int should_continue = 0;
-            
-            // Critical section for getting a URL from the queue - only one thread at a time
-            omp_set_lock(&queue_lock);
-            if (front != rear && pages_crawled < maxPages && failed_downloads < 10) {
-                // Get a URL from the queue
-                current_url = queue[front];
-                current_depth = depth[front];
-                front = (front + 1) % MAX_URLS;
-                should_continue = 1;
-                
-                // Increment the pages crawled counter safely
-                pages_crawled++;
-            }
-            omp_unset_lock(&queue_lock);
-            
-            // If there's no URL to process, exit the thread's loop
-            if (!should_continue) {
-                break;
-            }
-            
-            // Skip invalid URLs or already processed ones
-            if (!is_valid_crawl_url(current_url, base_domain)) {
-                printf("  Thread %d: Skipping invalid URL: %s\n", thread_id, current_url);
-                free(current_url);
-                continue;
-            }
-            
-            printf("\nThread %d crawling [%d/%d]: %s (depth %d/%d)\n", 
-                   thread_id, pages_crawled, maxPages, current_url, current_depth, maxDepth);
-            
-            // Download the URL content
-            struct MemoryStruct chunk;
-            chunk.memory = malloc(1);
-            chunk.size = 0;
+    while (1) {
+        char* current_url = NULL;
+        int current_depth = 0;
         
-            CURL* curl = curl_easy_init();
-            if (curl) {
-                curl_easy_setopt(curl, CURLOPT_URL, current_url);
-                curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data_callback);
-                curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&chunk);
-                curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-                curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (compatible; SearchEngine-Crawler/1.1)");
-                curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
-                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);  // Disable SSL verification for simplicity
-                
-                // Add headers to mimic a browser request
-                struct curl_slist *headers = NULL;
-                headers = curl_slist_append(headers, "Accept: text/html,application/xhtml+xml,application/xml");
-                headers = curl_slist_append(headers, "Accept-Language: en-US,en;q=0.9");
-                curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        // Critical section for getting a URL from the queue - only one thread at a time
+        #pragma omp critical(queue_access)
+        {
+            if (front != rear && pages_crawled < maxPages && failed_downloads < 10) {
+        // Get a URL from the queue
+        char* current_url = queue[front];
+        int current_depth = depth[front];
+        front = (front + 1) % MAX_URLS;
+        
+        // Skip invalid URLs or already processed ones
+        if (!is_valid_crawl_url(current_url, base_domain)) {
+            printf("  Skipping invalid URL: %s\n", current_url);
+            free(current_url);
+            continue;
+        }
+        
+        printf("\nCrawling [%d/%d]: %s (depth %d/%d)\n", pages_crawled + 1, maxPages, current_url, current_depth, maxDepth);
+        
+        // Download the URL content
+        struct MemoryStruct chunk;
+        chunk.memory = malloc(1);
+        chunk.size = 0;
+        
+        CURL* curl = curl_easy_init();
+        if (curl) {
+            curl_easy_setopt(curl, CURLOPT_URL, current_url);
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data_callback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&chunk);
+            curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+            curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (compatible; SearchEngine-Crawler/1.1)");
+            curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);  // Disable SSL verification for simplicity
+            
+            // Add headers to mimic a browser request
+            struct curl_slist *headers = NULL;
+            headers = curl_slist_append(headers, "Accept: text/html,application/xhtml+xml,application/xml");
+            headers = curl_slist_append(headers, "Accept-Language: en-US,en;q=0.9");
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
             
             CURLcode res = curl_easy_perform(curl);
             curl_slist_free_all(headers);
@@ -1545,6 +1432,13 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
                         current_url, chunk.size);
                 failed_downloads++;
             }
+            // Free the memory chunk
+            if (chunk.memory) {
+                free(chunk.memory);
+                chunk.memory = NULL;
+            }
+            
+            
             // Safely free the memory chunk
             if (chunk.memory) {
                 free(chunk.memory);
@@ -1559,8 +1453,8 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
         usleep((rand() % 300 + 200) * 1000);
         
         free(current_url);
-        } // End of while(1) loop
-    } // End of parallel region
+    }
+    }
     
     // Clean up any remaining URLs in the queue
     while (front != rear) {

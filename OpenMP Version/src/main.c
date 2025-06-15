@@ -23,6 +23,8 @@ void print_usage(const char* program_name) {
     printf("  -m USER    Crawl Medium profile for user (e.g., -m @username)\n");
     printf("  -d NUM     Maximum crawl depth (default: 2)\n");
     printf("  -p NUM     Maximum pages to crawl (default: 10)\n");
+    printf("  -t NUM     Set number of OpenMP threads for parallel processing\n");
+    printf("  -i         Print OpenMP information (threads, etc.)\n");
     printf("  -h         Show this help message\n");
     printf("\n");
     printf("Examples:\n");
@@ -46,6 +48,7 @@ int main(int argc, char* argv[])
     int url_processed = 0;
     int max_depth = 2;  // Default crawl depth
     int max_pages = 10; // Default max pages to crawl
+    int thread_count = 4; // Default number of threads
     
     // First clear any existing index to make sure we rebuild it from scratch
     extern void clear_index(); // Forward declaration for the function we'll add
@@ -142,6 +145,20 @@ int main(int argc, char* argv[])
             }
             
             i++; // Skip the username parameter
+        } else if (strcmp(argv[i], "-t") == 0 && i + 1 < argc) {
+            // Set number of OpenMP threads for parallel processing
+            thread_count = atoi(argv[i+1]);
+            if (thread_count < 1) thread_count = 1;
+            
+            // Forward declaration of the function to set thread count
+            extern void set_thread_count(int num_threads);
+            set_thread_count(thread_count);
+            printf("Set OpenMP thread count to: %d\n", thread_count);
+            i++;
+        } else if (strcmp(argv[i], "-i") == 0) {
+            // Print OpenMP information
+            extern void print_thread_info();
+            print_thread_info();
         } else if (strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
             return 0;
