@@ -1,6 +1,6 @@
-CC=gcc
-CFLAGS=-Wall -O2
-LDFLAGS=`pkg-config --libs libcurl`
+CC=/opt/homebrew/bin/gcc-14
+CFLAGS=-Wall -O2 -fopenmp
+LDFLAGS=`pkg-config --libs libcurl` -fopenmp
 CPPFLAGS=`pkg-config --cflags libcurl`
 
 # Directories
