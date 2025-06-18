@@ -1,0 +1,20 @@
+{
+    "configurations": [
+        {
+            "name": "Mac",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "/opt/homebrew/include"
+            ],
+            "defines": [
+                "_OPENMP"
+            ],
+            "compilerPath": "/opt/homebrew/bin/gcc-14",
+            "cStandard": "c17",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "macos-gcc-arm64",
+            "compilerArgs": ["-fopenmp"]
+        }
+    ],
+    "version": 4
+}

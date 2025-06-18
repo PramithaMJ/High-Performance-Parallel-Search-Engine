@@ -3,7 +3,11 @@
 #include "../include/utils.h"
 #include "../include/index.h"
 #include "../include/metrics.h"
-#include <omp.h>
+
+// Conditionally include OpenMP header
+#ifdef _OPENMP
+  #include <omp.h>
+#endif
 
 // Forward declaration of get_doc_filename
 extern const char* get_doc_filename(int doc_id);
