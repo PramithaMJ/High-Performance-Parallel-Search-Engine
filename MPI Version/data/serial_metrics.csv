@@ -1,0 +1,11 @@
+Metric,Value
+CrawlingTime_ms,29750.90
+ParsingTime_ms,0.03
+TokenizingTime_ms,0.02
+IndexingTime_ms,0.01
+QueryProcessingTime_ms,7.14
+TotalExecutionTime_ms,7.30
+MemoryUsage_KB,21446656
+Documents,12
+UniqueTerms,2016
+AvgQueryLatency_ms,7.14
