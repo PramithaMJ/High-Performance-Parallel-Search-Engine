@@ -199,4 +199,19 @@ function initializeTabSystem() {
             }
         }
     });
+    
+    // Special handling for the search tab to ensure search functionality works properly
+    const searchTab = document.getElementById('search-engine');
+    if (searchTab) {
+        searchTab.addEventListener('tab.shown', function() {
+            console.log('Search tab shown - ensuring search functionality is ready');
+            // Make sure the search input is focused when this tab is shown
+            const searchInput = document.querySelector('.search-input');
+            if (searchInput) {
+                setTimeout(() => {
+                    searchInput.focus();
+                }, 200);
+            }
+        });
+    }
 }

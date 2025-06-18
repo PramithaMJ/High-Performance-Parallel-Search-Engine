@@ -96,13 +96,19 @@ def run_search_engine(version, query, options=None):
     # Start timing
     start_time = time.time()
     
+    # Determine timeout based on options
+    search_timeout = 120  # Default timeout (already increased from 30)
+    if options and options.get('extendedTimeout'):
+        search_timeout = 240  # Extended timeout for complex searches (4 minutes)
+        print(f"Using extended timeout of {search_timeout} seconds for search: {query}")
+    
     try:
-        # Run the command
+        # Run the command with appropriate timeout
         process = subprocess.run(
             cmd,
             text=True,
             capture_output=True,
-            timeout=30  # 30 second timeout
+            timeout=search_timeout
         )
         
         # End timing
@@ -176,8 +182,19 @@ def run_search_engine(version, query, options=None):
             "results": results
         }
     except subprocess.TimeoutExpired:
+        error_message = f"Process timed out after {search_timeout} seconds"
+        # Provide more detailed error information for timeouts
+        if options and options.get('dataSource') == 'crawl':
+            crawl_url = options.get('crawlUrl', 'unknown URL')
+            crawl_depth = options.get('crawlDepth', 'unknown depth')
+            error_message += f" while crawling {crawl_url} with depth {crawl_depth}"
+        
+        print(f"SEARCH ERROR: {error_message} for query: {query}")
         return {
-            "error": f"Process timed out after 30 seconds"
+            "error": error_message,
+            "query": query,
+            "version": version,
+            "recommendation": "Try using a more specific query or reducing crawl depth"
         }
     except Exception as e:
         return {
@@ -216,10 +233,22 @@ def search():
     data = request.json
     version = data.get('version', 'serial')
     query = data.get('query', '')
-    options = data.get('options', None)
+    options = data.get('options', {})
     
     if not query:
         return jsonify({"error": "No query provided"})
+    
+    # Check if this is a retry with extended timeout
+    extended_timeout = options.get('extendedTimeout', False)
+    
+    # Run search with appropriate timeout
+    if extended_timeout:
+        print(f"Running search with extended timeout: {query}")
+        # Pass extended timeout option to search engine
+        if options is None:
+            options = {'extendedTimeout': True}
+        else:
+            options['extendedTimeout'] = True
     
     result = run_search_engine(version, query, options)
     return jsonify(result)

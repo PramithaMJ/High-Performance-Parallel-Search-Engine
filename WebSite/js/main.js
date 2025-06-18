@@ -742,7 +742,31 @@ function executeSearch(query) {
         if (data.error) {
             const errorAlert = document.createElement('div');
             errorAlert.className = 'alert alert-danger';
-            errorAlert.textContent = `Error: ${data.error}`;
+            
+            let errorMessage = data.error;
+            let troubleshootingTips = '';
+            
+            // Provide specific help for common errors
+            if (data.error.includes('timed out')) {
+                errorMessage = `Search timed out. The query may be too complex or the data source too large.`;
+                troubleshootingTips = `
+                    <ul>
+                        <li>Try a more specific search query</li>
+                        <li>Reduce the crawl depth or max pages if using web crawling</li>
+                        <li>Try the OpenMP or MPI version for better performance</li>
+                        <li>If searching a custom dataset, check its size</li>
+                    </ul>
+                `;
+            }
+            
+            errorAlert.innerHTML = `
+                <h5>Error: ${errorMessage}</h5>
+                ${troubleshootingTips}
+                <button class="btn btn-sm btn-outline-primary mt-2" onclick="retryWithLongerTimeout()">
+                    Retry with longer timeout
+                </button>
+            `;
+            
             resultList.appendChild(errorAlert);
             resultCount.textContent = "0 results";
             resultTime.textContent = "in 0.00 ms";
