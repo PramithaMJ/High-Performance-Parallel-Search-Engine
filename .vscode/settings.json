@@ -1,0 +1,12 @@
+{
+    "C_Cpp.default.compilerPath": "/opt/homebrew/bin/gcc-14",
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/**",
+        "/opt/homebrew/include"
+    ],
+    "C_Cpp.default.defines": ["_OPENMP"],
+    "C_Cpp.default.cStandard": "c17",
+    "C_Cpp.default.cppStandard": "c++17",
+    "C_Cpp.default.compilerArgs": ["-fopenmp"],
+    "C_Cpp.intelliSenseEngine": "default"
+}
