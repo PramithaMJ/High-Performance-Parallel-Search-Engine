@@ -85,7 +85,13 @@ def run_search_engine(version, query, options=None):
         
         # Add crawl URL if specified
         if options.get("dataSource") == "crawl" and "crawlUrl" in options:
+            print(f"Crawling URL: {options['crawlUrl']}")
             cmd.extend(["-c", options["crawlUrl"]])
+            # Add crawl depth and max pages if specified
+            if "crawlDepth" in options:
+                cmd.extend(["-d", str(options["crawlDepth"])])
+            if "crawlMaxPages" in options:
+                cmd.extend(["-p", str(options["crawlMaxPages"])])
     
     # Start timing
     start_time = time.time()

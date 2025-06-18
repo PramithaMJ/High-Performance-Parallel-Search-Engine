@@ -1,4 +1,25 @@
 document.addEventListener('DOMContentLoaded', function() {
+    // First check that the DOM is fully loaded
+    console.log("DOM content loaded, initializing dashboard...");
+    
+    // Ensure Bootstrap is loaded before initializing tabs
+    if (typeof bootstrap === 'undefined') {
+        console.error("Bootstrap is not available. Loading fallback...");
+        // Create script element for Bootstrap
+        const bootstrapScript = document.createElement('script');
+        bootstrapScript.src = 'https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js';
+        bootstrapScript.onload = function() {
+            console.log("Bootstrap loaded dynamically. Initializing tab system...");
+            initializeTabSystem();
+        };
+        document.head.appendChild(bootstrapScript);
+    } else {
+        // Initialize our custom tab system
+        // This fixes the "Uncaught TypeError: Illegal invocation" error in selector-engine.js
+        console.log("Bootstrap already loaded. Initializing tab system...");
+        initializeTabSystem();
+    }
+    
     // Sidebar toggle
     document.getElementById('sidebarCollapse').addEventListener('click', function() {
         document.getElementById('sidebar').classList.toggle('active');
@@ -547,24 +568,65 @@ function setupEventHandlers() {
         });
     }
 
-    // Search button in the search engine tab
-    const searchButton = document.querySelector('.search-input + button');
+    // Search button in the search engine tab - using ID selector to avoid jQuery selector issues
+    const searchButton = document.getElementById('searchButton');
     if (searchButton) {
         searchButton.addEventListener('click', function() {
-            const query = document.querySelector('.search-input').value;
+            const searchInput = document.querySelector('.search-input');
+            const query = searchInput ? searchInput.value : '';
             if (query) {
                 executeSearch(query);
             }
         });
+    }
 
-        // Also add enter key handling for the search input
-        document.querySelector('.search-input').addEventListener('keypress', function(e) {
+    // Also add enter key handling for the search input
+    const searchInput = document.querySelector('.search-input');
+    if (searchInput) {
+        searchInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
-                const query = document.querySelector('.search-input').value;
+                const query = this.value;
                 if (query) {
                     executeSearch(query);
                 }
             }
+        });
+    }
+    
+    // Compare button in the compare tab
+    const compareButton = document.querySelector('#compare .btn-primary');
+    if (compareButton) {
+        compareButton.addEventListener('click', function() {
+            // Get selected query set and comparison type
+            const querySetSelect = document.querySelector('#compare .form-select:first-of-type');
+            const compTypeSelect = document.querySelector('#compare .form-select:nth-of-type(2)');
+            
+            let querySet = 'default';
+            if (querySetSelect) {
+                const selectedOption = querySetSelect.options[querySetSelect.selectedIndex].text.toLowerCase();
+                if (selectedOption.includes('simple')) {
+                    querySet = 'simple';
+                } else if (selectedOption.includes('complex')) {
+                    querySet = 'complex';
+                } else if (selectedOption.includes('custom')) {
+                    querySet = 'custom';
+                }
+            }
+            
+            let comparisonType = 'performance';
+            if (compTypeSelect) {
+                const selectedOption = compTypeSelect.options[compTypeSelect.selectedIndex].text.toLowerCase();
+                if (selectedOption.includes('memory')) {
+                    comparisonType = 'memory';
+                } else if (selectedOption.includes('scaling')) {
+                    comparisonType = 'scaling';
+                } else if (selectedOption.includes('all')) {
+                    comparisonType = 'all';
+                }
+            }
+            
+            // Run the comparison
+            runComparison(querySet, comparisonType);
         });
     }
 
@@ -573,6 +635,19 @@ function setupEventHandlers() {
         this.querySelector('i').classList.toggle('fa-chevron-up');
         this.querySelector('i').classList.toggle('fa-chevron-down');
     });
+    
+    // Data source selection handler
+    const dataSourceSelect = document.getElementById('dataSource');
+    if (dataSourceSelect) {
+        dataSourceSelect.addEventListener('change', function() {
+            const crawlOptions = document.querySelector('.crawl-options');
+            if (this.value === 'crawl') {
+                crawlOptions.style.display = 'flex';
+            } else {
+                crawlOptions.style.display = 'none';
+            }
+        });
+    }
 }
 
 // Function to add a line to the terminal
@@ -586,10 +661,51 @@ function addTerminalLine(container, text) {
 
 // Function to execute a search
 function executeSearch(query) {
-    const engineVersion = document.querySelector('input[name="engineVersion"]:checked').value;
+    // Get the selected engine version safely
+    let engineVersion = 'serial'; // Default to serial
+    const selectedEngine = document.querySelector('input[name="engineVersion"]:checked');
+    if (selectedEngine) {
+        engineVersion = selectedEngine.value;
+    }
+    
+    // Get result containers safely
     const resultList = document.querySelector('.result-list');
     const resultCount = document.querySelector('.result-count');
     const resultTime = document.querySelector('.result-time');
+    
+    // Get advanced options safely with defaults
+    const numThreads = document.getElementById('numThreads')?.value || '4';
+    const numProcesses = document.getElementById('numProcesses')?.value || '4';
+    const resultLimit = document.getElementById('resultLimit')?.value || '10';
+    const dataSourceElement = document.getElementById('dataSource');
+    const dataSource = dataSourceElement ? dataSourceElement.value : 'dataset';
+    const crawlUrl = document.getElementById('crawlUrl')?.value || '';
+    const measurePerformance = document.getElementById('measurePerformance')?.checked || false;
+    
+    // Prepare options
+    const options = {
+        threads: parseInt(numThreads),
+        processes: parseInt(numProcesses),
+        limit: parseInt(resultLimit),
+        dataSource: dataSource
+    };
+    
+    // Add crawl URL and options if using web crawl
+    if (dataSource === 'crawl' && crawlUrl) {
+        options.crawlUrl = crawlUrl;
+        
+        // Add crawl depth and max pages
+        const crawlDepth = document.getElementById('crawlDepth');
+        const crawlMaxPages = document.getElementById('crawlMaxPages');
+        
+        if (crawlDepth) {
+            options.crawlDepth = parseInt(crawlDepth.value);
+        }
+        
+        if (crawlMaxPages) {
+            options.crawlMaxPages = parseInt(crawlMaxPages.value);
+        }
+    }
     
     // Clear previous results
     resultList.innerHTML = '';
@@ -600,84 +716,90 @@ function executeSearch(query) {
     loading.innerHTML = '<div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div><p class="mt-2">Searching...</p>';
     resultList.appendChild(loading);
     
-    // Simulate search delay
-    setTimeout(function() {
+    // Make API call to the search endpoint
+    fetch('/api/search', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            version: engineVersion,
+            query: query,
+            options: options
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok ' + response.statusText);
+        }
+        return response.json();
+    })
+    .then(data => {
         // Remove loading
         resultList.innerHTML = '';
         
-        // Get execution time based on version
-        let execTime = 0;
-        switch(engineVersion) {
-            case 'serial':
-                execTime = 365.2;
-                break;
-            case 'openmp':
-                execTime = 124.6;
-                break;
-            case 'mpi':
-                execTime = 78.3;
-                break;
+        // Check for errors
+        if (data.error) {
+            const errorAlert = document.createElement('div');
+            errorAlert.className = 'alert alert-danger';
+            errorAlert.textContent = `Error: ${data.error}`;
+            resultList.appendChild(errorAlert);
+            resultCount.textContent = "0 results";
+            resultTime.textContent = "in 0.00 ms";
+            return;
         }
         
         // Update result info
-        resultCount.textContent = "5 results";
-        resultTime.textContent = `in ${execTime.toFixed(2)} ms`;
+        const resultCountElement = document.querySelector('.result-count');
+        const resultTimeElement = document.querySelector('.result-time');
+        const resultsCount = data.results ? data.results.length : 0;
+        const execTime = data.execution_time_ms || 0;
         
-        // Sample results
-        const results = [
-            {
-                title: "Distributed Tracing with Zipkin in Microservices",
-                path: "dataset/medium_trace_the_path_distributed_tracing_with_zipkin_in_microservices-1__by_pramitha_jayasooriya__medium.txt",
-                snippet: "...OpenTracing provides a way to trace requests through microservices architecture. Zipkin is one of the most popular distributed tracing systems that implements the OpenTracing specification...",
-                score: 0.95,
-                terms: 6
-            },
-            {
-                title: "Circuit Breaker Pattern in Microservices",
-                path: "dataset/medium_why_do_we_need_to_use_circuit_bracker_pattern_inside_microservices__by_pramitha_jayasooriya__medium.txt",
-                snippet: "...The Circuit Breaker pattern prevents an application from performing operations that are likely to fail, protecting the system from cascading failures...",
-                score: 0.87,
-                terms: 5
-            },
-            {
-                title: "The Race to 1M Tasks: Benchmarking 1 Million Concurrent Tasks",
-                path: "dataset/medium_the_race_to_1m_tasks_benchmarking_1_million_concurrent_tasks__by_pramitha_jayasooriya__medium.txt",
-                snippet: "...Benchmarking distributed systems at scale presents unique challenges. This article explores techniques for accurately measuring the performance of systems handling millions of concurrent tasks...",
-                score: 0.78,
-                terms: 4
-            },
-            {
-                title: "Think Parallel, Compute Faster: ISPC and SPMD",
-                path: "dataset/medium_think_parallel_compute_faster_ispc_and_spmd__by_pramitha_jayasooriya__may_2025__medium.txt",
-                snippet: "...SPMD (Single Program, Multiple Data) is a parallel programming technique where the same program runs on multiple processors but operates on different data sets...",
-                score: 0.72,
-                terms: 3
-            },
-            {
-                title: "Between You and the Web: Decoding Forward and Reverse Proxies",
-                path: "dataset/medium_between_you_and_the_web_decoding_forward_and_reverse_proxies__by_pramitha_jayasooriya__medium.txt",
-                snippet: "...Proxies serve as intermediaries between clients and servers, providing benefits like caching, load balancing, and security. They can be configured for different distributed system architectures...",
-                score: 0.65,
-                terms: 2
+        if (resultCountElement) {
+            resultCountElement.textContent = `${resultsCount} results`;
+        }
+        
+        if (resultTimeElement) {
+            resultTimeElement.textContent = `in ${execTime.toFixed(2)} ms`;
+        }
+        
+        // Display results
+        if (data.results && data.results.length > 0) {
+            data.results.forEach(function(result) {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'result-item';
+                resultItem.innerHTML = `
+                    <div class="result-title">${result.title || 'Untitled Document'}</div>
+                    <div class="result-path">${result.path || 'No path available'}</div>
+                    <div class="result-snippet">${result.snippet || 'No snippet available'}</div>
+                    <div class="result-meta">
+                        <span><strong>Score:</strong> ${(result.score || 0).toFixed(2)}</span>
+                    </div>
+                `;
+                resultList.appendChild(resultItem);
+            });
+            
+            // If we're measuring performance, record it
+            if (measurePerformance && data.metrics) {
+                updatePerformanceCharts(engineVersion, data.metrics);
             }
-        ];
-        
-        // Add results to the list
-        results.forEach(function(result) {
-            const resultItem = document.createElement('div');
-            resultItem.className = 'result-item';
-            resultItem.innerHTML = `
-                <div class="result-title">${result.title}</div>
-                <div class="result-path">${result.path}</div>
-                <div class="result-snippet">${result.snippet}</div>
-                <div class="result-meta">
-                    <span><strong>Score:</strong> ${result.score.toFixed(2)}</span>
-                    <span><strong>Matching Terms:</strong> ${result.terms}</span>
-                </div>
-            `;
-            resultList.appendChild(resultItem);
-        });
-    }, 1500); // Simulate search delay of 1.5 seconds
+        } else {
+            const noResults = document.createElement('div');
+            noResults.className = 'alert alert-info';
+            noResults.textContent = 'No results found for your query.';
+            resultList.appendChild(noResults);
+        }
+    })
+    .catch(error => {
+        console.error('Error during search:', error);
+        resultList.innerHTML = '';
+        const errorAlert = document.createElement('div');
+        errorAlert.className = 'alert alert-danger';
+        errorAlert.textContent = `Search failed: ${error.message}`;
+        resultList.appendChild(errorAlert);
+        resultCount.textContent = "0 results";
+        resultTime.textContent = "in 0.00 ms";
+    });
 }
 
 // Simulate search functionality
