@@ -1,7 +1,7 @@
 CC=/opt/homebrew/bin/gcc-14
-CFLAGS=-Wall -O2 -fopenmp
-LDFLAGS=`pkg-config --libs libcurl` -fopenmp
-CPPFLAGS=`pkg-config --cflags libcurl`
+CFLAGS=-Wall -O2 -fopenmp -I/opt/homebrew/opt/libomp/include -Xpreprocessor -fopenmp
+LDFLAGS=`pkg-config --libs libcurl` -fopenmp -L/opt/homebrew/opt/libomp/lib -lomp
+CPPFLAGS=`pkg-config --cflags libcurl` -I/opt/homebrew/opt/libomp/include
 
 # Directories
 SRC_DIR=src

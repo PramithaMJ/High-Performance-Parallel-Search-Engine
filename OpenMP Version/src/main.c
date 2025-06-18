@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <omp.h>      // OpenMP for parallel processing
 #include "../include/parser.h"
 #include "../include/index.h"
 #include "../include/ranking.h"
@@ -150,10 +151,16 @@ int main(int argc, char* argv[])
             thread_count = atoi(argv[i+1]);
             if (thread_count < 1) thread_count = 1;
             
-            // Forward declaration of the function to set thread count
-            extern void set_thread_count(int num_threads);
-            set_thread_count(thread_count);
-            printf("Set OpenMP thread count to: %d\n", thread_count);
+            // Set OpenMP thread count globally
+            omp_set_num_threads(thread_count);
+            
+            // Disable dynamic adjustment for more consistent thread allocation
+            omp_set_dynamic(0);
+            
+            // Enable nested parallelism if available
+            omp_set_nested(1);
+            
+            printf("Set OpenMP thread count to: %d (dynamic threads disabled)\n", thread_count);
             i++;
         } else if (strcmp(argv[i], "-i") == 0) {
             // Print OpenMP information

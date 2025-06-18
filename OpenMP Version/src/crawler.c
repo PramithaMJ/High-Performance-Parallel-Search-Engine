@@ -1,15 +1,29 @@
 #include "../include/crawler.h"
-#include "../include/metrics.h"   // For performance metrics
+#include "../include/metrics.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <strings.h>  // For strcasecmp
+#include <strings.h>
 #include <curl/curl.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>    // For directory operations
-#include <omp.h>       // OpenMP for parallel processing
+#include <time.h>      // For thread-specific random seeding
+#include <math.h>      // For pow(), sqrt() in thread statistics
+#include <limits.h>    // For INT_MAX constant
+
+// On macOS we need special handling for OpenMP
+#ifdef __APPLE__
+  #include <TargetConditionals.h>
+  #if TARGET_OS_MAC
+    #include </opt/homebrew/opt/libomp/include/omp.h>
+  #else
+    #include <omp.h>
+  #endif
+#else
+  #include <omp.h>    // OpenMP for parallel processing
+#endif
 
 // Define constants - these are moved to the top for global reference
 #define MAX_URLS 1000
@@ -21,6 +35,8 @@ static char* extract_base_domain(const char* url);
 static int has_visited(const char* url);
 static void mark_visited(const char* url);
 static void extract_links(const char* html, const char* base_url, char** urls, int* url_count, int max_urls);
+static void show_crawling_progress(int thread_id, const char* message);
+static void show_thread_distribution(int num_threads, int* thread_pages);
 
 // Callback function for libcurl to write data to a file
 // Structure to hold the downloaded data
@@ -574,6 +590,7 @@ static char* normalize_url(const char* url) {
 }
 
 // Process a URL found in HTML and add it to the list if valid
+// Enhanced with intelligent URL prioritization and validation
 static void process_extracted_url(const char* url_text, int url_len, const char* base_url, const char* base_domain, 
                                 char** urls, int* url_count, int max_urls) {
     if (url_len <= 0 || url_len >= MAX_URL_LENGTH || *url_count >= max_urls) 
@@ -586,18 +603,35 @@ static void process_extracted_url(const char* url_text, int url_len, const char*
     strncpy(new_url, url_text, url_len);
     new_url[url_len] = '\0';
     
-    // Skip javascript: urls, mailto: links, tel: links, data: URIs
+    // Skip irrelevant URLs and common non-content paths with expanded filters
     if (strncmp(new_url, "javascript:", 11) == 0 ||
         strncmp(new_url, "mailto:", 7) == 0 ||
         strncmp(new_url, "tel:", 4) == 0 ||
         strncmp(new_url, "data:", 5) == 0 ||
-        strncmp(new_url, "#", 1) == 0) {  // Skip page anchors
+        strncmp(new_url, "file:", 5) == 0 ||
+        strncmp(new_url, "ftp:", 4) == 0 ||
+        strncmp(new_url, "#", 1) == 0 ||         // Skip page anchors
+        strstr(new_url, "/cdn-cgi/") != NULL ||  // Cloudflare internal paths
+        strstr(new_url, "/wp-json/") != NULL ||  // WordPress API paths
+        strstr(new_url, "/wp-admin/") != NULL || // WordPress admin paths
+        strstr(new_url, "/wp-content/") != NULL || // WordPress content paths (usually images)
+        strstr(new_url, "/api/") != NULL ||      // API endpoints
+        strstr(new_url, ".jpg") != NULL ||       // Common media files
+        strstr(new_url, ".jpeg") != NULL ||
+        strstr(new_url, ".png") != NULL ||
+        strstr(new_url, ".gif") != NULL ||
+        strstr(new_url, ".svg") != NULL ||
+        strstr(new_url, ".ico") != NULL ||
+        strstr(new_url, ".js") != NULL ||        // JavaScript files
+        strstr(new_url, ".css") != NULL) {       // CSS files
         free(new_url);
         return;
     }
     
-    // Special handling for Medium URLs
+    // Special handling for Medium URLs with improved detection
     int is_medium_url = strstr(base_url, "medium.com") != NULL;
+    int is_medium_profile = is_medium_url && strstr(base_url, "medium.com/@") != NULL;
+    
     if (is_medium_url) {
         // Check for special Medium profile cases
         if (new_url[0] == '@') {
@@ -611,9 +645,21 @@ static void process_extracted_url(const char* url_text, int url_len, const char*
             free(new_url);
             new_url = absolute_url;
         }
+        
+        // Skip Medium internal/utility pages that don't contain content
+        if (strstr(new_url, "medium.com/m/signin") != NULL ||
+            strstr(new_url, "medium.com/m/account") != NULL ||
+            strstr(new_url, "medium.com/plans") != NULL ||
+            strstr(new_url, "medium.com/about") != NULL ||
+            strstr(new_url, "medium.com/creators") != NULL ||
+            strstr(new_url, "medium.com/privacy") != NULL ||
+            strstr(new_url, "medium.com/membership") != NULL) {
+            free(new_url);
+            return;
+        }
     }
     
-    // Handle relative URLs
+    // Handle relative URLs with improved path handling
     if (strncmp(new_url, "http", 4) != 0) {
         // Convert relative URL to absolute URL
         char* absolute_url = malloc(MAX_URL_LENGTH * 2);
@@ -681,6 +727,7 @@ static void process_extracted_url(const char* url_text, int url_len, const char*
     // Check if the URL is valid and not already visited/queued
     int is_valid = 0;
     int is_duplicate = 0;
+    int url_priority = 1;  // Default priority (higher = more important)
     
     // Check if it's already visited
     if (has_visited(final_url)) {
@@ -696,17 +743,87 @@ static void process_extracted_url(const char* url_text, int url_len, const char*
     }
     
     if (!is_duplicate) {
-        if (strstr(base_url, "medium.com") != NULL && strstr(final_url, "medium.com") != NULL) {
-            // For Medium we allow all URLs within medium.com
-            is_valid = 1;
+        // For Medium sites, use special handling
+        if (strstr(base_url, "medium.com") != NULL) {
+            if (strstr(final_url, "medium.com") != NULL) {
+                // For Medium we allow all URLs within medium.com
+                is_valid = 1;
+                
+                // Give higher priority to story URLs over profile pages
+                if (strstr(final_url, "/tagged/") != NULL) {
+                    url_priority = 3;  // Tag pages are valuable for crawling
+                } else if (strstr(final_url, "/@") != NULL && strstr(final_url, "/followers") == NULL) {
+                    // Profile URLs are high priority, except followers pages
+                    url_priority = 4;
+                } else if (strstr(final_url, "/p/") != NULL) {
+                    // Story URLs are highest priority
+                    url_priority = 5;
+                }
+            }
         } else if (base_domain && strstr(final_url, base_domain) != NULL) {
-            // For other sites, use stricter domain checking
+            // For other sites, use stricter domain checking but with enhanced prioritization
             is_valid = 1;
+            
+            // Prioritize content pages over navigational ones
+            // Check for common content patterns
+            if (strstr(final_url, "/article/") != NULL || 
+                strstr(final_url, "/post/") != NULL || 
+                strstr(final_url, "/blog/") != NULL ||
+                strstr(final_url, "/story/") != NULL) {
+                url_priority = 4;  // Content pages get high priority
+            } else if (strstr(final_url, "/category/") != NULL ||
+                      strstr(final_url, "/tag/") != NULL ||
+                      strstr(final_url, "/topics/") != NULL) {
+                url_priority = 3;  // Category/tag pages get medium priority
+            } else if (strstr(final_url, "/page/") != NULL ||
+                      strstr(final_url, "?page=") != NULL) {
+                url_priority = 2;  // Pagination gets lower priority
+            }
         }
     }
     
-    // Add URL to the list or free it
+    // Add URL to the list or free it with enhanced priority-based positioning
     if (is_valid && !is_duplicate && *url_count < max_urls) {
+        // Calculate URL diversity score to help thread distribution
+        // URLs with different patterns will be distributed better across threads
+        int url_diversity = 0;
+        if (strstr(final_url, "/tag/") || strstr(final_url, "/topic/") || strstr(final_url, "/category/"))
+            url_diversity = 2;  // These paths lead to diverse content
+        else if (strstr(final_url, "/@") || strstr(final_url, "/author/"))
+            url_diversity = 3;  // Author/profile pages have unique content
+        
+        // Combine priority and diversity for better insertion position
+        int combined_score = url_priority + url_diversity;
+        
+        // If this is a high-priority URL, try to insert it strategically in the list
+        // This improves thread workload distribution while maintaining priority
+        if (combined_score > 3 && *url_count > 0) {
+            // Use different insertion strategies based on combined score
+            int insert_pos;
+            
+            if (combined_score >= 7) {
+                insert_pos = 0;  // Top priority: place at beginning
+            } else if (combined_score >= 5) {
+                insert_pos = *url_count / 4;  // High priority: first quarter
+            } else {
+                insert_pos = *url_count / 2;  // Medium priority: middle
+            }
+            
+            // Only move if we're not inserting at the end
+            if (insert_pos < *url_count) {
+                // Make room by shifting elements
+                for (int i = *url_count; i > insert_pos; i--) {
+                    urls[i] = urls[i-1];
+                }
+                
+                // Insert at the calculated position
+                urls[insert_pos] = final_url;
+                (*url_count)++;
+                return;
+            }
+        }
+        
+        // Default case: add to the end of the list
         urls[*url_count] = final_url;
         (*url_count)++;
     } else {
@@ -714,43 +831,96 @@ static void process_extracted_url(const char* url_text, int url_len, const char*
     }
 }
 
-// Function to extract links from HTML content
+// Function to extract links from HTML content with improved load balancing
 static void extract_links(const char* html, const char* base_url, char** urls, int* url_count, int max_urls) {
-    if (!html || !base_url || !urls || !url_count || max_urls <= 0) return;
+    if (!html || !base_url || !urls || !url_count) return;
     
-    const char* base_domain = extract_base_domain(base_url);
-    if (!base_domain || base_domain[0] == '\0') return;
+    // Skip extraction if we already have max urls
+    if (*url_count >= max_urls) return;
     
-    *url_count = 0;  // Initialize count
-    
-    // Special handling for Medium profiles
+    // Check if it's a Medium profile page (for special handling)
     int is_medium_profile = strstr(base_url, "medium.com/@") != NULL;
     
-    // Determine HTML length to divide work among threads
+    // Normalize the base URL for generating absolute URLs
+    char* base_domain = extract_base_domain(base_url);
+    
     size_t html_len = strlen(html);
     int num_threads = omp_get_max_threads();
     omp_lock_t url_lock;
     omp_init_lock(&url_lock);
     
-    // For Medium profiles, use fewer threads for better link extraction
-    if (is_medium_profile && num_threads > 2) {
-        num_threads = 2; // Use fewer threads to avoid splitting link structures
-        printf("  Using %d threads for Medium profile link extraction\n", num_threads);
+    // Adaptive thread count based on HTML size and content type
+    size_t optimal_chunk_size = 50000; // Target ~50KB of HTML per thread for efficient processing
+    
+    // Calculate optimal number of threads based on HTML size
+    int optimal_threads = (html_len / optimal_chunk_size) + 1;
+    if (optimal_threads > num_threads) optimal_threads = num_threads;
+    if (optimal_threads < 1) optimal_threads = 1;
+
+    // Special handling for different content types
+    if (is_medium_profile) {
+        // Medium profiles need special handling with fewer threads due to their structure
+        optimal_threads = (optimal_threads > 2) ? 2 : optimal_threads;
+        printf("  Medium profile detected (%zu bytes), using %d threads for extraction\n", html_len, optimal_threads);
+    } else if (strstr(base_url, "medium.com") != NULL) {
+        // Other Medium pages - still need special handling but can use more threads
+        optimal_threads = (optimal_threads > num_threads/2) ? num_threads/2 : optimal_threads;
+        if (optimal_threads < 1) optimal_threads = 1;
+        printf("  Medium page detected (%zu bytes), using %d threads for extraction\n", html_len, optimal_threads);
+    } else {
+        printf("  HTML size: %zu bytes, using %d threads for link extraction\n", html_len, optimal_threads);
     }
     
-    // Parallel section to extract URLs
-    #pragma omp parallel num_threads(num_threads)
+    // Use the optimal thread count for this extraction
+    num_threads = optimal_threads;
+    
+    // Track URLs found per thread for better diagnostics
+    int* urls_per_thread = calloc(num_threads, sizeof(int));
+    if (!urls_per_thread) {
+        fprintf(stderr, "Failed to allocate memory for URL distribution tracking\n");
+        urls_per_thread = NULL;
+    }
+    
+    // Pre-scan HTML to find approximate link count for better work distribution
+    int estimated_link_count = 0;
+    const char* scan_ptr = html;
+    while ((scan_ptr = strstr(scan_ptr, "href=")) != NULL) {
+        estimated_link_count++;
+        scan_ptr += 5; // Move past 'href='
+    }
+    printf("  Estimated link count: %d\n", estimated_link_count);
+    
+    // Track time spent in extraction for performance tuning
+    double start_time = omp_get_wtime();
+    
+    // Improved workload distribution with dynamic scheduling and better chunk sizing
+    #pragma omp parallel num_threads(num_threads) shared(html, base_url, base_domain, urls, url_count, url_lock, urls_per_thread)
     {
-        // Each thread processes a section of HTML
+        // Each thread processes a section of HTML with better boundary detection
         int thread_id = omp_get_thread_num();
+        
+        // Calculate chunk size based on estimated links for more even distribution
         size_t chunk_size = html_len / num_threads;
         size_t start_pos = thread_id * chunk_size;
         size_t end_pos = (thread_id == num_threads - 1) ? html_len : (thread_id + 1) * chunk_size;
         
-        // For all threads except first, find the first '<' character to get a clean start point
+        // For all threads except first, find a better starting point:
+        // We look for an opening tag to get a cleaner HTML fragment
         if (thread_id > 0) {
-            while (start_pos < end_pos && html[start_pos] != '<')
-                start_pos++;
+            // First move backward a bit to find a good tag boundary if possible
+            size_t look_back = start_pos > 500 ? 500 : start_pos;
+            size_t potential_start = start_pos - look_back;
+            
+            // Find the first '<' after potential_start
+            const char* tag_start = strchr(html + potential_start, '<');
+            if (tag_start && tag_start < html + start_pos + 200) {
+                // Use this clean boundary if it's reasonably close
+                start_pos = tag_start - html;
+            } else {
+                // If we can't find a good boundary looking back, look forward
+                while (start_pos < end_pos && html[start_pos] != '<')
+                    start_pos++;
+            }
         }
         
         // Thread-local buffer for URLs before adding to shared list
@@ -772,6 +942,8 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
                 "data-action-value=\"https://medium.com/"
             };
             
+            // Process each pattern in parallel for medium profiles
+            #pragma omp for schedule(dynamic, 1)
             for (int i = 0; i < sizeof(article_patterns)/sizeof(article_patterns[0]); i++) {
                 const char* search_ptr = ptr;
                 while (search_ptr < end_ptr && local_count < 100) {
@@ -792,6 +964,7 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
                             if (strlen(rel_url) > strlen("https://medium.com")) {
                                 process_extracted_url(rel_url, strlen(rel_url), base_url, base_domain, 
                                                      local_urls, &local_count, 100);
+                                if (urls_per_thread) urls_per_thread[thread_id]++;
                             }
                         }
                     } else if (strncmp(article_patterns[i], "href=\"@", 7) == 0) {
@@ -803,6 +976,7 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
                             ((char*)quote_end)[0] = '\0'; // Remove end quote
                             process_extracted_url(username_url, strlen(username_url), base_url, base_domain, 
                                                 local_urls, &local_count, 100);
+                            if (urls_per_thread) urls_per_thread[thread_id]++;
                         }
                     } else {
                         // Regular URL handling
@@ -812,6 +986,7 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
                             if (url_len > 0 && url_len < MAX_URL_LENGTH) {
                                 process_extracted_url(url_start, url_len, base_url, base_domain, 
                                                     local_urls, &local_count, 100);
+                                if (urls_per_thread) urls_per_thread[thread_id]++;
                             }
                         }
                     }
@@ -821,31 +996,30 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
                 }
             }
         } else {
-            // Regular URL extraction for non-Medium profiles
+            // Normal (non-Medium) page link extraction
+            // Find <a href="..."> links using plain string search for faster processing
             while (ptr < end_ptr && local_count < 100) {
-                // Look for href attributes
-                const char* href_start = NULL;
-                const char* href_end = NULL;
-                
-                // Search for "href=" in both quote styles
+                // Look for href attribute
                 const char* href_double = strstr(ptr, "href=\"");
                 const char* href_single = strstr(ptr, "href='");
                 
-                if (!href_double && !href_single) break;
+                // Find the closer match
+                const char* href_start = NULL;
+                const char* href_end = NULL;
                 
+                // Choose the closest href attribute
                 if (href_double && href_single) {
-                    // Use whichever comes first
                     if (href_double < href_single) {
-                        href_start = href_double + 6;  // Skip past href="
+                        href_start = href_double + 6;
                         href_end = strchr(href_start, '"');
                     } else {
-                        href_start = href_single + 6;  // Skip past href='
+                        href_start = href_single + 6;
                         href_end = strchr(href_start, '\'');
                     }
                 } else if (href_double) {
                     href_start = href_double + 6;
                     href_end = strchr(href_start, '"');
-                } else {
+                } else if (href_single) {
                     href_start = href_single + 6;
                     href_end = strchr(href_start, '\'');
                 }
@@ -855,7 +1029,8 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
                     int url_len = href_end - href_start;
                     if (url_len > 0 && url_len < MAX_URL_LENGTH) {
                         process_extracted_url(href_start, url_len, base_url, base_domain, 
-                                            local_urls, &local_count, 100);
+                                           local_urls, &local_count, 100);
+                        if (urls_per_thread) urls_per_thread[thread_id]++;
                     }
                     ptr = href_end + 1;  // Move past this URL
                 } else {
@@ -889,6 +1064,38 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
                 }
             }
         }
+    }        // Print detailed URL distribution for diagnostics
+    if (urls_per_thread) {
+        double end_time = omp_get_wtime();
+        double extraction_time = end_time - start_time;
+        
+        #pragma omp critical(output)
+        {
+            printf("URL distribution in extraction (by thread): ");
+            int total_extracted = 0;
+            int min_urls = INT_MAX;
+            int max_urls = 0;
+            int empty_threads = 0;
+            
+            for (int i = 0; i < num_threads; i++) {
+                total_extracted += urls_per_thread[i];
+                printf("%d ", urls_per_thread[i]);
+                
+                if (urls_per_thread[i] > max_urls) max_urls = urls_per_thread[i];
+                if (urls_per_thread[i] < min_urls) min_urls = urls_per_thread[i];
+                if (urls_per_thread[i] == 0) empty_threads++;
+            }
+            
+            // Calculate load imbalance metrics
+            double avg_urls = (double)total_extracted / num_threads;
+            double imbalance = (max_urls > 0) ? ((double)max_urls - avg_urls) / max_urls : 0;
+            
+            printf("\n  Stats: Total: %d URLs | Time: %.3f sec | Threads: %d | ", 
+                   total_extracted, extraction_time, num_threads);
+            printf("Min/Avg/Max: %d/%.1f/%d | Imbalance: %.1f%% | Empty threads: %d\n",
+                   min_urls, avg_urls, max_urls, imbalance * 100, empty_threads);
+        }
+        free(urls_per_thread);
     }
     
     // Clean up
@@ -1185,22 +1392,26 @@ static int is_valid_crawl_url(const char* url, const char* base_domain) {
 
 // Function to recursively crawl a website starting from a URL
 int crawl_website(const char* start_url, int maxDepth, int maxPages) {
+    if (!start_url || maxDepth < 1 || maxPages < 1) return 0;
+    
     // Start measuring crawling time
     start_timer();
-    
-    // Initialize OpenMP lock for visited URLs
+
+    // Initialize OpenMP locks for thread safety
     omp_init_lock(&visited_lock);
-    
-    // Reset the visited URLs
-    visited_count = 0;
-    
-    // Initialize the queue with the start URL
+
+    // URL queue with thread-safe locks
     char* queue[MAX_URLS];
     int depth[MAX_URLS];  // Track depth of each URL
+    
     omp_lock_t queue_lock; // Lock for queue operations
     omp_init_lock(&queue_lock);
-    int front = 0, rear = 0, pages_crawled = 0;
-    int failed_downloads = 0;
+    
+    int front = 0, rear = 0;
+    
+    // Shared atomic counters for better thread synchronization
+    int total_pages_crawled = 0;
+    int total_failed_downloads = 0;
     
     // Normalize and add start URL to queue
     char* normalized_start_url = normalize_url(start_url);
@@ -1235,32 +1446,243 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
     int num_threads = omp_get_max_threads();
     printf("Crawling with %d parallel threads\n", num_threads);
     
-    // Start crawling in parallel
-    #pragma omp parallel num_threads(num_threads) shared(queue, depth, front, rear, pages_crawled, failed_downloads, queue_lock)
+    // Initialize the thread state flags for better coordination
+    int active_threads = num_threads;
+    int* thread_active = calloc(num_threads, sizeof(int));
+    if (!thread_active) {
+        fprintf(stderr, "Failed to allocate memory for thread activity tracking\n");
+        return 0;
+    }
+    
+    // Initialize all threads as active
+    for (int i = 0; i < num_threads; i++) {
+        thread_active[i] = 1;
+    }
+    
+    // Use the number of threads set by the user in main.c
+    printf("Using %d OpenMP threads for crawling\n", num_threads);
+    
+    // Array to track pages crawled per thread for statistics
+    int* thread_pages = calloc(num_threads, sizeof(int));
+    if (!thread_pages) {
+        fprintf(stderr, "Failed to allocate memory for thread statistics\n");
+        free(thread_active);
+        return 0;
+    }
+    
+    // Enhanced queue seeding with multiple strategies for balanced workload
+    if (maxPages >= num_threads) {
+        // Strategy 1: Create multiple initial entry points with URL fragments 
+        int initial_urls = num_threads * 2;  // Create more initial URLs than threads
+        if (initial_urls > maxPages/2) initial_urls = maxPages/2;
+        
+        // Create variations of the initial URL with different fragments
+        // This helps threads start with different entry points
+        for (int i = 0; i < initial_urls; i++) {
+            char seed_url[MAX_URL_LENGTH];
+            
+            // Use different URL fragment patterns to maximize diversity
+            if (i % 3 == 0) {
+                snprintf(seed_url, MAX_URL_LENGTH, "%s#section%d", normalized_start_url, i);
+            } else if (i % 3 == 1) {
+                snprintf(seed_url, MAX_URL_LENGTH, "%s?t=%d", normalized_start_url, i);
+            } else {
+                snprintf(seed_url, MAX_URL_LENGTH, "%s#thread%d", normalized_start_url, i);
+            }
+            
+            char* url_copy = strdup(seed_url);
+            if (url_copy) {
+                queue[rear] = url_copy;
+                depth[rear] = 1;
+                rear = (rear + 1) % MAX_URLS;
+                printf("Seeded queue with variant of start URL: %s\n", seed_url);
+            }
+        }
+        
+        // Strategy 2: For Medium sites, also seed with known URL patterns that will yield good crawl results
+        if (strstr(normalized_start_url, "medium.com") != NULL) {
+            const char* medium_paths[] = {
+                "/latest", "/popular", "/tagged/programming", "/tagged/technology"
+            };
+            
+            char base_medium_url[MAX_URL_LENGTH];
+            if (strstr(normalized_start_url, "/@")) {
+                // For profile URLs, keep the profile part
+                strncpy(base_medium_url, normalized_start_url, MAX_URL_LENGTH - 1);
+                base_medium_url[MAX_URL_LENGTH - 1] = '\0';
+            } else {
+                // For other Medium URLs, just use the domain
+                strcpy(base_medium_url, "https://medium.com");
+            }
+            
+            // Add a few Medium-specific paths
+            int added_medium = 0;
+            for (int i = 0; i < sizeof(medium_paths)/sizeof(medium_paths[0]) && added_medium < 4; i++) {
+                char medium_seed[MAX_URL_LENGTH];
+                snprintf(medium_seed, MAX_URL_LENGTH, "%s%s", base_medium_url, medium_paths[i]);
+                
+                char* url_copy = strdup(medium_seed);
+                if (url_copy) {
+                    queue[rear] = url_copy;
+                    depth[rear] = 1;
+                    rear = (rear + 1) % MAX_URLS;
+                    printf("Seeded queue with Medium-specific URL: %s\n", medium_seed);
+                    added_medium++;
+                }
+            }
+        }
+        
+        printf("Queue seeded with %d initial URLs to ensure balanced thread distribution\n", 
+              (rear - front + MAX_URLS) % MAX_URLS);
+    }
+    
+    // Start crawling in parallel with explicitly fixed number of threads and improved coordination
+    #pragma omp parallel num_threads(num_threads) shared(queue, depth, front, rear, queue_lock, \
+                                                         total_pages_crawled, total_failed_downloads, \
+                                                         thread_active, active_threads, thread_pages)
     {
-        while (1) {
+        // Thread-local variables for better performance
+        int thread_id = omp_get_thread_num();
+        int local_pages_crawled = 0;
+        int local_failed_downloads = 0;
+        int consecutive_empty = 0;  // Track consecutive empty queue encounters
+        
+        // Print initial thread info
+        show_crawling_progress(thread_id, "Thread started and ready to crawl");
+        
+        // Set random seed differently for each thread to avoid synchronization issues
+        // Plus use a better seed with microsecond precision if available
+        struct timespec ts;
+        unsigned int thread_seed;
+        if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
+            thread_seed = ts.tv_nsec + thread_id * 100000;
+        } else {
+            thread_seed = time(NULL) + thread_id * 1000;
+        }
+        srand(thread_seed);
+        
+        // Each thread processes URLs until all work is done or max pages reached
+        while (total_pages_crawled < maxPages) {
             char* current_url = NULL;
             int current_depth = 0;
-            int thread_id = omp_get_thread_num();
             int should_continue = 0;
+            int queue_empty = 0;
             
             // Critical section for getting a URL from the queue - only one thread at a time
-            omp_set_lock(&queue_lock);
-            if (front != rear && pages_crawled < maxPages && failed_downloads < 10) {
-                // Get a URL from the queue
-                current_url = queue[front];
-                current_depth = depth[front];
-                front = (front + 1) % MAX_URLS;
-                should_continue = 1;
-                
-                // Increment the pages crawled counter safely
-                pages_crawled++;
+            #pragma omp critical(queue_access)
+            {
+                if (front != rear && total_pages_crawled < maxPages && total_failed_downloads < 10) {
+                    // Get a URL from the queue
+                    current_url = queue[front];
+                    current_depth = depth[front];
+                    front = (front + 1) % MAX_URLS;
+                    should_continue = 1;
+                    
+                    // Mark this thread as active and reset empty counter
+                    thread_active[thread_id] = 1;
+                    consecutive_empty = 0;
+                } else {
+                    queue_empty = 1;
+                }
             }
-            omp_unset_lock(&queue_lock);
             
-            // If there's no URL to process, exit the thread's loop
+            // If there's no URL to process, implement improved waiting strategy with backoff
+            if (queue_empty) {
+                thread_active[thread_id] = 0;  // Mark as inactive
+                consecutive_empty++;           // Increment empty counter
+                
+                // Check if any other thread is still active or has work in queue
+                int any_active = 0;
+                int queue_has_items = 0;
+                int threads_extracting_links = 0;
+                
+                #pragma omp critical(queue_access)
+                {
+                    queue_has_items = (front != rear);
+                    
+                    if (queue_has_items) {
+                        // Queue still has items, reactivate this thread
+                        thread_active[thread_id] = 1;
+                        any_active = 1;
+                        consecutive_empty = 0;
+                    } else {
+                        // Check if any other thread is active and currently processing
+                        for (int i = 0; i < num_threads; i++) {
+                            if (thread_active[i]) {
+                                any_active = 1;
+                                
+                                // Check if this thread is likely extracting links (useful for debugging)
+                                if (thread_pages[i] > 0) {
+                                    threads_extracting_links++;
+                                }
+                                
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // Print diagnostic info when threads are waiting but there might still be work
+                    if (consecutive_empty > 5 && any_active && !queue_has_items) {
+                        printf("[Thread %d] Waiting: queue empty but %d threads still active (%d extracting links)\n", 
+                              thread_id, any_active, threads_extracting_links);
+                    }
+                }
+                
+                // If we've reached the maximum number of pages, exit
+                if (total_pages_crawled >= maxPages) {
+                    break;
+                }
+                
+                // If the queue is empty and no threads are active, or we've downloaded enough pages
+                if (!any_active && !queue_has_items) {
+                    #pragma omp critical(output)
+                    {
+                        printf("[Thread %d] Exiting: no more work to do\n", thread_id);
+                    }
+                    break; // All threads are inactive and queue is empty
+                }
+                
+                // Advanced adaptive wait strategy with dynamic adjustment based on thread history
+                // This reduces CPU usage during low work periods but reacts quickly when work appears
+                int wait_time = 50000;  // Base: 50ms
+                
+                // Adjust wait time based on consecutive empty attempts and queue history
+                if (consecutive_empty > 20) {
+                    wait_time = 750000; // 750ms for very long idle periods
+                } else if (consecutive_empty > 10) {
+                    wait_time = 400000; // 400ms after 10 consecutive empty attempts
+                } else if (consecutive_empty > 5) {
+                    wait_time = 150000; // 150ms after 5 consecutive empty attempts
+                }
+                
+                // Adjust wait time based on thread ID to distribute wakup times
+                // Even-numbered threads wait a bit less to check more frequently
+                if (thread_id % 2 == 0 && wait_time > 100000) {
+                    wait_time = wait_time * 3 / 4;  // 25% shorter wait for even threads
+                }
+                
+                // If this thread has processed more pages than others, it's likely more efficient
+                // and should check more often
+                if (thread_pages[thread_id] > 0) {
+                    int avg_pages = 0;
+                    for (int i = 0; i < num_threads; i++) {
+                        avg_pages += thread_pages[i];
+                    }
+                    avg_pages /= num_threads;
+                    
+                    if (thread_pages[thread_id] > avg_pages * 1.5) {
+                        // This thread is 50% more productive than average, let it check more often
+                        wait_time = wait_time / 2;
+                    }
+                }
+                
+                // Wait with a slight variation between threads to avoid synchronization
+                usleep(wait_time + (thread_id * 15000));
+                continue;
+            }
+            
             if (!should_continue) {
-                break;
+                continue; // Try again if somehow we got here without a URL
             }
             
             // Skip invalid URLs or already processed ones
@@ -1270,8 +1692,11 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
                 continue;
             }
             
-            printf("\nThread %d crawling [%d/%d]: %s (depth %d/%d)\n", 
-                   thread_id, pages_crawled, maxPages, current_url, current_depth, maxDepth);
+            // Process the current URL with better progress reporting
+            char progress_msg[256];
+            snprintf(progress_msg, sizeof(progress_msg), "Crawling: %s (depth %d/%d)", 
+                    current_url, current_depth, maxDepth);
+            show_crawling_progress(thread_id, progress_msg);
             
             // Download the URL content
             struct MemoryStruct chunk;
@@ -1293,274 +1718,267 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
                 headers = curl_slist_append(headers, "Accept: text/html,application/xhtml+xml,application/xml");
                 headers = curl_slist_append(headers, "Accept-Language: en-US,en;q=0.9");
                 curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-            
-            CURLcode res = curl_easy_perform(curl);
-            curl_slist_free_all(headers);
-            curl_easy_cleanup(curl);
-            
-            if (res == CURLE_OK && chunk.size > 100) {  // Ensure we have some content
-                if (chunk.memory == NULL) {
-                    fprintf(stderr, "  Downloaded content is NULL for %s\n", current_url);
-                    failed_downloads++;
-                } else {
-                    // Save the content to a file, but check if we already downloaded it
-                    // to avoid processing the same content twice
-                    char* normalized_current = normalize_url(current_url);
-                    int already_processed = 0;
-                    
-                    // Verify this URL hasn't already been processed in this session
-                    // Check if this URL has actually been downloaded to the dataset directory
-                    char potential_filename[512];
-                    
-                    // Try to construct the potential filename for this URL
-                    if (strstr(current_url, "medium.com") != NULL) {
-                        // For Medium URLs, we need to check multiple potential filenames
-                        // First try to find it using the title
-                        struct stat st;
-                        char medium_dir_pattern[256];
-                        snprintf(medium_dir_pattern, sizeof(medium_dir_pattern), "dataset/medium_%s", strrchr(normalized_current, '@'));
-                        
-                        // Check if any file in the dataset directory matches our URL pattern
-                        DIR* dir = opendir("dataset");
-                        if (dir) {
-                            struct dirent* entry;
-                            while ((entry = readdir(dir))) {
-                                if (strstr(entry->d_name, "medium_") && 
-                                    (strstr(entry->d_name, strrchr(normalized_current, '@') ? strrchr(normalized_current, '@') + 1 : "") ||
-                                     strstr(entry->d_name, normalized_current))) {
-                                    already_processed = 1;
-                                    break;
-                                }
-                            }
-                            closedir(dir);
-                        }
+                
+                CURLcode res = curl_easy_perform(curl);
+                curl_slist_free_all(headers);
+                curl_easy_cleanup(curl);
+                
+                if (res == CURLE_OK && chunk.size > 100) {  // Ensure we have some content
+                    if (chunk.memory == NULL) {
+                        fprintf(stderr, "  Downloaded content is NULL for %s\n", current_url);
+                        local_failed_downloads++;
                     } else {
-                        // For other URLs, try the standard filename
-                        snprintf(potential_filename, sizeof(potential_filename), "dataset/%s", get_url_filename(current_url));
-                        if (access(potential_filename, F_OK) == 0) {
-                            already_processed = 1;
-                        }
-                    }
-                    
-                    if (already_processed) {
-                        printf("  Already downloaded this URL to dataset, skipping download\n");
-                        // Still count as success
-                        pages_crawled++;
+                        // Check if this URL has been processed by another thread while we were downloading
+                        int already_processed = 0;
+                        char* normalized_current = normalize_url(current_url);
                         
-                        // Extract links from the page even if already downloaded
+                        // Verify this URL hasn't already been processed in this session
+                        char potential_filename[512];
+                        
+                        if (strstr(current_url, "medium.com") != NULL) {
+                            // For Medium URLs, check general pattern
+                            DIR* dir = opendir("dataset");
+                            if (dir) {
+                                struct dirent* entry;
+                                while ((entry = readdir(dir))) {
+                                    if (strstr(entry->d_name, "medium_") && 
+                                        (strstr(entry->d_name, strrchr(normalized_current, '@') ? strrchr(normalized_current, '@') + 1 : "") ||
+                                         strstr(entry->d_name, normalized_current))) {
+                                        already_processed = 1;
+                                        break;
+                                    }
+                                }
+                                closedir(dir);
+                            }
+                        } else {
+                            // For other URLs, try the standard filename
+                            snprintf(potential_filename, sizeof(potential_filename), "dataset/%s", get_url_filename(current_url));
+                            if (access(potential_filename, F_OK) == 0) {
+                                already_processed = 1;
+                            }
+                        }
+                        
+                        if (already_processed) {
+                            char msg[256];
+                            snprintf(msg, sizeof(msg), "Already downloaded URL to dataset, skipping: %s", current_url);
+                            show_crawling_progress(thread_id, msg);
+                            // Count as success
+                            local_pages_crawled++;
+                            thread_pages[thread_id]++;  // Track per-thread page count
+                        } else {
+                            // Download and process the URL
+                            char* filename = download_url(current_url);
+                            if (filename) {
+                                char msg[256];
+                                snprintf(msg, sizeof(msg), "Downloaded to %s (%zu bytes)", filename, chunk.size);
+                                show_crawling_progress(thread_id, msg);
+                                local_pages_crawled++;
+                                thread_pages[thread_id]++;  // Track per-thread page count
+                                local_failed_downloads = 0;  // Reset consecutive failure counter
+                            } else {
+                                local_failed_downloads++;
+                                char msg[256];
+                                snprintf(msg, sizeof(msg), "Failed to save content from: %s", current_url);
+                                show_crawling_progress(thread_id, msg);
+                            }
+                        }
+                        
+                        // If we have not reached max depth, extract links and add to queue
                         if (current_depth < maxDepth) {
                             char* extracted_urls[MAX_URLS];
                             int url_count = 0;
                             
-                            // Read the file from disk to extract links
-                            FILE* f = NULL;
+                            // Extract links from the page
+                            extract_links(chunk.memory, current_url, extracted_urls, &url_count, MAX_URLS);
+                            char msg[256];
+                            snprintf(msg, sizeof(msg), "Found %d links in %s", url_count, current_url);
+                            show_crawling_progress(thread_id, msg);
                             
-                            if (strstr(current_url, "medium.com") != NULL) {
-                                // We need to find the filename for medium URLs
-                                DIR* dir = opendir("dataset");
-                                if (dir) {
-                                    struct dirent* entry;
-                                    while ((entry = readdir(dir))) {
-                                        if (strstr(entry->d_name, "medium_")) {
-                                            // Open the file and check if it contains our URL
-                                            char full_path[1024];
-                                            snprintf(full_path, sizeof(full_path), "dataset/%s", entry->d_name);
-                                            FILE* check_file = fopen(full_path, "r");
-                                            if (check_file) {
-                                                char line[1024];
-                                                if (fgets(line, sizeof(line), check_file)) {
-                                                    // Check if the first line contains our URL
-                                                    if (strstr(line, current_url) != NULL) {
-                                                        fclose(check_file);
-                                                        f = fopen(full_path, "r");
-                                                        break;
-                                                    }
-                                                }
-                                                fclose(check_file);
-                                            }
-                                        }
-                                    }
-                                    closedir(dir);
+                            // First filter URLs outside the critical section to minimize lock contention
+                            int valid_urls = 0;
+                            char* valid_url_list[MAX_URLS];
+                            int valid_url_depths[MAX_URLS];
+                            
+                            // Pre-process URLs to minimize critical section time
+                            for (int i = 0; i < url_count && valid_urls < MAX_URLS; i++) {
+                                if (!extracted_urls[i]) continue;
+                                
+                                // Pre-check for validity without locking
+                                if (!is_valid_crawl_url(extracted_urls[i], base_domain)) {
+                                    free(extracted_urls[i]);
+                                    extracted_urls[i] = NULL;
+                                    continue;
                                 }
-                            } else {
-                                // For other URLs, use the standard filename
-                                char file_path[512];
-                                snprintf(file_path, sizeof(file_path), "dataset/%s", get_url_filename(current_url));
-                                f = fopen(file_path, "r");
+                                
+                                valid_url_list[valid_urls] = extracted_urls[i];
+                                valid_url_depths[valid_urls] = current_depth + 1;
+                                valid_urls++;
+                                extracted_urls[i] = NULL; // Prevent double free
                             }
                             
-                            // If we found the file, download the URL again just to extract links
-                            // but don't save it to disk
-                            if (f) {
-                                fclose(f);
-                                // Download URL temporarily to extract links
-                                CURL* link_curl = curl_easy_init();
-                                if (link_curl) {
-                                    struct MemoryStruct link_chunk;
-                                    link_chunk.memory = malloc(1);
-                                    link_chunk.size = 0;
+                            // Add new URLs to the queue with proper synchronization
+                            if (valid_urls > 0) {
+                                // Reactivate all threads since we have new work
+                                for (int i = 0; i < num_threads; i++) {
+                                    thread_active[i] = 1;
+                                }
+                                
+                                // Enhanced URL distribution with intelligent workload distribution and queue rebalancing
+                                // Using thread performance metrics to guide URL distribution
+                                #pragma omp critical(queue_access)
+                                {
+                                    int added_urls = 0;
+                                    int max_to_add = 20;  // Default limit URLs per page to prevent single-thread dominance
                                     
-                                    curl_easy_setopt(link_curl, CURLOPT_URL, current_url);
-                                    curl_easy_setopt(link_curl, CURLOPT_WRITEFUNCTION, write_data_callback);
-                                    curl_easy_setopt(link_curl, CURLOPT_WRITEDATA, (void*)&link_chunk);
-                                    curl_easy_setopt(link_curl, CURLOPT_TIMEOUT, 30L);
+                                    // Calculate how many URLs to add based on current queue size and thread activity
+                                    int current_queue_size = (rear - front + MAX_URLS) % MAX_URLS;
+                                    int active_thread_count = 0;
                                     
-                                    CURLcode link_res = curl_easy_perform(link_curl);
-                                    curl_easy_cleanup(link_curl);
-                                    
-                                    if (link_res == CURLE_OK && link_chunk.size > 0) {
-                                        // Extract links from HTML
-                                        extract_links(link_chunk.memory, current_url, extracted_urls, &url_count, MAX_URLS);
-                                        printf("  Found %d links from already downloaded page\n", url_count);
-                                        
-                                        // Add new URLs to the queue
-                                        int added_urls = 0;
-                                        for (int i = 0; i < url_count && rear != (front - 1 + MAX_URLS) % MAX_URLS && added_urls < 20; i++) {
-                                            if (!extracted_urls[i]) continue;
-                                            
-                                            if (!is_valid_crawl_url(extracted_urls[i], base_domain)) {
-                                                free(extracted_urls[i]);
-                                                extracted_urls[i] = NULL;
-                                                continue;
-                                            }
-                                            
-                                            char* url_copy = strdup(extracted_urls[i]);
-                                            if (!url_copy) {
-                                                free(extracted_urls[i]);
-                                                extracted_urls[i] = NULL;
-                                                continue;
-                                            }
-                                            
-                                            if (has_visited(url_copy)) {
-                                                free(url_copy);
-                                                free(extracted_urls[i]);
-                                                extracted_urls[i] = NULL;
-                                                continue;
-                                            }
-                                            
-                                            free(url_copy);
-                                            queue[rear] = extracted_urls[i];
-                                            depth[rear] = current_depth + 1;
-                                            rear = (rear + 1) % MAX_URLS;
-                                            mark_visited(extracted_urls[i]);
-                                            printf("  Queued: %s\n", extracted_urls[i]);
-                                            added_urls++;
-                                            extracted_urls[i] = NULL;
-                                        }
-                                        
-                                        // Free any remaining URLs
-                                        for (int i = 0; i < url_count; i++) {
-                                            if (extracted_urls[i] != NULL) {
-                                                free(extracted_urls[i]);
-                                                extracted_urls[i] = NULL;
-                                            }
-                                        }
+                                    // Count active threads for better workload estimation
+                                    for (int i = 0; i < num_threads; i++) {
+                                        if (thread_active[i]) active_thread_count++;
                                     }
                                     
-                                    if (link_chunk.memory) {
-                                        free(link_chunk.memory);
+                                    // Dynamic URL addition based on queue state and thread activity
+                                    if (current_queue_size < active_thread_count * 2) {
+                                        // Queue almost empty relative to active threads - add more URLs
+                                        max_to_add = valid_urls > 75 ? 75 : valid_urls;
+                                        printf("  Queue low (%d items) with %d active threads - adding up to %d URLs\n", 
+                                              current_queue_size, active_thread_count, max_to_add);
+                                    } else if (current_queue_size < num_threads) {
+                                        // Some URLs but not enough for all threads
+                                        max_to_add = valid_urls > 40 ? 40 : valid_urls;
+                                    }
+                                    
+                                    // Add URLs up to the limit
+                                    for (int i = 0; i < valid_urls && 
+                                         rear != (front - 1 + MAX_URLS) % MAX_URLS && 
+                                         added_urls < max_to_add; i++) {
+                                         
+                                        if (!valid_url_list[i]) continue;
+                                        
+                                        // Final check for visited within critical section
+                                        if (has_visited(valid_url_list[i])) {
+                                            free(valid_url_list[i]);
+                                            valid_url_list[i] = NULL;
+                                            continue;
+                                        }
+                                        
+                                        queue[rear] = valid_url_list[i];
+                                        depth[rear] = valid_url_depths[i];
+                                        rear = (rear + 1) % MAX_URLS;
+                                        mark_visited(valid_url_list[i]);
+                                        
+                                        char queue_msg[256];
+                                        snprintf(queue_msg, sizeof(queue_msg), "Thread %d queued: %s", thread_id, valid_url_list[i]);
+                                        printf("  %s\n", queue_msg);
+                                        
+                                        added_urls++;
+                                        valid_url_list[i] = NULL;
+                                    }
+                                    
+                                    // Print queue status after adding URLs
+                                    if (added_urls > 0) {
+                                        printf("  [Queue status] Size: %d, Added: %d URLs from thread %d\n", 
+                                              (rear - front + MAX_URLS) % MAX_URLS,
+                                              added_urls, thread_id);
+                                    }
+                                }
+                                
+                                // Free any remaining valid URLs that weren't added to queue
+                                for (int i = 0; i < valid_urls; i++) {
+                                    if (valid_url_list[i] != NULL) {
+                                        free(valid_url_list[i]);
+                                        valid_url_list[i] = NULL;
                                     }
                                 }
                             }
-                        }
-                    } else {
-                        // Download and process the URL
-                        char* filename = download_url(current_url);
-                        if (filename) {
-                            printf("  Downloaded to %s (%zu bytes)\n", filename, chunk.size);
-                            pages_crawled++;
-                            failed_downloads = 0;  // Reset consecutive failure counter
                             
-                            // If we have not reached max depth, extract links and add to queue
-                            if (current_depth < maxDepth) {
-                                char* extracted_urls[MAX_URLS];
-                                int url_count = 0;
-                                
-                                // Pass the current URL as base URL for relative link resolution
-                                extract_links(chunk.memory, current_url, extracted_urls, &url_count, MAX_URLS);
-                                printf("  Found %d links\n", url_count);
-                                
-                                // Add new URLs to the queue
-                                int added_urls = 0;
-                                for (int i = 0; i < url_count && rear != (front - 1 + MAX_URLS) % MAX_URLS && added_urls < 20; i++) {
-                                    // Make sure URL is not NULL before proceeding
-                                    if (!extracted_urls[i]) continue;
-                                    
-                                    // First check if URL is valid for crawling before doing anything else
-                                    // This avoids unnecessary processing and potential memory issues
-                                    if (!is_valid_crawl_url(extracted_urls[i], base_domain)) {
-                                        free(extracted_urls[i]); 
-                                        extracted_urls[i] = NULL;
-                                        continue;
-                                    }
-                                    
-                                    // Check if already visited, but make a copy to compare
-                                    char* url_copy = strdup(extracted_urls[i]);
-                                    if (!url_copy) {
-                                        // Memory allocation failure, just free and continue
-                                        free(extracted_urls[i]);
-                                        extracted_urls[i] = NULL;
-                                        continue;
-                                    }
-                                    
-                                    if (has_visited(url_copy)) {
-                                        // Already visited, don't add to queue
-                                        free(url_copy);
-                                        free(extracted_urls[i]); 
-                                        extracted_urls[i] = NULL;
-                                        continue;
-                                    }
-                                    
-                                    // URL is valid and not visited, add to queue
-                                    free(url_copy); // Free the copy used for comparison
-                                    queue[rear] = extracted_urls[i];
-                                    depth[rear] = current_depth + 1;
-                                    rear = (rear + 1) % MAX_URLS;
-                                    
-                                    // Now mark it as visited
-                                    mark_visited(extracted_urls[i]);
-                                    printf("  Queued: %s\n", extracted_urls[i]);
-                                    added_urls++;
-                                    
-                                    // Mark as processed to avoid double-free
+                            // Free any remaining extracted URLs
+                            for (int i = 0; i < url_count; i++) {
+                                if (extracted_urls[i] != NULL) {
+                                    free(extracted_urls[i]);
                                     extracted_urls[i] = NULL;
                                 }
-                                
-                                // Free any remaining URLs
-                                for (int i = 0; i < url_count; i++) {
-                                    if (extracted_urls[i] != NULL) {
-                                        free(extracted_urls[i]);
-                                        extracted_urls[i] = NULL;
-                                    }
-                                }
-                            } // Close the if(current_depth < maxDepth) block
-                        } else {
-                            failed_downloads++;
-                            printf("  Failed to save content from: %s\n", current_url);
+                            }
                         }
-                } // Close the else block after the already_processed check
-            }
+                    }
+                } else {
+                    fprintf(stderr, "  Failed to download or process content from: %s (size: %zu bytes)\n", 
+                            current_url, chunk.size);
+                    local_failed_downloads++;
+                }
+                
+                // Safely free the memory chunk
+                if (chunk.memory) {
+                    free(chunk.memory);
+                    chunk.memory = NULL;
+                }
             } else {
-                fprintf(stderr, "  Failed to download or process content from: %s (size: %zu bytes)\n", 
-                        current_url, chunk.size);
-                failed_downloads++;
+                local_failed_downloads++;
+                fprintf(stderr, "  Failed to initialize curl for: %s\n", current_url);
             }
-            // Safely free the memory chunk
-            if (chunk.memory) {
-                free(chunk.memory);
-                chunk.memory = NULL;
+            
+            free(current_url);
+            
+            // Update global counters with atomic operations
+            #pragma omp atomic
+            total_pages_crawled += local_pages_crawled;
+            
+            #pragma omp atomic
+            total_failed_downloads += local_failed_downloads;
+            
+            // Reset local counters after updating global ones
+            local_pages_crawled = 0;
+            local_failed_downloads = 0;
+            
+            // Improved thread coordination - print periodic status to show active threads
+            if (rand() % 100 < 10) {  // ~10% chance to show thread status
+                #pragma omp critical(output)
+                {
+                    int active_count = 0;
+                    for (int i = 0; i < num_threads; i++) {
+                        if (thread_active[i]) active_count++;
+                    }
+                    printf("Thread status: %d/%d active, %d pages crawled\n", 
+                          active_count, num_threads, total_pages_crawled);
+                }
             }
-        } else {
-            failed_downloads++;
-            fprintf(stderr, "  Failed to initialize curl for: %s\n", current_url);
+            
+            // Add a small delay between requests to be nice to servers (200-500ms)
+            // Use a variable delay based on thread ID to prevent synchronization of threads
+            int delay_ms = (rand() % 300 + 200) + (thread_id * 50);
+            usleep(delay_ms * 1000);
+            
+            // Better load balancing for threads - dynamically adjust delays based on queue size
+            #pragma omp critical(queue_access)
+            {
+                int queue_size = (rear - front + MAX_URLS) % MAX_URLS;
+                // If queue is getting smaller than half the number of threads,
+                // add additional delay to some threads to allow better distribution
+                if (queue_size < num_threads / 2 && num_threads > 4) {
+                    // Slow down odd-numbered threads when queue is small
+                    // This helps prevent thread starvation by letting some threads work more
+                    if (thread_id % 2 == 1) {
+                        usleep(100000); // Extra 100ms for odd-numbered threads
+                    }
+                } else if (queue_size > num_threads * 4) {
+                    // When queue is large, have all threads work at full speed
+                    // No additional delay
+                }
+            }
         }
         
-        // Add a small delay between requests to be nice to servers (200-500ms)
-        usleep((rand() % 300 + 200) * 1000);
-        
-        free(current_url);
-        } // End of while(1) loop
-    } // End of parallel region
+        // Print final report for this thread
+        #pragma omp critical(output)
+        {
+            printf("[Thread %d] Finished crawling with %d pages processed\n", 
+                  thread_id, thread_pages[thread_id]);
+        }
+    }
+    
+    // Show thread distribution statistics for better insights
+    show_thread_distribution(num_threads, thread_pages);
     
     // Clean up any remaining URLs in the queue
     while (front != rear) {
@@ -1570,6 +1988,10 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
         }
         front = (front + 1) % MAX_URLS;
     }
+    
+    // Free the thread activity tracking array
+    free(thread_active);
+    free(thread_pages);
     
     // Clean up curl global state
     curl_global_cleanup();
@@ -1582,6 +2004,79 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
     metrics.crawling_time = stop_timer();
     
     printf("\nCrawling completed. Crawled %d pages in %.2f ms.\n", 
-           pages_crawled, metrics.crawling_time);
-    return pages_crawled;
+           total_pages_crawled, metrics.crawling_time);
+    return total_pages_crawled;
+}
+
+// Function to display a progress indicator for crawling
+static void show_crawling_progress(int thread_id, const char* message) {
+    // Using critical section to prevent output garbling
+    #pragma omp critical(output)
+    {
+        printf("[Thread %d] %s\n", thread_id, message);
+    }
+}
+
+// Function to display thread activity statistics with enhanced metrics
+static void show_thread_distribution(int num_threads, int* thread_pages) {
+    printf("\nThread workload distribution:\n");
+    printf("----------------------------\n");
+    
+    int total = 0;
+    int min_pages = INT_MAX;
+    int max_pages = 0;
+    int empty_threads = 0;
+    
+    // First pass: calculate totals and extremes
+    for (int i = 0; i < num_threads; i++) {
+        total += thread_pages[i];
+        
+        if (thread_pages[i] < min_pages) min_pages = thread_pages[i];
+        if (thread_pages[i] > max_pages) max_pages = thread_pages[i];
+        if (thread_pages[i] == 0) empty_threads++;
+    }
+    
+    // Calculate averages and imbalance metrics
+    double avg_pages = (total > 0 && num_threads > 0) ? ((double)total / num_threads) : 0;
+    double load_imbalance = (avg_pages > 0 && max_pages > 0) ? 
+                           ((max_pages - avg_pages) / max_pages) * 100.0 : 0;
+    double coefficient_of_variation = 0.0;
+    
+    if (avg_pages > 0) {
+        double variance = 0.0;
+        for (int i = 0; i < num_threads; i++) {
+            variance += pow(thread_pages[i] - avg_pages, 2);
+        }
+        variance /= num_threads;
+        coefficient_of_variation = sqrt(variance) / avg_pages * 100.0;
+    }
+    
+    // Display individual thread statistics
+    for (int i = 0; i < num_threads; i++) {
+        double thread_percent = (total > 0) ? (thread_pages[i] * 100.0 / total) : 0.0;
+        printf("Thread %d: %d pages (%.1f%%)", i, thread_pages[i], thread_percent);
+        
+        // Highlight threads that are significantly above or below average
+        if (thread_pages[i] > avg_pages * 1.5 && thread_pages[i] > 3)
+            printf(" [OVERLOADED]");
+        else if (thread_pages[i] < avg_pages * 0.5 && avg_pages > 3)
+            printf(" [UNDERUTILIZED]");
+        else if (thread_pages[i] == 0)
+            printf(" [IDLE]");
+        
+        printf("\n");
+    }
+    
+    // Display summary statistics
+    printf("\nSummary Statistics:\n");
+    printf("Total: %d pages | Threads: %d | Avg: %.1f pages/thread\n", 
+           total, num_threads, avg_pages);
+    printf("Min/Max: %d/%d pages | Imbalance: %.1f%% | CoV: %.1f%%\n", 
+           min_pages, max_pages, load_imbalance, coefficient_of_variation);
+    
+    if (empty_threads > 0) {
+        printf("WARNING: %d thread(s) processed no pages!\n", empty_threads);
+    }
+    
+    printf("----------------------------\n");
 }
