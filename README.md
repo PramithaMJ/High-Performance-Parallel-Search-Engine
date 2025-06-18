@@ -1,4 +1,5 @@
 ## Core Components
+<img width="659" alt="Screenshot 2025-06-19 at 2 03 39 AM" src="https://github.com/user-attachments/assets/50e58496-3b4d-4c3d-b9a1-10e0acb9fade" />
 
 ### 1. Main (main.c)
 
