@@ -1,9 +1,3 @@
-PramithaMJ: Explain full code of serial verison with logics and how it works
-
-GitHub Copilot: # Serial Search Engine Implementation Overview
-
-The serial version of the search engine is a comprehensive text search system that includes web crawling, document indexing, and searching capabilities with BM25 ranking. Let me explain how the major components work together.
-
 ## Core Components
 
 ### 1. Main (main.c)
@@ -135,16 +129,6 @@ The serial implementation has several performance bottlenecks:
 2. Sequential document parsing and indexing
 3. No parallel query processing
 4. In-memory index with size limitations
-
-These limitations make the serial version suitable for small to medium-sized document collections but less efficient for large-scale crawling and indexing tasks.
-
-The metrics collection helps identify these bottlenecks, providing a baseline for comparing with a parallel implementation.
-
-PramithaMJ: Explain me all code with logics and specially explain which part is parrelize caompare to serail version and why that parts are parrlel and why others not and what are the critical point in openmp prarrele
-
-GitHub Copilot: # OpenMP Search Engine Implementation Analysis
-
-I'll analyze the OpenMP version of the search engine, focusing on which parts were parallelized compared to the serial version, the rationale behind these choices, and the critical sections in the parallel implementation.
 
 ## Parallelized Components
 
@@ -496,15 +480,6 @@ Various OpenMP critical sections and locks protect shared data structures:
 5. **Critical Section Management**: Targeted protection of shared resources
 6. **Load Balancing**: Dynamic scheduling for varying workloads
 
-The implementation focuses on parallelizing the most computationally intensive parts of the search engine while ensuring correctness through careful synchronization of shared resources.
-
-PramithaMJ: how indexin and inverted index done how parrelize it  ?
-
-GitHub Copilot: # Parallelization of Indexing and Inverted Index Construction
-
-## Inverted Index Structure
-
-Let's first understand the inverted index structure in the search engine:
 
 ```c
 typedef struct {
@@ -813,10 +788,6 @@ Document processing times can vary significantly:
 
 The parallel indexing approach significantly improves performance over the serial version, especially for large document collections, by distributing document processing across multiple threads while carefully managing shared data structures.
 
-PramithaMJ: explain how the data handle and all how tokenize and build_index and how Benchmark calculate and where the data stoed and how preelaized in this code ?
-
-GitHub Copilot: # Data Handling, Tokenization, and Indexing in the Parallel Search Engine
-
 ## Data Handling & Storage
 
 ### 1. Document Storage
@@ -901,10 +872,7 @@ int index_capacity = 0;
 int parse_file_parallel(const char *filepath, int doc_id) {
     FILE *file = fopen(filepath, "r");
     if (!file) return 0;
-
-PramithaMJ: explain how the data handle and all how tokenize and build_index and how Benchmark calculate and where the data stoed and how preelaized in this code ?
-
-GitHub Copilot: # Data Handling, Tokenization, Indexing, and Benchmarking in the OpenMP Search Engine
+```
 
 ## Data Storage and Management
 
@@ -1480,12 +1448,6 @@ declare -a OPTIMIZATIONS=("-O1" "-O2" "-O3" "-O3 -march=native -mtune=native")
    - Comprehensive metrics collection
    - Baseline comparison for speedup calculation
    - Thread workload distribution analysis
-
-This multi-faceted parallelization approach targets the most compute-intensive parts of the search engine while ensuring thread safety for shared data structures.
-
-PramithaMJ: By adding these crete me full README file
-
-GitHub Copilot: # High Performance Parallel Search Engine
 
 ## Project Overview
 
