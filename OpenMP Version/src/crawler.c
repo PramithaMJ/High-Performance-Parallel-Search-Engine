@@ -1933,7 +1933,7 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
             local_failed_downloads = 0;
             
             // Improved thread coordination - print periodic status to show active threads
-            if (rand() % 100 < 10) {  // ~10% chance to show thread status
+            if (rand() % 100 < 10) {
                 #pragma omp critical(output)
                 {
                     int active_count = 0;

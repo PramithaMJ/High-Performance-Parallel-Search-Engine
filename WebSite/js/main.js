@@ -45,7 +45,7 @@ function setupDashboardCharts() {
     const performanceChart = new Chart(performanceCtx, {
         type: 'line',
         data: {
-            labels: ['1 Thread', '2 Threads', '4 Threads', '8 Threads', '16 Threads', '32 Threads'],
+            labels: ['1 Thread', '2 Threads', '4 Threads', '8 Threads'],
             datasets: [
                 {
                     label: 'Serial Version',

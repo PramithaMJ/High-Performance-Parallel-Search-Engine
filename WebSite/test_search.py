@@ -39,11 +39,11 @@ def test_search(query, version="serial", options=None):
             result = response.json()
             
             if "error" in result:
-                print(f"❌ Error: {result['error']}")
+                print(f" Error: {result['error']}")
                 return False
                 
             execution_time = time.time() - start_time
-            print(f"✅ Search completed in {execution_time:.2f} seconds")
+            print(f" Search completed in {execution_time:.2f} seconds")
             print(f"   API reported execution time: {result.get('execution_time_ms', 0)/1000:.2f} seconds")
             print(f"   Result count: {result.get('result_count', 0)}")
             
@@ -59,18 +59,18 @@ def test_search(query, version="serial", options=None):
                 
             return True
         else:
-            print(f"❌ HTTP Error: {response.status_code}")
+            print(f" HTTP Error: {response.status_code}")
             print(response.text)
             return False
             
     except requests.exceptions.Timeout:
-        print(f"❌ Request timed out after {time.time() - start_time:.2f} seconds")
+        print(f" Request timed out after {time.time() - start_time:.2f} seconds")
         return False
     except requests.exceptions.ConnectionError:
-        print("❌ Connection error. Make sure the API server is running.")
+        print(" Connection error. Make sure the API server is running.")
         return False
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        print(f" Error: {str(e)}")
         return False
 
 def run_test_suite():
