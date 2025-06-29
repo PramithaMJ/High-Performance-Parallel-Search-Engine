@@ -1,0 +1,83 @@
+#!/bin/zsh
+# filepath: /Users/pramithajayasooriya/Library/CloudStorage/OneDrive-Personal/Academic/Academic/Semester 7/HPC/hpc/HPC Project/High-Performance-Parallel-Search-Engine/Hybrid Version/run_search
+#
+# Simple wrapper script to run the search engine with both MPI processes and OpenMP threads
+# Usage: 
+# ./run_search <MPI_PROCESSES> <OMP_THREADS> [other search engine options]
+# ./run_search -np <MPI_PROCESSES> -t <OMP_THREADS> [other search engine options]
+#
+# Example: 
+# ./run_search 4 8 -q "artificial intelligence"
+# ./run_search -np 2 -t 4 -u https://medium.com/@lpramithamj
+
+# Default values
+MPI_PROCESSES=4
+OMP_THREADS=4
+OTHER_ARGS=""
+
+# Check if the first arguments are numbers (positional parameters)
+if [[ $1 =~ ^[0-9]+$ ]] && [[ $2 =~ ^[0-9]+$ ]]; then
+  # First two arguments are numbers, use them as MPI processes and OpenMP threads
+  MPI_PROCESSES=$1
+  OMP_THREADS=$2
+  shift 2
+  OTHER_ARGS="$@"
+else
+  # Parse command line arguments using flags
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -np|--processes|-p)
+        MPI_PROCESSES="$2"
+        shift 2
+        ;;
+      -t|--threads)
+        OMP_THREADS="$2"
+        shift 2
+        ;;
+      *)
+        # Collect all other arguments to pass to the search engine
+        OTHER_ARGS="$OTHER_ARGS $1"
+        shift
+        ;;
+    esac
+  done
+fi
+
+# Print configuration
+echo "📊 Running hybrid MPI+OpenMP search engine with:"
+echo "   - MPI Processes: $MPI_PROCESSES (distributed memory parallelism)"
+echo "   - OpenMP Threads per process: $OMP_THREADS (shared memory parallelism)"
+echo "   - Total parallel units: $(($MPI_PROCESSES * $OMP_THREADS))"
+echo "   - Additional arguments: $OTHER_ARGS"
+echo ""
+
+# Set OpenMP threads environment variable
+export OMP_NUM_THREADS=$OMP_THREADS
+
+# Check if the binary exists
+if [ ! -f "./bin/search_engine" ]; then
+  echo "❌ Error: search_engine binary not found! Building the project..."
+  make clean
+  make
+  
+  if [ ! -f "./bin/search_engine" ]; then
+    echo "❌ Failed to build the search engine. Please check error messages above."
+    exit 1
+  fi
+fi
+
+# Run the search engine with MPI
+# Pass both -np and -t to the search engine for consistency
+mpirun -np $MPI_PROCESSES ./bin/search_engine -np $MPI_PROCESSES -t $OMP_THREADS $OTHER_ARGS
+
+# Exit code handling
+EXIT_CODE=$?
+if [ $EXIT_CODE -ne 0 ]; then
+    echo "❌ Search engine exited with code $EXIT_CODE"
+    exit $EXIT_CODE
+fi
+
+echo ""
+echo "✅ Search completed successfully!"
+echo "For performance benchmarking with different MPI/OpenMP configurations,"
+echo "run: ./scripts/performance_benchmark.sh"
