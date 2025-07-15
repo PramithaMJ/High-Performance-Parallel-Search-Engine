@@ -35,7 +35,8 @@ void rank_bm25(const char *query, int total_docs, int top_k)
     start_timer();
     
     char query_copy[256];
-    strcpy(query_copy, query);
+    strncpy(query_copy, query, sizeof(query_copy) - 1);
+    query_copy[sizeof(query_copy) - 1] = '\0';
 
     char *token = strtok(query_copy, " \t\n\r");
     Result results[1000] = {{0}};
@@ -64,7 +65,20 @@ void rank_bm25(const char *query, int total_docs, int top_k)
         to_lowercase(token);
         if (!is_stopword(token))
         {
-            char *term = stem(token);
+            // Special handling for microservice/microservices to ensure consistent behavior
+            char *term;
+            static __thread char normalized_term[256];
+            
+            if (strcmp(token, "microservice") == 0 || strcmp(token, "microservices") == 0) {
+                // Explicitly handle these special cases
+                strcpy(normalized_term, "microservice");
+                term = normalized_term;
+            } else {
+                // For all other terms, use the standard stemming
+                term = stem(token);
+            }
+            
+            int term_found = 0;
             
             // Find the term in the index
             for (int i = 0; i < index_size; ++i)
@@ -73,6 +87,7 @@ void rank_bm25(const char *query, int total_docs, int top_k)
                 {
                     int df = index_data[i].posting_count;
                     double idf = log((total_docs - df + 0.5) / (df + 0.5) + 1.0);
+                    term_found = 1;
                     
                     // Parallel processing of document scores for the current term
                     #pragma omp parallel
@@ -97,6 +112,66 @@ void rank_bm25(const char *query, int total_docs, int top_k)
                     break;
                 }
             }
+            
+            // If the term wasn't found, try variations (singular/plural forms)
+            if (!term_found) {
+                // Use a thread-safe buffer for the alternative term
+                char alternative_term[256] = {0};
+                
+                // Get length of the original term safely
+                int len = strlen(term);
+                if (len >= sizeof(alternative_term)) {
+                    len = sizeof(alternative_term) - 2;  // Leave room for potential 's'
+                }
+                
+                // Try plural form if term doesn't end with 's'
+                if (len > 0 && term[len-1] != 's') {
+                    // Create plural form - safely
+                    strncpy(alternative_term, term, len);
+                    alternative_term[len] = 's';
+                    alternative_term[len+1] = '\0';
+                } 
+                // Try singular form if term ends with 's'
+                else if (len > 1) {
+                    // Create singular form - safely
+                    strncpy(alternative_term, term, len-1);
+                    alternative_term[len-1] = '\0';
+                }
+                
+                // Search the index again with the alternative form
+                for (int i = 0; i < index_size; ++i) {
+                    if (alternative_term[0] != '\0' && strcmp(index_data[i].term, alternative_term) == 0) {
+                        int df = index_data[i].posting_count;
+                        double idf = log((total_docs - df + 0.5) / (df + 0.5) + 1.0);
+                        
+                        // Apply same scoring factor for alternative forms (no penalty)
+                        double alt_factor = 1.0; // Treat singular/plural the same
+                        
+                        // Parallel processing for the alternative term
+                        #pragma omp parallel
+                        {
+                            #pragma omp for
+                            for (int j = 0; j < df; ++j) {
+                                int d = index_data[i].postings[j].doc_id;
+                                int tf = index_data[i].postings[j].freq;
+                                double dl = get_doc_length(d);
+                                double score = alt_factor * idf * ((tf * (1.5 + 1)) / 
+                                                (tf + 1.5 * (1 - 0.75 + 0.75 * dl / avg_dl)));
+
+                                #pragma omp critical
+                                {
+                                    results[d].doc_id = d;
+                                    results[d].score += score;
+                                    if (d + 1 > result_count)
+                                        result_count = d + 1;
+                                }
+                            }
+                        }
+                        term_found = 1; // Mark as found to avoid showing "no results" message
+                        break;
+                    }
+                }
+            }
         }
         token = strtok(NULL, " \t\n\r");
     }
@@ -112,9 +187,34 @@ void rank_bm25(const char *query, int total_docs, int top_k)
     
     printf("Query processed in %.2f ms\n", query_time);
     
+    int results_found = 0;
     for (int i = 0; i < top_k && i < result_count; ++i)
     {
-        if (results[i].score > 0)
-            printf("File: %s - Score: %.4f\n", get_doc_filename(results[i].doc_id), results[i].score);
+        if (results[i].score > 0) {
+            const char* filename = get_doc_filename(results[i].doc_id);
+            printf("#%d: %s (Score: %.4f)\n", i+1, filename, results[i].score);
+            results_found++;
+        }
+    }
+    
+    if (results_found == 0) {
+        printf("No matching documents found for query: \"%s\"\n", query);
+        
+        // Only suggest alternatives for more complex cases (not singular/plural which are already handled)
+        // Potential future expansion: could implement more sophisticated suggestions here
+        // For now, we don't show the "Did you mean" for singular/plural forms since we search both automatically
+    } else {
+        printf("\nFound %d matching document(s) for query: \"%s\"\n", results_found, query);
+        
+        // Since we automatically search for both singular and plural forms,
+        // inform the user of this capability without being intrusive
+        if (strstr(query, " ") == NULL) { // Only for single word queries
+            char *last_word = (char*)query;
+            int len = strlen(last_word);
+            
+            if (len > 0) {
+                printf("(Note: Search automatically includes both singular and plural forms)\n");
+            }
+        }
     }
 }

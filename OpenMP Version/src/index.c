@@ -327,6 +327,11 @@ void print_thread_info()
     printf("OpenMP Information:\n");
     printf("  Max threads available: %d\n", omp_get_max_threads());
     printf("  Number of processors: %d\n", omp_get_num_procs());
+    
+    // Check OMP_NUM_THREADS environment variable
+    char* env_thread_count = getenv("OMP_NUM_THREADS");
+    printf("  OMP_NUM_THREADS environment variable: %s\n", 
+           env_thread_count ? env_thread_count : "not set");
 
     #pragma omp parallel
     {
@@ -335,4 +340,15 @@ void print_thread_info()
             printf("  Current number of threads in parallel region: %d\n", omp_get_num_threads());
         }
     }
+    
+    // Check for dynamic threads
+    int dynamic_enabled = omp_get_dynamic();
+    printf("  Dynamic thread adjustment: %s\n", dynamic_enabled ? "enabled" : "disabled");
+    
+    // Check OpenMP version
+    #if defined(_OPENMP)
+        printf("  OpenMP Version: %d\n", _OPENMP);
+    #else
+        printf("  OpenMP Version: unknown\n");
+    #endif
 }

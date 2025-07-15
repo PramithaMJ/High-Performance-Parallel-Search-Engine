@@ -1442,9 +1442,9 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
     // Initialize curl globally (once)
     curl_global_init(CURL_GLOBAL_DEFAULT);
     
-    // Get the number of available threads for parallel processing
+    // Get the number of threads set by the user in main.c
     int num_threads = omp_get_max_threads();
-    printf("Crawling with %d parallel threads\n", num_threads);
+    printf("Crawling with %d parallel threads (configured via OMP_NUM_THREADS or -t option)\n", num_threads);
     
     // Initialize the thread state flags for better coordination
     int active_threads = num_threads;

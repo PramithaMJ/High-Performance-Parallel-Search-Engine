@@ -51,6 +51,7 @@ make all
 
 # Run with specific number of threads (e.g., 8)
 OMP_NUM_THREADS=8 ./bin/search_engine -c https://medium.com/@lpramithamj -d 2 -p 10
+./bin/search_engine -t 6 -c https://medium.com/@lpramithamj -d 3 -p 20
 
 # Run benchmarks
 ./scripts/benchmark.sh

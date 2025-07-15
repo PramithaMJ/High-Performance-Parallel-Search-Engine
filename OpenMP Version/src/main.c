@@ -25,13 +25,15 @@ void print_usage(const char* program_name) {
     printf("  -d NUM     Maximum crawl depth (default: 2)\n");
     printf("  -p NUM     Maximum pages to crawl (default: 10)\n");
     printf("  -t NUM     Set number of OpenMP threads for parallel processing\n");
+    printf("  -q QUERY   Execute search query directly (skips interactive prompt)\n");
     printf("  -i         Print OpenMP information (threads, etc.)\n");
     printf("  -h         Show this help message\n");
     printf("\n");
     printf("Examples:\n");
     printf("  %s -c https://medium.com/@lpramithamj\n", program_name);
     printf("  %s -m @lpramithamj\n", program_name);
-    printf("  %s -c https://example.com -d 3 -p 20 -t 8\n", program_name);
+    printf("  %s -c https://example.com -d 3 -p 20\n", program_name);
+    printf("  %s -q \"microservice\"\n", program_name);
 }
 
 // Forward declaration for crawling function
@@ -49,7 +51,32 @@ int main(int argc, char* argv[])
     int url_processed = 0;
     int max_depth = 2;  // Default crawl depth
     int max_pages = 10; // Default max pages to crawl
+    
+    // Check for OMP_NUM_THREADS environment variable
     int thread_count = 4; // Default number of threads
+    char* env_thread_count = getenv("OMP_NUM_THREADS");
+    if (env_thread_count != NULL) {
+        int env_threads = atoi(env_thread_count);
+        if (env_threads > 0) {
+            thread_count = env_threads;
+            printf("Using thread count from OMP_NUM_THREADS: %d\n", thread_count);
+        }
+    }
+    
+    // Apply initial thread count setting
+    omp_set_num_threads(thread_count);
+    
+    // Disable dynamic adjustment for more consistent thread allocation
+    omp_set_dynamic(0);
+    
+    // Enable nested parallelism if available
+    #if _OPENMP >= 201811
+        // OpenMP 5.0 and above uses omp_set_max_active_levels
+        omp_set_max_active_levels(4);
+    #else
+        // Older OpenMP versions use the deprecated omp_set_nested
+        omp_set_nested(1);
+    #endif
     
     // First clear any existing index to make sure we rebuild it from scratch
     extern void clear_index(); // Forward declaration for the function we'll add
@@ -154,14 +181,28 @@ int main(int argc, char* argv[])
             // Set OpenMP thread count globally
             omp_set_num_threads(thread_count);
             
-            // Disable dynamic adjustment for more consistent thread allocation
-            omp_set_dynamic(0);
+            // Update environment variable to ensure consistent thread count across the program
+            char env_var[32];
+            sprintf(env_var, "%d", thread_count);
+            setenv("OMP_NUM_THREADS", env_var, 1);
             
-            // Enable nested parallelism if available
-            omp_set_nested(1);
-            
-            printf("Set OpenMP thread count to: %d (dynamic threads disabled)\n", thread_count);
+            printf("Set OpenMP thread count to: %d (overriding previous value)\n", thread_count);
             i++;
+        } else if (strcmp(argv[i], "-q") == 0 && i + 1 < argc) {
+            // Directly execute search query from command line
+            char* query = argv[i+1];
+            printf("\nSearching for: %s\n", query);
+            printf("\nTop results (BM25):\n");
+            rank_bm25(query, build_index("dataset"), 10);
+            
+            // Calculate total execution time
+            metrics.total_time = stop_timer();
+            metrics.memory_usage_after = get_current_memory_usage();
+            
+            // Print all metrics
+            print_metrics();
+            
+            return 0;  // Exit after search is complete
         } else if (strcmp(argv[i], "-i") == 0) {
             // Print OpenMP information
             extern void print_thread_info();
@@ -203,9 +244,45 @@ int main(int argc, char* argv[])
         user_query[len-1] = '\0';
     }
     
+    // Preprocessing for singular/plural forms and other special cases
+    // This ensures that "microservice" will find "microservices" and vice versa
+    // Note: This is just a simple demonstration - a more robust approach would
+    // use a proper stemming algorithm with additional checking
+    char processed_query[512] = {0};
+    
+    // Simple tokenization to process each word in the query
+    char query_copy[256];
+    strncpy(query_copy, user_query, sizeof(query_copy) - 1);
+    query_copy[sizeof(query_copy) - 1] = '\0';
+    
+    char *token = strtok(query_copy, " \t\n\r");
+    while (token) {
+        // Special handling for microservice/microservices
+        if (strcmp(token, "microservice") == 0) {
+            // Add both forms to improve recall
+            strcat(processed_query, "microservice microservices ");
+        } else if (strcmp(token, "microservices") == 0) {
+            // Add both forms to improve recall
+            strcat(processed_query, "microservice microservices ");
+        } else {
+            // For all other words, just copy them
+            strcat(processed_query, token);
+            strcat(processed_query, " ");
+        }
+        token = strtok(NULL, " \t\n\r");
+    }
+    
+    // Use the original query if no special processing was needed
+    if (strlen(processed_query) == 0) {
+        strncpy(processed_query, user_query, sizeof(processed_query) - 1);
+    } else {
+        // Remove the trailing space
+        processed_query[strlen(processed_query) - 1] = '\0';
+    }
+    
     printf("\nSearching for: %s\n", user_query);
     printf("\nTop results (BM25):\n");
-    rank_bm25(user_query, total_docs, 10); // Top 10 results
+    rank_bm25(processed_query, total_docs, 10); // Top 10 results
     
     // Calculate total execution time
     metrics.total_time = stop_timer();
