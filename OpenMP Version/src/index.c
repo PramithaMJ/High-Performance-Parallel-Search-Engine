@@ -3,7 +3,7 @@
 #include "../include/metrics.h"
 #include <dirent.h>
 #include <stdio.h>
-#include <stdlib.h>n
+#include <stdlib.h>
 #include <string.h>
 #include <libgen.h> // For basename function
 #include <omp.h>    // OpenMP header
