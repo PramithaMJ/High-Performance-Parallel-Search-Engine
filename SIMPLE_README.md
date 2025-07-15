@@ -4,6 +4,17 @@ A high-performance search engine with multiple parallelization strategies using 
 
 ![Search Dashboard](/Users/pramithajayasooriya/Desktop/High-Performance-Parallel-Search-Engine/Screenshots/Screenshot%202025-06-19%20at%201.47.35%20AM.png)
 
+## Table of Contents
+- [Technologies Used](#technologies-used)
+- [Quick Start](#quick-start)
+  - [Building the Project](#building-the-project)
+  - [Running the Search Engine](#running-the-search-engine)
+  - [Command-line Options](#command-line-options)
+  - [Running the Web Dashboard](#running-the-web-dashboard)
+- [Screenshots](#screenshots)
+- [Performance](#performance)
+- [Benchmarking](#benchmarking)
+
 ## Technologies Used
 
 - **Languages**: C, Python, JavaScript, HTML/CSS
