@@ -53,14 +53,17 @@ void tokenize(char *text, int doc_id)
     // Start timing for tokenization
     start_timer();
     
-    // Use carefully chosen delimiters for tokenization - don't split on hyphens
-    const char *delimiters = " \t\n\r.,;:!?\"()[]{}<>";
+    // Use more comprehensive delimiters for tokenization
+    // Include hyphens, slashes, and other characters that might cause issues
+    const char *delimiters = " \t\n\r.,;:!?\"()[]{}<>/-_=+@";
     char *token = strtok(text, delimiters);
     while (token)
     {
         to_lowercase(token);
         
-        if (!is_stopword(token))
+        // Skip tokens that are too short or too long
+        int len = strlen(token);
+        if (len >= 3 && len <= 50 && !is_stopword(token))
         {
             // Start timing stemming
             start_timer();

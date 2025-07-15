@@ -65,18 +65,8 @@ void rank_bm25(const char *query, int total_docs, int top_k)
         to_lowercase(token);
         if (!is_stopword(token))
         {
-            // Special handling for microservice/microservices to ensure consistent behavior
-            char *term;
-            static __thread char normalized_term[256];
-            
-            if (strcmp(token, "microservice") == 0 || strcmp(token, "microservices") == 0) {
-                // Explicitly handle these special cases
-                strcpy(normalized_term, "microservice");
-                term = normalized_term;
-            } else {
-                // For all other terms, use the standard stemming
-                term = stem(token);
-            }
+            // Standard term processing for all query terms
+            char *term = stem(token);
             
             int term_found = 0;
             
@@ -89,26 +79,32 @@ void rank_bm25(const char *query, int total_docs, int top_k)
                     double idf = log((total_docs - df + 0.5) / (df + 0.5) + 1.0);
                     term_found = 1;
                     
-                    // Parallel processing of document scores for the current term
-                    #pragma omp parallel
+                    // Store results in thread-private arrays before final merge
+                    double *thread_scores = malloc(total_docs * sizeof(double));
+                    memset(thread_scores, 0, total_docs * sizeof(double));
+                    
+                    // Sequential processing of document scores for consistent results
+                    for (int j = 0; j < df; ++j)
                     {
-                        #pragma omp for
-                        for (int j = 0; j < df; ++j)
-                        {
-                            int d = index_data[i].postings[j].doc_id;
-                            int tf = index_data[i].postings[j].freq;
-                            double dl = get_doc_length(d);
-                            double score = idf * ((tf * (1.5 + 1)) / (tf + 1.5 * (1 - 0.75 + 0.75 * dl / avg_dl)));
-
-                            #pragma omp critical
-                            {
-                                results[d].doc_id = d;
-                                results[d].score += score;
-                                if (d + 1 > result_count)
-                                    result_count = d + 1;
-                            }
+                        int d = index_data[i].postings[j].doc_id;
+                        int tf = index_data[i].postings[j].freq;
+                        double dl = get_doc_length(d);
+                        double score = idf * ((tf * (1.5 + 1)) / (tf + 1.5 * (1 - 0.75 + 0.75 * dl / avg_dl)));
+                        
+                        thread_scores[d] = score;
+                    }
+                    
+                    // Merge scores into final results (sequentially)
+                    for (int d = 0; d < total_docs; ++d) {
+                        if (thread_scores[d] > 0) {
+                            results[d].doc_id = d;
+                            results[d].score += thread_scores[d];
+                            if (d + 1 > result_count)
+                                result_count = d + 1;
                         }
                     }
+                    
+                    free(thread_scores);
                     break;
                 }
             }
@@ -147,26 +143,32 @@ void rank_bm25(const char *query, int total_docs, int top_k)
                         // Apply same scoring factor for alternative forms (no penalty)
                         double alt_factor = 1.0; // Treat singular/plural the same
                         
-                        // Parallel processing for the alternative term
-                        #pragma omp parallel
-                        {
-                            #pragma omp for
-                            for (int j = 0; j < df; ++j) {
-                                int d = index_data[i].postings[j].doc_id;
-                                int tf = index_data[i].postings[j].freq;
-                                double dl = get_doc_length(d);
-                                double score = alt_factor * idf * ((tf * (1.5 + 1)) / 
-                                                (tf + 1.5 * (1 - 0.75 + 0.75 * dl / avg_dl)));
-
-                                #pragma omp critical
-                                {
-                                    results[d].doc_id = d;
-                                    results[d].score += score;
-                                    if (d + 1 > result_count)
-                                        result_count = d + 1;
-                                }
+                        // Store results in thread-private arrays before final merge for consistency
+                        double *thread_scores = malloc(total_docs * sizeof(double));
+                        memset(thread_scores, 0, total_docs * sizeof(double));
+                        
+                        // Sequential processing for deterministic results
+                        for (int j = 0; j < df; ++j) {
+                            int d = index_data[i].postings[j].doc_id;
+                            int tf = index_data[i].postings[j].freq;
+                            double dl = get_doc_length(d);
+                            double score = alt_factor * idf * ((tf * (1.5 + 1)) / 
+                                            (tf + 1.5 * (1 - 0.75 + 0.75 * dl / avg_dl)));
+                            
+                            thread_scores[d] = score;
+                        }
+                        
+                        // Merge scores into final results (sequentially)
+                        for (int d = 0; d < total_docs; ++d) {
+                            if (thread_scores[d] > 0) {
+                                results[d].doc_id = d;
+                                results[d].score += thread_scores[d];
+                                if (d + 1 > result_count)
+                                    result_count = d + 1;
                             }
                         }
+                        
+                        free(thread_scores);
                         term_found = 1; // Mark as found to avoid showing "no results" message
                         break;
                     }
@@ -205,16 +207,5 @@ void rank_bm25(const char *query, int total_docs, int top_k)
         // For now, we don't show the "Did you mean" for singular/plural forms since we search both automatically
     } else {
         printf("\nFound %d matching document(s) for query: \"%s\"\n", results_found, query);
-        
-        // Since we automatically search for both singular and plural forms,
-        // inform the user of this capability without being intrusive
-        if (strstr(query, " ") == NULL) { // Only for single word queries
-            char *last_word = (char*)query;
-            int len = strlen(last_word);
-            
-            if (len > 0) {
-                printf("(Note: Search automatically includes both singular and plural forms)\n");
-            }
-        }
     }
 }

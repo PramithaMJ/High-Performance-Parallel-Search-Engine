@@ -47,6 +47,10 @@ int main(int argc, char* argv[])
     // Start timing total execution
     start_timer();
     
+    // Register cleanup handlers
+    extern void register_cleanup_handlers();
+    register_cleanup_handlers();
+    
     // Process command line arguments
     int url_processed = 0;
     int max_depth = 2;  // Default crawl depth
@@ -79,7 +83,7 @@ int main(int argc, char* argv[])
     #endif
     
     // First clear any existing index to make sure we rebuild it from scratch
-    extern void clear_index(); // Forward declaration for the function we'll add
+    extern void clear_index();
     
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-u") == 0 && i + 1 < argc) {
@@ -109,7 +113,7 @@ int main(int argc, char* argv[])
                 
                 // For Medium profile URLs, use more aggressive crawling
                 if (strstr(url, "medium.com/@") != NULL) {
-                    if (max_pages < 20) max_pages = 20; // Increase default for profiles
+                    if (max_pages < 20) max_pages = 20;
                     printf("Medium profile detected. Will crawl up to %d pages.\n", max_pages);
                 }
             }
@@ -244,41 +248,10 @@ int main(int argc, char* argv[])
         user_query[len-1] = '\0';
     }
     
-    // Preprocessing for singular/plural forms and other special cases
-    // This ensures that "microservice" will find "microservices" and vice versa
-    // Note: This is just a simple demonstration - a more robust approach would
-    // use a proper stemming algorithm with additional checking
+    // Use the original query directly
     char processed_query[512] = {0};
-    
-    // Simple tokenization to process each word in the query
-    char query_copy[256];
-    strncpy(query_copy, user_query, sizeof(query_copy) - 1);
-    query_copy[sizeof(query_copy) - 1] = '\0';
-    
-    char *token = strtok(query_copy, " \t\n\r");
-    while (token) {
-        // Special handling for microservice/microservices
-        if (strcmp(token, "microservice") == 0) {
-            // Add both forms to improve recall
-            strcat(processed_query, "microservice microservices ");
-        } else if (strcmp(token, "microservices") == 0) {
-            // Add both forms to improve recall
-            strcat(processed_query, "microservice microservices ");
-        } else {
-            // For all other words, just copy them
-            strcat(processed_query, token);
-            strcat(processed_query, " ");
-        }
-        token = strtok(NULL, " \t\n\r");
-    }
-    
-    // Use the original query if no special processing was needed
-    if (strlen(processed_query) == 0) {
-        strncpy(processed_query, user_query, sizeof(processed_query) - 1);
-    } else {
-        // Remove the trailing space
-        processed_query[strlen(processed_query) - 1] = '\0';
-    }
+    strncpy(processed_query, user_query, sizeof(processed_query) - 1);
+    processed_query[sizeof(processed_query) - 1] = '\0';
     
     printf("\nSearching for: %s\n", user_query);
     printf("\nTop results (BM25):\n");
