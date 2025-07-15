@@ -134,9 +134,9 @@ int main(int argc, char* argv[])
             // Set maximum crawl depth
             max_depth = atoi(argv[i+1]);
             if (max_depth < 1) max_depth = 1;
-            if (max_depth > 5) {
-                printf("Warning: High crawl depth may take a long time. Limited to 5.\n");
-                max_depth = 5;
+            if (max_depth > 10) {
+                printf("Warning: High crawl depth may take a long time. Limited to 10.\n");
+                max_depth = 10;
             }
             i++;
         } else if (strcmp(argv[i], "-p") == 0 && i + 1 < argc) {
@@ -255,7 +255,7 @@ int main(int argc, char* argv[])
     
     printf("\nSearching for: %s\n", user_query);
     printf("\nTop results (BM25):\n");
-    rank_bm25(processed_query, total_docs, 10); // Top 10 results
+    rank_bm25(processed_query, total_docs, 10);
     
     // Calculate total execution time
     metrics.total_time = stop_timer();
@@ -266,7 +266,7 @@ int main(int argc, char* argv[])
     
     // Load baseline metrics and calculate speedup
     init_baseline_metrics("data/serial_metrics.csv");
-    extern SpeedupMetrics speedup_metrics;  // Declare the external variable
+    extern SpeedupMetrics speedup_metrics;
     calculate_speedup(&speedup_metrics);
     
     // Option to save current metrics as new baseline

@@ -3,7 +3,7 @@
 #include "../include/metrics.h"
 #include <dirent.h>
 #include <stdio.h>
-#include <stdlib.h> // For free function
+#include <stdlib.h>n
 #include <string.h>
 #include <libgen.h> // For basename function
 #include <omp.h>    // OpenMP header
@@ -11,7 +11,7 @@
 InvertedIndex index_data[10000];
 int index_size = 0;
 int doc_lengths[1000] = {0};
-Document documents[1000]; // Array to store document filenames
+Document documents[1000];
 
 // Thread-safe locks for critical sections
 omp_lock_t index_lock;
@@ -50,7 +50,7 @@ int build_index(const char *folder_path)
 
     // First pass: collect all file names
     struct dirent *entry;
-    char file_paths[1000][256]; // Assuming max 1000 files
+    char file_paths[1000][256];
     int file_count = 0;
 
     while ((entry = readdir(dir)) != NULL && file_count < 1000)
