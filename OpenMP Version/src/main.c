@@ -31,7 +31,7 @@ void print_usage(const char* program_name) {
     printf("Examples:\n");
     printf("  %s -c https://medium.com/@lpramithamj\n", program_name);
     printf("  %s -m @lpramithamj\n", program_name);
-    printf("  %s -c https://example.com -d 3 -p 20\n", program_name);
+    printf("  %s -c https://example.com -d 3 -p 20 -t 8\n", program_name);
 }
 
 // Forward declaration for crawling function
