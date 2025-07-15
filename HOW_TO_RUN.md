@@ -2,6 +2,22 @@
 
 This guide provides instructions on how to build and run each version of the search engine, along with an overview of the key parallelized functions.
 
+## Table of Contents
+- [Build Instructions](#build-instructions)
+- [Running Each Version](#running-each-version)
+  - [Serial Version](#serial-version)
+  - [OpenMP Version](#openmp-version)
+  - [MPI Version](#mpi-version)
+  - [Hybrid Version](#hybrid-version)
+- [Web Interface](#web-interface)
+- [Key Parallelized Functions](#key-parallelized-functions)
+  - [Document-Level Parallelism](#document-level-parallelism)
+  - [Index Building Parallelization](#index-building-parallelization)
+  - [Web Crawling Parallelization](#web-crawling-parallelization)
+  - [Search Query Parallelization](#search-query-parallelization)
+- [Command-line Options for All Versions](#command-line-options-for-all-versions)
+- [Benchmark & Performance Comparison](#benchmark--performance-comparison)
+
 ## Build Instructions
 
 All versions can be built from their respective directories using the `make` command:

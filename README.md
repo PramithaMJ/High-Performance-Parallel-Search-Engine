@@ -1,4 +1,39 @@
+# High Performance Parallel Search Engine
+
+## Table of Contents
+- [Core Components](#core-components)
+  - [Main (main.c)](#1-main-mainc)
+  - [Crawler (crawler.c)](#2-crawler-crawlerc)
+  - [Parser (parser.c)](#3-parser-parserc)
+  - [Index (index.c)](#4-index-indexc)
+  - [Ranking (ranking.c)](#5-ranking-rankingc)
+  - [Metrics (metrics.c)](#6-metrics-metricsc)
+  - [Benchmark & Evaluation](#7-benchmark--evaluation-benchmarkc-evaluatec)
+- [Data Flow & Processing Logic](#data-flow--processing-logic)
+- [Special Features](#special-features)
+- [Performance Considerations](#performance-considerations)
+- [Parallelized Components](#parallelized-components)
+- [Non-Parallelized Components and Rationale](#non-parallelized-components-and-rationale)
+- [Critical Points in OpenMP Implementation](#critical-points-in-openmp-implementation)
+- [Performance Considerations](#performance-considerations-1)
+- [Summary of Key Parallelization Strategies](#summary-of-key-parallelization-strategies)
+- [Data Handling & Storage](#data-handling--storage)
+- [Project Overview](#project-overview)
+- [Performance Highlights](#performance-highlights)
+- [Features](#features)
+- [Architecture](#architecture)
+- [Parallelization Strategies](#parallelization-strategies)
+- [Performance Comparison](#performance-comparison)
+- [Setup and Installation](#setup-and-installation)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Performance Tuning](#performance-tuning)
+- [Testing and Benchmarking](#testing-and-benchmarking)
+- [Result Accuracy](#result-accuracy)
+
 ## Core Components
+
+<img width="659" alt="Screenshot 2025-06-19 at 2 03 39 AM" src="https://github.com/user-attachments/assets/50e58496-3b4d-4c3d-b9a1-10e0acb9fade" />Core Components
 
 <img width="659" alt="Screenshot 2025-06-19 at 2 03 39 AM" src="https://github.com/user-attachments/assets/50e58496-3b4d-4c3d-b9a1-10e0acb9fade" />
 
