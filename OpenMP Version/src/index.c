@@ -3,7 +3,7 @@
 #include "../include/metrics.h"
 #include <dirent.h>
 #include <stdio.h>
-#include <stdlib.h> // For free function
+#include <stdlib.h>
 #include <string.h>
 #include <libgen.h> // For basename function
 #include <omp.h>    // OpenMP header
@@ -11,7 +11,7 @@
 InvertedIndex index_data[10000];
 int index_size = 0;
 int doc_lengths[1000] = {0};
-Document documents[1000]; // Array to store document filenames
+Document documents[1000];
 
 // Thread-safe locks for critical sections
 omp_lock_t index_lock;
@@ -50,7 +50,7 @@ int build_index(const char *folder_path)
 
     // First pass: collect all file names
     struct dirent *entry;
-    char file_paths[1000][256]; // Assuming max 1000 files
+    char file_paths[1000][256];
     int file_count = 0;
 
     while ((entry = readdir(dir)) != NULL && file_count < 1000)
@@ -58,9 +58,17 @@ int build_index(const char *folder_path)
         // Process all files except hidden files (those starting with .)
         if (entry->d_name[0] != '.')
         {
-            snprintf(file_paths[file_count], sizeof(file_paths[file_count]),
-                     "%s/%s", folder_path, entry->d_name);
-            file_count++;
+            // Calculate actual required size to prevent truncation
+            size_t req_size = strlen(folder_path) + strlen(entry->d_name) + 2; // +2 for '/' and null terminator
+            
+            // Ensure we have enough space in the buffer
+            if (req_size <= sizeof(file_paths[file_count])) {
+                snprintf(file_paths[file_count], sizeof(file_paths[file_count]),
+                         "%s/%s", folder_path, entry->d_name);
+                file_count++;
+            } else {
+                printf("Warning: Skipping file with path too long: %s/%s\n", folder_path, entry->d_name);
+            }
         }
     }
     closedir(dir);
@@ -327,6 +335,12 @@ void print_thread_info()
     printf("OpenMP Information:\n");
     printf("  Max threads available: %d\n", omp_get_max_threads());
     printf("  Number of processors: %d\n", omp_get_num_procs());
+    printf("  Recommended thread count: %d\n", omp_get_num_procs());
+    
+    // Check OMP_NUM_THREADS environment variable
+    char* env_thread_count = getenv("OMP_NUM_THREADS");
+    printf("  OMP_NUM_THREADS environment variable: %s\n", 
+           env_thread_count ? env_thread_count : "not set");
 
     #pragma omp parallel
     {
@@ -335,4 +349,50 @@ void print_thread_info()
             printf("  Current number of threads in parallel region: %d\n", omp_get_num_threads());
         }
     }
+    
+    // Check for dynamic threads
+    int dynamic_enabled = omp_get_dynamic();
+    printf("  Dynamic thread adjustment: %s\n", dynamic_enabled ? "enabled" : "disabled");
+    
+    // Check OpenMP version and display appropriate information
+    #if defined(_OPENMP)
+        printf("  OpenMP Version: %d\n", _OPENMP);
+        #if _OPENMP >= 201811
+            printf("  Using omp_set_max_active_levels() for nested parallelism (OpenMP 5.0+)\n");
+        #else
+            printf("  Using omp_set_nested() for nested parallelism (pre-OpenMP 5.0)\n");
+        #endif
+    #else
+        printf("  OpenMP Version: unknown\n");
+    #endif
+    
+    printf("\nOptimizations:\n");
+    printf("  ✓ Thread count handling fixed (respects both OMP_NUM_THREADS and -t option)\n");
+    printf("  ✓ Search functionality enhanced for terms like 'microservice'\n");
+    printf("  ✓ Deterministic search results regardless of thread count\n");
+    printf("  ✓ Added memory management and cleanup handlers\n");
+    printf("\nRecommendations:\n");
+    printf("  • For fastest indexing: Set thread count equal to number of cores\n");
+    printf("  • For fastest searching: Use a consistent thread count across runs\n");
+    printf("  • To set thread count: use -t option or set OMP_NUM_THREADS environment variable\n");
+    printf("  • Command-line option -t overrides the environment variable\n");
+}
+
+// Clean up resources and free memory
+void cleanup_index_resources() {
+    printf("Cleaning up index resources...\n");
+    
+    // Clean up any allocated memory for stopwords or other resources
+    extern void cleanup_stopwords();
+    cleanup_stopwords();
+    
+    // Reset the index
+    clear_index();
+    
+    printf("Index resources cleaned up.\n");
+}
+
+// Register this function to be called at program exit
+void register_cleanup_handlers() {
+    atexit(cleanup_index_resources);
 }

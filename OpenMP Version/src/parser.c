@@ -53,21 +53,30 @@ void tokenize(char *text, int doc_id)
     // Start timing for tokenization
     start_timer();
     
-    char *token = strtok(text, " \t\n\r.,;:!?\"()[]{}<>");
+    // Use more comprehensive delimiters for tokenization
+    // Include hyphens, slashes, and other characters that might cause issues
+    const char *delimiters = " \t\n\r.,;:!?\"()[]{}<>/-_=+@";
+    char *token = strtok(text, delimiters);
     while (token)
     {
         to_lowercase(token);
-        if (!is_stopword(token))
+        
+        // Skip tokens that are too short or too long
+        int len = strlen(token);
+        if (len >= 3 && len <= 50 && !is_stopword(token))
         {
             // Start timing stemming
             start_timer();
+            
+            // Apply stemming to the token
             char *stemmed = stem(token);
+            
             // Record stemming time
             metrics.stemming_time += stop_timer();
             
             add_token(stemmed, doc_id);
         }
-        token = strtok(NULL, " \t\n\r.,;:!?\"()[]{}<>");
+        token = strtok(NULL, delimiters);
     }
     
     // Record tokenizing time
