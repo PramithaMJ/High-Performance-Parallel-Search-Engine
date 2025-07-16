@@ -76,6 +76,7 @@ make all
 
 # Run with specific arguments
 ./scripts/run_mpi.sh 4 -c https://medium.com/@lpramithamj -d 2 -p 10
+./run_mpi.sh -np 8 -m @lpramithamj -d 3 -p 10
 
 # Or run directly with mpirun
 mpirun -np 4 ./bin/search_engine -c https://medium.com/@lpramithamj -d 2 -p 10
