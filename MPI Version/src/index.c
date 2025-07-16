@@ -119,8 +119,8 @@ int build_index(const char *folder_path)
             documents[i].filename[MAX_FILENAME_LEN - 1] = '\0';
             
             free(path_copy);
-            printf("Process %d successfully parsed file: %s (doc_id: %d)\n",
-                   mpi_rank, file_paths[i], i);
+            printf("Process %d successfully parsed file: %s (doc_id: %d, filename: '%s')\n",
+                   mpi_rank, file_paths[i], i, documents[i].filename);
             local_successful++;
         } else {
             printf("Process %d failed to parse file: %s\n", mpi_rank, file_paths[i]);
@@ -604,6 +604,38 @@ void merge_mpi_index() {
     // Broadcast the merged index to all processes
     MPI_Bcast(index_data, merged_size * sizeof(InvertedIndex), MPI_BYTE, 0, MPI_COMM_WORLD);
     MPI_Bcast(&index_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    
+    // Synchronize document filenames across all processes
+    // Create MPI datatype for Document struct
+    MPI_Datatype MPI_DOCUMENT_TYPE;
+    MPI_Type_contiguous(MAX_FILENAME_LEN, MPI_CHAR, &MPI_DOCUMENT_TYPE);
+    MPI_Type_commit(&MPI_DOCUMENT_TYPE);
+    
+    // Gather all document filenames to process 0
+    Document gathered_documents[1000];
+    if (mpi_rank == 0) {
+        printf("Synchronizing document filenames across processes...\n");
+    }
+    
+    // Use MPI_Allreduce with MPI_MAX_LOC to gather non-empty document names
+    for (int doc_id = 0; doc_id < 1000; doc_id++) {
+        // Get all documents from all processes
+        MPI_Allgather(&documents[doc_id], 1, MPI_DOCUMENT_TYPE, 
+                     gathered_documents, 1, MPI_DOCUMENT_TYPE, MPI_COMM_WORLD);
+        
+        // Find the first non-empty filename
+        for (int p = 0; p < mpi_size; p++) {
+            if (gathered_documents[p].filename[0] != '\0') {
+                // Copy this filename to our local documents array
+                strncpy(documents[doc_id].filename, gathered_documents[p].filename, MAX_FILENAME_LEN - 1);
+                documents[doc_id].filename[MAX_FILENAME_LEN - 1] = '\0';
+                break;
+            }
+        }
+    }
+    
+    // Free the MPI datatype
+    MPI_Type_free(&MPI_DOCUMENT_TYPE);
     
     // Synchronize all processes after merging
     MPI_Barrier(MPI_COMM_WORLD);

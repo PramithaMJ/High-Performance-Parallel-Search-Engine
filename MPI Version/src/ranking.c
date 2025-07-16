@@ -32,6 +32,14 @@ void rank_bm25(const char *query, int total_docs, int top_k)
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
     
+    // Debug information - check document filenames
+    if (mpi_rank == 0) {
+        printf("Debug: Verifying document filenames before search\n");
+        for (int i = 0; i < total_docs && i < 5; i++) {
+            printf("Debug: Doc %d filename: '%s'\n", i, get_doc_filename(i));
+        }
+    }
+    
     // Start timing for query processing (only on rank 0)
     if (mpi_rank == 0) {
         start_timer();
@@ -167,9 +175,16 @@ void rank_bm25(const char *query, int total_docs, int top_k)
         for (int i = 0; i < gathered_count && printed < top_k; ++i)
         {
             if (gathered_results[i].score > 0) {
-                printf("File: %s - Score: %.4f\n", 
-                       get_doc_filename(gathered_results[i].doc_id), 
-                       gathered_results[i].score);
+                const char* filename = get_doc_filename(gathered_results[i].doc_id);
+                if (filename && filename[0] != '\0') {
+                    printf("File: %s - Score: %.4f\n", 
+                           filename, 
+                           gathered_results[i].score);
+                } else {
+                    printf("File: doc_id %d - Score: %.4f (Filename not available)\n", 
+                           gathered_results[i].doc_id,
+                           gathered_results[i].score);
+                }
                 printed++;
             }
         }
