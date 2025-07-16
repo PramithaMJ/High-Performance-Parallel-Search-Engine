@@ -249,7 +249,7 @@ int main(int argc, char* argv[])
             }
             
             if (mpi_rank == 0) {
-                printf("\nSearching for: %s\n", direct_query);
+                printf("\nSearching for: \"%s\"\n", direct_query);
                 if (total_docs > 0) {
                     printf("\nTop results (BM25):\n");
                 } else {
@@ -293,22 +293,72 @@ int main(int argc, char* argv[])
     printf("Indexed %d documents.\n", total_docs);
     
     // If we made it here, we can search
-    printf("Search engine ready for queries.\n");
+    // Ensure only rank 0 handles the interactive query input
+    char user_query[256] = {0};
     
-    // Read user input for search
-    char user_query[256];
-    printf("Enter your search query: ");
-    fgets(user_query, sizeof(user_query), stdin);
+    // MPI barrier to ensure all processes are ready
+    MPI_Barrier(MPI_COMM_WORLD);
     
-    // Remove newline character if present
-    int len = strlen(user_query);
-    if (len > 0 && user_query[len-1] == '\n') {
-        user_query[len-1] = '\0';
+    // Only rank 0 collects the query from the user
+    if (mpi_rank == 0) {
+        // Add some visual separation after crawling output
+        printf("\n==================================================\n");
+        printf("                SEARCH ENGINE READY                \n");
+        printf("==================================================\n\n");
+        
+        printf("Enter your search query: ");
+        fflush(stdout); // Make sure the prompt is displayed immediately
+        
+        // Clear any input buffer before reading
+        int c;
+        while ((c = getchar()) != '\n' && c != EOF && c != '\0') { /* discard */ }
+        
+        // Read user input for search
+        if (fgets(user_query, sizeof(user_query), stdin) == NULL) {
+            printf("Error reading input. Please try again.\n");
+            // Handle the error by setting an empty query
+            user_query[0] = '\0';
+        } else {
+            // Remove newline character if present
+            int len = strlen(user_query);
+            if (len > 0 && user_query[len-1] == '\n') {
+                user_query[len-1] = '\0';
+            }
+            printf("Processing query: \"%s\"\n", user_query);
+        }
     }
     
-    printf("\nSearching for: %s\n", user_query);
-    printf("\nTop results (BM25):\n");
-    rank_bm25(user_query, total_docs, 10); // Top 10 results
+    // Broadcast the query from rank 0 to all processes
+    MPI_Bcast(user_query, sizeof(user_query), MPI_CHAR, 0, MPI_COMM_WORLD);
+    
+    // Check if query is empty
+    if (strlen(user_query) == 0) {
+        if (mpi_rank == 0) {
+            printf("No search query entered. Please restart the program and enter a query.\n");
+        }
+    } else {
+        // Only rank 0 displays the search messages
+        if (mpi_rank == 0) {
+            printf("\nSearching for: \"%s\"\n", user_query);
+            printf("\nTop results (BM25):\n");
+        }
+        
+        // Only search if we have documents
+        if (total_docs > 0) {
+            // Wait for all processes before searching
+            MPI_Barrier(MPI_COMM_WORLD);
+            rank_bm25(user_query, total_docs, 10); // Top 10 results
+            
+            // After search is complete, display completion message (only on rank 0)
+            if (mpi_rank == 0) {
+                printf("\n==================================================\n");
+                printf("              SEARCH COMPLETED                    \n");
+                printf("==================================================\n");
+            }
+        } else if (mpi_rank == 0) {
+            printf("No documents in index. Please crawl content first using -c, -m, or -u options.\n");
+        }
+    }
     
     // Calculate total execution time
     metrics.total_time = stop_timer();
@@ -325,12 +375,24 @@ int main(int argc, char* argv[])
     // Option to save current metrics as new baseline (only for rank 0)
     if (mpi_rank == 0) {
         char save_option;
+        char input_buffer[10];
+        
         printf("\nSave current performance as new baseline? (y/n): ");
-        scanf("%c", &save_option);
-        if (save_option == 'y' || save_option == 'Y') {
-            save_as_baseline("data/serial_metrics.csv");
+        fflush(stdout); // Make sure prompt is displayed immediately
+        
+        if (fgets(input_buffer, sizeof(input_buffer), stdin) != NULL) {
+            save_option = input_buffer[0];
+            if (save_option == 'y' || save_option == 'Y') {
+                save_as_baseline("data/hybrid_metrics.csv");
+                printf("Performance metrics saved as new baseline.\n");
+            }
+        } else {
+            printf("Failed to read input. Metrics not saved.\n");
         }
     }
+    
+    // All processes wait here before finishing
+    MPI_Barrier(MPI_COMM_WORLD);
     
     // Finalize MPI if we initialized it
     if (mpi_initialized) {

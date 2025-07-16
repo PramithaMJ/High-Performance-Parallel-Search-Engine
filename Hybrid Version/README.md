@@ -223,8 +223,7 @@ make clean
 ## How Run
 
 ```bash
-mpirun --oversubscribe -np 10 ./bin/search_engine -np 10 -t 8 -c https://medium.com/@lpramithamj -d 2 -p 10
+mpirun --oversubscribe -np 10 ./bin/search_engine -t 8 -c https://medium.com/@lpramithamj -d 2 -p 10
 
-./run_search -np 8 -t 8 -c https://medium.com/@lpramithamj -d 2 -p 10
 mpirun -np 8 ./bin/search_engine -t 8 -m @lpramithamj -d 2 -p 10
 ```
