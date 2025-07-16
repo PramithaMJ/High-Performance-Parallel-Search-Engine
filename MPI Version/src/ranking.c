@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mpi.h>
+#include <stddef.h>  // For offsetof
 
 // Forward declaration of get_doc_filename
 extern const char* get_doc_filename(int doc_id);
@@ -114,6 +115,24 @@ void rank_bm25(const char *query, int total_docs, int top_k)
     // Get top local results (limit to prevent overflow)
     int local_top = (local_result_count < top_k * 2) ? local_result_count : top_k * 2;
     
+    // Create MPI datatype for Result struct if not already created
+    static int type_created = 0;
+    static MPI_Datatype MPI_RESULT_TYPE;
+    if (!type_created) {
+        MPI_Datatype types[2] = {MPI_INT, MPI_DOUBLE};
+        int blocklengths[2] = {1, 1};
+        MPI_Aint offsets[2];
+        
+        // Calculate offsets
+        offsets[0] = offsetof(Result, doc_id);
+        offsets[1] = offsetof(Result, score);
+        
+        // Create and commit the type
+        MPI_Type_create_struct(2, blocklengths, offsets, types, &MPI_RESULT_TYPE);
+        MPI_Type_commit(&MPI_RESULT_TYPE);
+        type_created = 1;
+    }
+    
     // Gather counts from all processes
     int all_counts[32];
     MPI_Gather(&local_top, 1, MPI_INT, all_counts, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -129,15 +148,9 @@ void rank_bm25(const char *query, int total_docs, int top_k)
             gathered_count += all_counts[i];
         }
         
-        // Gather all results
-        MPI_Gatherv(local_results, local_top * sizeof(Result), MPI_BYTE,
-                   gathered_results, all_counts, displacements, MPI_BYTE, 0, MPI_COMM_WORLD);
-        
-        // Convert byte counts to Result counts for sorting
-        for (int i = 0; i < mpi_size; i++) {
-            all_counts[i] /= sizeof(Result);
-        }
-        gathered_count /= sizeof(Result);
+        // Gather all results using the custom datatype
+        MPI_Gatherv(local_results, local_top, MPI_RESULT_TYPE,
+                   gathered_results, all_counts, displacements, MPI_RESULT_TYPE, 0, MPI_COMM_WORLD);
         
         // Sort all gathered results
         qsort(gathered_results, gathered_count, sizeof(Result), cmp);
@@ -167,8 +180,8 @@ void rank_bm25(const char *query, int total_docs, int top_k)
             printf("No results found for the query.\n");
         }
     } else {
-        // Non-root processes just send their results
-        MPI_Gatherv(local_results, local_top * sizeof(Result), MPI_BYTE,
-                   NULL, NULL, NULL, MPI_BYTE, 0, MPI_COMM_WORLD);
+        // Non-root processes just send their results using the custom datatype
+        MPI_Gatherv(local_results, local_top, MPI_RESULT_TYPE,
+                   NULL, NULL, NULL, MPI_RESULT_TYPE, 0, MPI_COMM_WORLD);
     }
 }

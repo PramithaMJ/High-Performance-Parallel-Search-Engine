@@ -288,30 +288,70 @@ int main(int argc, char* argv[])
     
     if (rank == 0) {
         printf("Indexed %d documents.\n", total_docs);
-        printf("Search engine ready for queries.\n");
-        printf("Enter your search query: ");
+        printf("Search engine ready for queries.\n\n");
         fflush(stdout);
     }
     
     // Only rank 0 handles user input
-    char user_query[256];
-    if (rank == 0) {
-        if (fgets(user_query, sizeof(user_query), stdin) == NULL) {
-            strcpy(user_query, "default");
-        }
-        
-        // Remove newline character if present
-        int len = strlen(user_query);
-        if (len > 0 && user_query[len-1] == '\n') {
-            user_query[len-1] = '\0';
-        }
-        
-        printf("\nSearching for: %s\n", user_query);
-        printf("\nTop results (BM25):\n");
-    }
+    char user_query[256] = {0}; // Initialize array to zero
+    int input_status = 0;  // Status flag for input handling
     
-    // Broadcast the query to all processes
+    // Make sure all processes are synchronized before getting input
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (rank == 0) {
+        printf("Enter your search query: ");
+        fflush(stdout);
+        
+        // Debug: Check if stdin is ready
+        printf("DEBUG: About to read input...\n");
+        fflush(stdout);
+        
+        char *input_result = fgets(user_query, sizeof(user_query), stdin);
+        
+        printf("DEBUG: Input read attempt completed\n");
+        fflush(stdout);
+        
+        if (input_result != NULL) {
+            printf("DEBUG: Input received: '%s'\n", user_query);
+            fflush(stdout);
+            
+            // Remove newline character if present
+            size_t len = strlen(user_query);
+            if (len > 0 && user_query[len-1] == '\n') {
+                user_query[len-1] = '\0';
+            }
+            
+            printf("DEBUG: After newline removal: '%s'\n", user_query);
+            fflush(stdout);
+            
+            input_status = 1;
+        } else {
+            printf("DEBUG: Input read failed\n");
+            fflush(stdout);
+            strcpy(user_query, "default");
+            input_status = 0;
+        }
+        
+        if (input_status) {
+            printf("\nSearching for: %s\n", user_query);
+            printf("\nTop results (BM25):\n");
+        } else {
+            printf("\nError reading input. Using default query: %s\n", user_query);
+        }
+        fflush(stdout);
+    } 
+    // Broadcast both the query and input status
+    MPI_Bcast(&input_status, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    
     MPI_Bcast(user_query, 256, MPI_CHAR, 0, MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    
+    // If input failed on rank 0, all processes should exit
+    if (!input_status) {
+        MPI_Finalize();
+        return 1;
+    }
     
     // All processes participate in search, but only rank 0 shows results
     rank_bm25(user_query, total_docs, 10);
