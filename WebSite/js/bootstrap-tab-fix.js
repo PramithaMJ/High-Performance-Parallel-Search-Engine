@@ -46,6 +46,9 @@
             return;
         }
         
+        // Set a global flag to indicate tabs have been initialized
+        window.tabsInitializedByFix = true;
+        
         // Remove any existing click handlers that might cause issues
         tabElements.forEach(tab => {
             // Clone the element to remove all event listeners
@@ -67,6 +70,11 @@
                     if (!targetId) {
                         console.warn("Tab has no href attribute");
                         return;
+                    }
+                    
+                    // Log for hybrid tab specifically
+                    if (targetId === '#hybrid') {
+                        console.log("Hybrid tab clicked - initializing Hybrid version");
                     }
                     
                     // Get the target tab pane
@@ -153,6 +161,14 @@
                     firstTab.click();
                 }
             });
+        }
+        
+        // Specifically check for hybrid version tab
+        const hybridTab = document.querySelector('[href="#hybrid"]');
+        if (hybridTab) {
+            console.log("Hybrid tab found in DOM:", hybridTab);
+        } else {
+            console.warn("Hybrid tab not found in DOM");
         }
     }
 })();

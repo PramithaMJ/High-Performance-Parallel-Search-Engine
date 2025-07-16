@@ -48,127 +48,210 @@ function retryWithLongerTimeout() {
     // Show searching again
     const resultList = document.querySelector('.result-list');
     resultList.innerHTML = '';
-    
-    const loading = document.createElement('div');
-    loading.className = 'text-center';
-    loading.innerHTML = `
-        <div class="spinner-border text-primary" role="status">
-            <span class="visually-hidden">Loading...</span>
+    document.getElementById('search-progress').style.display = 'block';
+    document.getElementById('search-progress').innerHTML = `
+        <div class="d-flex align-items-center">
+            <div class="spinner-border spinner-border-sm me-2" role="status">
+                <span class="visually-hidden">Searching...</span>
+            </div>
+            <div>
+                Searching with extended timeout... This may take up to 4 minutes.
+            </div>
         </div>
-        <p class="mt-2">Searching with extended timeout (up to 3 minutes)...</p>
     `;
-    resultList.appendChild(loading);
+    document.getElementById('search-error').style.display = 'none';
     
-    // Make API call to search with extended timeout
+    // API call to search with extended timeout
     fetch('/api/search', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            version: engineVersion,
             query: query,
+            version: engineVersion,
             options: options
         })
     })
     .then(response => response.json())
     .then(data => {
-        // Handle the response the same way as the regular search
-        resultList.innerHTML = '';
+        // Hide progress indicator
+        document.getElementById('search-progress').style.display = 'none';
         
-        if (data.error) {
-            const errorAlert = document.createElement('div');
-            errorAlert.className = 'alert alert-danger';
-            errorAlert.innerHTML = `
-                <h5>Error: ${data.error}</h5>
-                <p>The search could not be completed even with an extended timeout.</p>
-                <p>Try running the search monitor tool for detailed diagnostics:</p>
-                <pre>python search_monitor.py -v ${engineVersion} -q "${query}" -t 180</pre>
+        // Check for errors
+        if (data.status === 'error') {
+            document.getElementById('search-error').style.display = 'block';
+            document.getElementById('search-error').innerHTML = `
+                ${data.error || 'An error occurred during the search.'}<br/>
+                <small>This may be because the query is too complex or the dataset is too large.</small>
             `;
-            resultList.appendChild(errorAlert);
-            document.querySelector('.result-count').textContent = "0 results";
-            document.querySelector('.result-time').textContent = "in 0.00 ms";
             return;
         }
         
-        // Update result info
-        const resultCountElement = document.querySelector('.result-count');
-        const resultTimeElement = document.querySelector('.result-time');
-        const resultsCount = data.results ? data.results.length : 0;
-        const execTime = data.execution_time_ms || 0;
+        // Display metrics
+        document.getElementById('search-metrics-panel').style.display = 'block';
+        document.getElementById('metrics-version').textContent = data.version;
+        document.getElementById('metrics-query-time').textContent = data.metrics?.query_time_ms?.toFixed(1) + ' ms';
+        document.getElementById('metrics-result-count').textContent = data.result_count;
+        document.getElementById('metrics-memory-usage').textContent = data.metrics?.memory_usage_mb?.toFixed(1) + ' MB';
         
-        if (resultCountElement) {
-            resultCountElement.textContent = `${resultsCount} results`;
-        }
-        
-        if (resultTimeElement) {
-            resultTimeElement.textContent = `in ${execTime.toFixed(2)} ms`;
-        }
+        // Display result count
+        document.getElementById('result-count').style.display = 'block';
+        document.getElementById('result-count-number').textContent = data.result_count;
         
         // Display results
         if (data.results && data.results.length > 0) {
-            data.results.forEach(function(result) {
+            data.results.forEach(result => {
                 const resultItem = document.createElement('div');
                 resultItem.className = 'result-item';
+                
                 resultItem.innerHTML = `
-                    <div class="result-title">${result.title || 'Untitled Document'}</div>
-                    <div class="result-path">${result.path || 'No path available'}</div>
-                    <div class="result-snippet">${result.snippet || 'No snippet available'}</div>
-                    <div class="result-meta">
-                        <span><strong>Score:</strong> ${(result.score || 0).toFixed(2)}</span>
-                    </div>
+                    <div class="result-title">${result.title}</div>
+                    <div class="result-path">${result.path}</div>
+                    <div class="result-snippet">${result.snippet}</div>
+                    <div class="result-score">Score: ${result.score.toFixed(2)}</div>
                 `;
+                
                 resultList.appendChild(resultItem);
             });
         } else {
-            const noResults = document.createElement('div');
-            noResults.className = 'no-results';
-            noResults.textContent = 'No results found';
-            resultList.appendChild(noResults);
+            resultList.innerHTML = '<div class="alert alert-info">No results found for your query.</div>';
         }
     })
     .catch(error => {
+        // Hide progress indicator and show error
+        document.getElementById('search-progress').style.display = 'none';
+        document.getElementById('search-error').style.display = 'block';
+        document.getElementById('search-error').innerHTML = `
+            Error connecting to the search API: ${error.message}<br/>
+            <small>Check if the server is running and try again.</small>
+        `;
         console.error('Error:', error);
-        resultList.innerHTML = '';
-        const errorAlert = document.createElement('div');
-        errorAlert.className = 'alert alert-danger';
-        errorAlert.textContent = `Network error: ${error.message}`;
-        resultList.appendChild(errorAlert);
     });
 }
 
-// Function to optimize the search parameters for better performance
-function optimizeSearchParams(query, dataSourceType) {
-    // Default optimization settings
-    const optimizedParams = {
-        threads: 4,
-        processes: 4,
-        version: 'openmp', // Default to OpenMP for better performance
-        limit: 10
-    };
-    
-    // Check query complexity
-    const queryWords = query.split(/\s+/).filter(word => word.length > 0);
-    const isComplexQuery = queryWords.length > 3 || query.includes('"') || query.length > 30;
-    
-    // Adjust based on query complexity
-    if (isComplexQuery) {
-        optimizedParams.threads = 8;
-        optimizedParams.processes = 8;
-        optimizedParams.version = 'mpi'; // Use MPI for complex queries
-    }
-    
-    // Adjust based on data source
-    if (dataSourceType === 'crawl') {
-        // Web crawling is expensive, use more resources
-        optimizedParams.threads = Math.max(8, optimizedParams.threads);
-        optimizedParams.processes = Math.max(8, optimizedParams.processes);
-        optimizedParams.version = 'mpi'; // MPI handles web crawling better
-        
-        // Recommended crawl settings
-        optimizedParams.crawlDepth = 2; // Limited depth for faster results
-        optimizedParams.crawlMaxPages = 20; // Reasonable number of pages
-    }
-    
-    return optimizedParams;
+// Function to handle timeout errors and offer retry
+function handleTimeoutError(errorMessage) {
+    document.getElementById('search-error').innerHTML = `
+        ${errorMessage}<br/>
+        <button class="btn btn-warning mt-2" onclick="retryWithLongerTimeout()">
+            <i class="fas fa-redo"></i> Retry with Extended Timeout
+        </button>
+        <small class="d-block mt-1">Note: Extended search may take up to 4 minutes.</small>
+    `;
 }
+
+// Function to format search results
+function formatSearchResults(results) {
+    if (!results || results.length === 0) {
+        return '<div class="alert alert-info">No results found for your query.</div>';
+    }
+    
+    let html = '';
+    
+    results.forEach(result => {
+        // Format snippet with highlighting if available
+        let snippet = result.snippet;
+        if (snippet && !snippet.includes('<mark>')) {
+            // Simple highlighting of query terms
+            const query = document.querySelector('.search-input')?.value || '';
+            if (query) {
+                const terms = query.split(' ').filter(term => term.length > 2);
+                terms.forEach(term => {
+                    const regex = new RegExp(`(${term})`, 'gi');
+                    snippet = snippet.replace(regex, '<mark>$1</mark>');
+                });
+            }
+        }
+        
+        html += `
+            <div class="result-item">
+                <div class="result-title">${result.title}</div>
+                <div class="result-path">${result.path}</div>
+                <div class="result-snippet">${snippet}</div>
+                <div class="result-score">Score: ${result.score.toFixed(2)}</div>
+            </div>
+        `;
+    });
+    
+    return html;
+}
+
+// Function to load saved settings
+function loadSearchSettings() {
+    // Try to load general settings
+    try {
+        const generalSettings = JSON.parse(localStorage.getItem('generalSettings'));
+        if (generalSettings) {
+            // Set default engine version
+            const engineVersion = generalSettings.defaultVersion;
+            if (engineVersion) {
+                const versionRadio = document.querySelector(`input[name="engineVersion"][value="${engineVersion}"]`);
+                if (versionRadio) versionRadio.checked = true;
+            }
+            
+            // Set default thread count
+            const defaultThreads = generalSettings.defaultThreads;
+            if (defaultThreads) {
+                const threadsSelect = document.getElementById('numThreads');
+                if (threadsSelect) threadsSelect.value = defaultThreads;
+            }
+            
+            // Set default process count
+            const defaultProcesses = generalSettings.defaultProcesses;
+            if (defaultProcesses) {
+                const processesSelect = document.getElementById('numProcesses');
+                if (processesSelect) processesSelect.value = defaultProcesses;
+            }
+        }
+    } catch (error) {
+        console.error('Error loading search settings:', error);
+    }
+}
+
+// Initialize search-related functionality when the document is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Load saved settings
+    loadSearchSettings();
+    
+    // Setup data source change event
+    const dataSource = document.getElementById('dataSource');
+    if (dataSource) {
+        dataSource.addEventListener('change', function() {
+            const value = this.value;
+            document.getElementById('customPathOption').style.display = (value === 'custom') ? 'block' : 'none';
+            document.getElementById('crawlOptions').style.display = (value === 'crawl') ? 'block' : 'none';
+        });
+    }
+    
+    // Setup engine version change event to adjust visible options
+    const engineVersionRadios = document.querySelectorAll('input[name="engineVersion"]');
+    engineVersionRadios.forEach(radio => {
+        radio.addEventListener('change', function() {
+            const version = this.value;
+            const threadsContainer = document.getElementById('numThreads').closest('.mb-3');
+            const processesContainer = document.getElementById('numProcesses').closest('.mb-3');
+            
+            // Show/hide thread count based on version
+            if (version === 'serial') {
+                threadsContainer.style.display = 'none';
+                processesContainer.style.display = 'none';
+            } else if (version === 'openmp') {
+                threadsContainer.style.display = 'block';
+                processesContainer.style.display = 'none';
+            } else if (version === 'mpi') {
+                threadsContainer.style.display = 'none';
+                processesContainer.style.display = 'block';
+            } else if (version === 'hybrid') {
+                threadsContainer.style.display = 'block';
+                processesContainer.style.display = 'block';
+            }
+        });
+    });
+    
+    // Trigger change event on initial load
+    const checkedRadio = document.querySelector('input[name="engineVersion"]:checked');
+    if (checkedRadio) {
+        checkedRadio.dispatchEvent(new Event('change'));
+    }
+});

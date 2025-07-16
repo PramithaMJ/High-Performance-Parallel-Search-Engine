@@ -10,9 +10,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="js/performance-utils.js"></script>
     <script src="js/comparison-utils.js"></script>
+    <script src="js/search-utils.js"></script>
     <script src="js/tab-utils.js"></script>
-    <script src="js/tab-debug.js"></script>
     <script src="js/tab-navigator.js"></script>
+    <script src="js/error-monitor.js"></script>
+    <script src="js/bootstrap-tab-fix.js"></script>
 </head>
 <body>
     <div class="wrapper">
@@ -45,84 +47,84 @@
                 <li><a href="#serial" class="version-badge serial"><i class="fas fa-microchip"></i> Serial</a></li>
                 <li><a href="#openmp" class="version-badge openmp"><i class="fas fa-sitemap"></i> OpenMP</a></li>
                 <li><a href="#mpi" class="version-badge mpi"><i class="fas fa-network-wired"></i> MPI</a></li>
+                <li><a href="#hybrid" class="version-badge hybrid"><i class="fas fa-project-diagram"></i> Hybrid</a></li>
             </ul>
         </nav>
 
         <!-- Page Content -->
         <div id="content">
-            <!-- Top Navigation Bar -->
+            <!-- Top Navigation -->
             <nav class="navbar navbar-expand-lg navbar-light bg-light">
                 <div class="container-fluid">
-                    <button type="button" id="sidebarCollapse" class="btn">
+                    <button type="button" id="sidebarCollapse" class="btn btn-info">
                         <i class="fas fa-align-left"></i>
                         <span>Toggle Sidebar</span>
                     </button>
-                    <div>
-                        <h4>High Performance Parallel Search Engine</h4>
-                    </div>
-                    <div class="system-status">
-                        <span class="status-item"><i class="fas fa-server"></i> System: <span class="status-value running">Running</span></span>
+                    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                        <ul class="nav navbar-nav ms-auto">
+                            <li class="nav-item">
+                                <span class="nav-link">Status: <span id="system-status" class="badge bg-success">Online</span></span>
+                            </li>
+                        </ul>
                     </div>
                 </div>
             </nav>
 
-            <!-- Main Content Area -->
-            <div class="tab-content container-fluid">
+            <!-- Tab Content -->
+            <div class="tab-content">
                 <!-- Dashboard Tab -->
-                <div class="tab-pane fade show active" id="dashboard">
-                    <div class="row">
-                        <div class="col-md-6 col-lg-3">
-                            <div class="card stats-card">
-                                <div class="card-body">
-                                    <h5 class="card-title">Serial</h5>
-                                    <div class="stats-info">
-                                        <div class="stats-value">365ms</div>
-                                        <div class="stats-label">Average Query Time</div>
+                <div class="tab-pane active" id="dashboard">
+                    <h2>Dashboard</h2>
+                    <div class="dashboard-stats">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <h4>Serial Version</h4>
+                                    <div class="status-indicator" id="serial-status">
+                                        <span class="status-badge available">Available</span>
                                     </div>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-info" role="progressbar" style="width: 65%" aria-valuenow="65" aria-valuemin="0" aria-valuemax="100"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-3">
-                            <div class="card stats-card">
-                                <div class="card-body">
-                                    <h5 class="card-title">OpenMP</h5>
-                                    <div class="stats-info">
-                                        <div class="stats-value">124ms</div>
-                                        <div class="stats-label">Average Query Time</div>
-                                    </div>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-success" role="progressbar" style="width: 82%" aria-valuenow="82" aria-valuemin="0" aria-valuemax="100"></div>
+                                    <div class="quick-stats">
+                                        <div>Avg. Query Time: <span id="serial-avg-query-time">45.3</span> ms</div>
+                                        <div>Memory Usage: <span id="serial-memory-usage">12.4</span> MB</div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="col-md-6 col-lg-3">
-                            <div class="card stats-card">
-                                <div class="card-body">
-                                    <h5 class="card-title">MPI</h5>
-                                    <div class="stats-info">
-                                        <div class="stats-value">78ms</div>
-                                        <div class="stats-label">Average Query Time</div>
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <h4>OpenMP Version</h4>
+                                    <div class="status-indicator" id="openmp-status">
+                                        <span class="status-badge available">Available</span>
                                     </div>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-warning" role="progressbar" style="width: 90%" aria-valuenow="90" aria-valuemin="0" aria-valuemax="100"></div>
+                                    <div class="quick-stats">
+                                        <div>Avg. Query Time: <span id="openmp-avg-query-time">20.7</span> ms</div>
+                                        <div>Memory Usage: <span id="openmp-memory-usage">14.2</span> MB</div>
+                                        <div>Threads: <span id="openmp-threads">4</span></div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="col-md-6 col-lg-3">
-                            <div class="card stats-card">
-                                <div class="card-body">
-                                    <h5 class="card-title">Speedup</h5>
-                                    <div class="stats-info">
-                                        <div class="stats-value">4.7x</div>
-                                        <div class="stats-label">MPI vs Serial</div>
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <h4>MPI Version</h4>
+                                    <div class="status-indicator" id="mpi-status">
+                                        <span class="status-badge available">Available</span>
                                     </div>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-danger" role="progressbar" style="width: 95%" aria-valuenow="95" aria-valuemin="0" aria-valuemax="100"></div>
+                                    <div class="quick-stats">
+                                        <div>Avg. Query Time: <span id="mpi-avg-query-time">18.5</span> ms</div>
+                                        <div>Memory Usage: <span id="mpi-memory-usage">16.8</span> MB</div>
+                                        <div>Processes: <span id="mpi-processes">4</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <h4>Hybrid Version</h4>
+                                    <div class="status-indicator" id="hybrid-status">
+                                        <span class="status-badge available">Available</span>
+                                    </div>
+                                    <div class="quick-stats">
+                                        <div>Avg. Query Time: <span id="hybrid-avg-query-time">15.2</span> ms</div>
+                                        <div>Memory Usage: <span id="hybrid-memory-usage">18.5</span> MB</div>
+                                        <div>Proc/Threads: <span id="hybrid-config">2/4</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -136,17 +138,46 @@
                                     Performance Comparison
                                 </div>
                                 <div class="card-body">
-                                    <canvas id="performanceChart"></canvas>
+                                    <canvas id="performanceChart" width="400" height="200"></canvas>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="card">
                                 <div class="card-header">
-                                    Memory Usage
+                                    Recent Searches
                                 </div>
                                 <div class="card-body">
-                                    <canvas id="memoryChart"></canvas>
+                                    <ul class="list-group" id="recent-searches">
+                                        <li class="list-group-item">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1">"parallel processing"</h6>
+                                                <small class="text-muted">5 min ago</small>
+                                            </div>
+                                            <p class="mb-1">Serial Version - 12 results (45.3ms)</p>
+                                        </li>
+                                        <li class="list-group-item">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1">"high performance computing"</h6>
+                                                <small class="text-muted">10 min ago</small>
+                                            </div>
+                                            <p class="mb-1">OpenMP Version - 18 results (20.7ms)</p>
+                                        </li>
+                                        <li class="list-group-item">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1">"distributed systems"</h6>
+                                                <small class="text-muted">15 min ago</small>
+                                            </div>
+                                            <p class="mb-1">MPI Version - 8 results (18.5ms)</p>
+                                        </li>
+                                        <li class="list-group-item">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1">"hybrid parallelism"</h6>
+                                                <small class="text-muted">20 min ago</small>
+                                            </div>
+                                            <p class="mb-1">Hybrid Version - 6 results (15.2ms)</p>
+                                        </li>
+                                    </ul>
                                 </div>
                             </div>
                         </div>
@@ -156,64 +187,20 @@
                         <div class="col-md-6">
                             <div class="card">
                                 <div class="card-header">
-                                    Recent Searches
+                                    Memory Usage
                                 </div>
                                 <div class="card-body">
-                                    <ul class="list-group">
-                                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            "distributed tracing"
-                                            <span class="badge bg-primary rounded-pill">2.5s</span>
-                                        </li>
-                                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            "parallel computing"
-                                            <span class="badge bg-primary rounded-pill">1.8s</span>
-                                        </li>
-                                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            "microservices"
-                                            <span class="badge bg-primary rounded-pill">1.2s</span>
-                                        </li>
-                                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            "circuit breaker"
-                                            <span class="badge bg-primary rounded-pill">2.1s</span>
-                                        </li>
-                                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            "linux wake up"
-                                            <span class="badge bg-primary rounded-pill">1.5s</span>
-                                        </li>
-                                    </ul>
+                                    <canvas id="memoryChart" width="400" height="200"></canvas>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="card">
                                 <div class="card-header">
-                                    System Status
+                                    System Resource Usage
                                 </div>
                                 <div class="card-body">
-                                    <div class="system-metric">
-                                        <div class="metric-label">CPU Usage</div>
-                                        <div class="progress">
-                                            <div class="progress-bar bg-info" role="progressbar" style="width: 45%" aria-valuenow="45" aria-valuemin="0" aria-valuemax="100">45%</div>
-                                        </div>
-                                    </div>
-                                    <div class="system-metric">
-                                        <div class="metric-label">Memory Usage</div>
-                                        <div class="progress">
-                                            <div class="progress-bar bg-warning" role="progressbar" style="width: 65%" aria-valuenow="65" aria-valuemin="0" aria-valuemax="100">65%</div>
-                                        </div>
-                                    </div>
-                                    <div class="system-metric">
-                                        <div class="metric-label">Disk I/O</div>
-                                        <div class="progress">
-                                            <div class="progress-bar bg-success" role="progressbar" style="width: 25%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">25%</div>
-                                        </div>
-                                    </div>
-                                    <div class="system-metric">
-                                        <div class="metric-label">Network</div>
-                                        <div class="progress">
-                                            <div class="progress-bar bg-danger" role="progressbar" style="width: 15%" aria-valuenow="15" aria-valuemin="0" aria-valuemax="100">15%</div>
-                                        </div>
-                                    </div>
+                                    <canvas id="resourceChart" width="400" height="200"></canvas>
                                 </div>
                             </div>
                         </div>
@@ -221,248 +208,278 @@
                 </div>
 
                 <!-- Search Engine Tab -->
-                <div class="tab-pane fade" id="search-engine">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5>Search Engine Interface</h5>
+                <div class="tab-pane" id="search-engine">
+                    <h2>Search Engine</h2>
+                    <div class="search-box">
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control search-input" placeholder="Enter your search query...">
+                            <button class="btn btn-primary" type="button" id="search-button">Search</button>
                         </div>
-                        <div class="card-body">
-                            <div class="search-container mb-4">
-                                <div class="input-group mb-3">
-                                    <input type="text" class="form-control search-input" placeholder="Enter search query...">
-                                    <button class="btn btn-primary" type="button" id="searchButton"><i class="fas fa-search"></i> Search</button>
-                                </div>
-                                <div class="search-options">
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="engineVersion" id="serialVersion" value="serial" checked>
-                                        <label class="form-check-label" for="serialVersion">Serial Version</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="engineVersion" id="openmpVersion" value="openmp">
-                                        <label class="form-check-label" for="openmpVersion">OpenMP Version</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="engineVersion" id="mpiVersion" value="mpi">
-                                        <label class="form-check-label" for="mpiVersion">MPI Version</label>
-                                    </div>
-                                    
-                                    <div class="form-check form-check-inline ms-4">
-                                        <input class="form-check-input" type="checkbox" id="measurePerformance" value="measure">
-                                        <label class="form-check-label" for="measurePerformance">Measure Performance</label>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="advanced-options mb-4">
-                                <div class="card">
-                                    <div class="card-header" data-bs-toggle="collapse" href="#advancedOptionsCollapse">
-                                        Advanced Options <i class="fas fa-chevron-down float-end"></i>
-                                    </div>
-                                    <div class="collapse" id="advancedOptionsCollapse">
+                        
+                        <div class="search-options mb-4">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="card">
+                                        <div class="card-header">Engine Version</div>
                                         <div class="card-body">
-                                            <div class="row">
-                                                <div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label for="numThreads" class="form-label">Threads (OpenMP)</label>
-                                                        <input type="number" class="form-control" id="numThreads" value="4" min="1" max="32">
-                                                    </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="engineVersion" id="serialVersion" value="serial" checked>
+                                                <label class="form-check-label" for="serialVersion">
+                                                    Serial
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="engineVersion" id="openmpVersion" value="openmp">
+                                                <label class="form-check-label" for="openmpVersion">
+                                                    OpenMP
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="engineVersion" id="mpiVersion" value="mpi">
+                                                <label class="form-check-label" for="mpiVersion">
+                                                    MPI
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="engineVersion" id="hybridVersion" value="hybrid">
+                                                <label class="form-check-label" for="hybridVersion">
+                                                    Hybrid
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card">
+                                        <div class="card-header">Parallelism Options</div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label for="numThreads" class="form-label">Number of Threads</label>
+                                                <select class="form-select" id="numThreads">
+                                                    <option value="1">1</option>
+                                                    <option value="2">2</option>
+                                                    <option value="4" selected>4</option>
+                                                    <option value="8">8</option>
+                                                    <option value="16">16</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="numProcesses" class="form-label">Number of Processes</label>
+                                                <select class="form-select" id="numProcesses">
+                                                    <option value="1">1</option>
+                                                    <option value="2">2</option>
+                                                    <option value="4" selected>4</option>
+                                                    <option value="8">8</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card">
+                                        <div class="card-header">Data Source</div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <select class="form-select" id="dataSource">
+                                                    <option value="dataset" selected>Default Dataset</option>
+                                                    <option value="custom">Custom Data Path</option>
+                                                    <option value="crawl">Web Crawl</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3 data-option" id="customPathOption" style="display: none;">
+                                                <input type="text" class="form-control" id="customPath" placeholder="Path to dataset">
+                                            </div>
+                                            <div class="data-option" id="crawlOptions" style="display: none;">
+                                                <div class="mb-3">
+                                                    <input type="text" class="form-control" id="crawlUrl" placeholder="URL to crawl">
                                                 </div>
-                                                <div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label for="numProcesses" class="form-label">Processes (MPI)</label>
-                                                        <input type="number" class="form-control" id="numProcesses" value="4" min="1" max="64">
-                                                    </div>
+                                                <div class="mb-3">
+                                                    <label for="crawlDepth" class="form-label">Crawl Depth</label>
+                                                    <input type="number" class="form-control" id="crawlDepth" value="2" min="1" max="5">
                                                 </div>
-                                                <div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label for="resultLimit" class="form-label">Result Limit</label>
-                                                        <input type="number" class="form-control" id="resultLimit" value="10" min="1" max="100">
-                                                    </div>
+                                                <div class="mb-3">
+                                                    <label for="crawlMaxPages" class="form-label">Max Pages</label>
+                                                    <input type="number" class="form-control" id="crawlMaxPages" value="10" min="5" max="100">
                                                 </div>
                                             </div>
-                                            <div class="row">
-                                                <div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label for="dataSource" class="form-label">Data Source</label>
-                                                        <select class="form-select" id="dataSource">
-                                                            <option value="dataset" selected>Default Dataset</option>
-                                                            <option value="custom">Custom Dataset</option>
-                                                            <option value="crawl">Web Crawl</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-8">
-                                                    <div class="mb-3">
-                                                        <label for="crawlUrl" class="form-label">Crawl URL (if applicable)</label>
-                                                        <input type="text" class="form-control" id="crawlUrl" placeholder="https://example.com">
-                                                    </div>
-                                                </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card">
+                                        <div class="card-header">Result Options</div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label for="resultLimit" class="form-label">Result Limit</label>
+                                                <select class="form-select" id="resultLimit">
+                                                    <option value="5">5</option>
+                                                    <option value="10" selected>10</option>
+                                                    <option value="20">20</option>
+                                                    <option value="50">50</option>
+                                                </select>
                                             </div>
-                                            <div class="row crawl-options" style="display: none;">
-                                                <div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label for="crawlDepth" class="form-label">Crawl Depth</label>
-                                                        <input type="number" class="form-control" id="crawlDepth" value="2" min="1" max="5">
-                                                        <small class="form-text text-muted">Depth of links to follow (1-5)</small>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label for="crawlMaxPages" class="form-label">Max Pages</label>
-                                                        <input type="number" class="form-control" id="crawlMaxPages" value="20" min="1" max="100">
-                                                        <small class="form-text text-muted">Maximum pages to crawl</small>
-                                                    </div>
+                                            <div class="mb-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="" id="saveResultsCheck">
+                                                    <label class="form-check-label" for="saveResultsCheck">
+                                                        Save Results
+                                                    </label>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-
-                            <div class="search-results">
-                                <h5>Search Results</h5>
-                                <div class="search-info">
-                                    <span class="result-count">0 results</span>
-                                    <span class="result-time">in 0.00 ms</span>
-                                </div>
-                                <div class="result-list">
-                                    <!-- Results will appear here -->
-                                    <div class="alert alert-info">Enter a search query and press Search to see results.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="search-results">
+                        <div class="search-status">
+                            <div class="alert alert-primary" role="alert" id="search-progress" style="display: none;">
+                                <div class="d-flex align-items-center">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status">
+                                        <span class="visually-hidden">Searching...</span>
+                                    </div>
+                                    <div>
+                                        Searching... This may take a few seconds.
+                                    </div>
                                 </div>
                             </div>
+                            <div class="alert alert-danger" role="alert" id="search-error" style="display: none;">
+                                An error occurred during the search.
+                            </div>
+                        </div>
+                        
+                        <div class="search-metrics mb-3" id="search-metrics-panel" style="display: none;">
+                            <div class="card">
+                                <div class="card-header">
+                                    Search Metrics
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="metric-item">
+                                                <span class="metric-label">Version:</span>
+                                                <span class="metric-value" id="metrics-version">Serial</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="metric-item">
+                                                <span class="metric-label">Query Time:</span>
+                                                <span class="metric-value" id="metrics-query-time">45.3 ms</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="metric-item">
+                                                <span class="metric-label">Results:</span>
+                                                <span class="metric-value" id="metrics-result-count">12</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="metric-item">
+                                                <span class="metric-label">Memory Usage:</span>
+                                                <span class="metric-value" id="metrics-memory-usage">12.4 MB</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="result-count mb-2" id="result-count" style="display: none;">
+                            Showing <span id="result-count-number">0</span> results
+                        </div>
+                        
+                        <div class="result-list">
+                            <!-- Search results will be displayed here -->
                         </div>
                     </div>
                 </div>
 
                 <!-- Performance Tab -->
-                <div class="tab-pane fade" id="performance">
+                <div class="tab-pane" id="performance">
+                    <h2>Performance Metrics</h2>
                     <div class="row">
                         <div class="col-md-12">
-                            <div class="card">
+                            <div class="card mb-4">
                                 <div class="card-header">
-                                    <h5>Performance Metrics Dashboard</h5>
+                                    Query Processing Time
                                 </div>
                                 <div class="card-body">
-                                    <div class="row mb-4">
-                                        <div class="col-md-3">
-                                            <div class="form-group">
-                                                <label for="performanceVersion">Select Version</label>
-                                                <select class="form-select" id="performanceVersion">
-                                                    <option value="all">All Versions</option>
-                                                    <option value="serial">Serial</option>
-                                                    <option value="openmp">OpenMP</option>
-                                                    <option value="mpi">MPI</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="form-group">
-                                                <label for="performanceMetric">Select Metric</label>
-                                                <select class="form-select" id="performanceMetric">
-                                                    <option value="query_time">Query Time</option>
-                                                    <option value="indexing_time">Indexing Time</option>
-                                                    <option value="crawling_time">Crawling Time</option>
-                                                    <option value="memory_usage">Memory Usage</option>
-                                                    <option value="cpu_usage">CPU Usage</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="form-group">
-                                                <label for="performanceTimeRange">Time Range</label>
-                                                <select class="form-select" id="performanceTimeRange">
-                                                    <option value="last_run">Last Run</option>
-                                                    <option value="today">Today</option>
-                                                    <option value="week">Past Week</option>
-                                                    <option value="month">Past Month</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3 d-flex align-items-end">
-                                            <button class="btn btn-primary w-100">Update Charts</button>
-                                        </div>
-                                    </div>
-
-                                    <div class="performance-charts">
-                                        <canvas id="performanceDetailChart"></canvas>
-                                    </div>
-                                    
-                                    <div class="row mt-4">
-                                        <div class="col-md-6">
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h6>Query Processing Breakdown</h6>
-                                                </div>
-                                                <div class="card-body">
-                                                    <canvas id="queryBreakdownChart"></canvas>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h6>Memory Usage Over Time</h6>
-                                                </div>
-                                                <div class="card-body">
-                                                    <canvas id="memoryTimeChart"></canvas>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="card mt-4">
-                                        <div class="card-header">
-                                            <h6>Performance Tables</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <table class="table table-striped table-hover">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Metric</th>
-                                                        <th>Serial</th>
-                                                        <th>OpenMP</th>
-                                                        <th>MPI</th>
-                                                        <th>OpenMP Speedup</th>
-                                                        <th>MPI Speedup</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <tr>
-                                                        <td>Indexing Time (ms)</td>
-                                                        <td>842.5</td>
-                                                        <td>315.8</td>
-                                                        <td>213.2</td>
-                                                        <td>2.67x</td>
-                                                        <td>3.95x</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>Query Time (ms)</td>
-                                                        <td>365.2</td>
-                                                        <td>124.6</td>
-                                                        <td>78.3</td>
-                                                        <td>2.93x</td>
-                                                        <td>4.66x</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>Crawling Time (ms)</td>
-                                                        <td>5236.9</td>
-                                                        <td>1752.3</td>
-                                                        <td>982.5</td>
-                                                        <td>2.99x</td>
-                                                        <td>5.33x</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>Memory Usage (MB)</td>
-                                                        <td>245.6</td>
-                                                        <td>283.7</td>
-                                                        <td>412.9</td>
-                                                        <td>0.87x</td>
-                                                        <td>0.59x</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
+                                    <canvas id="queryTimeChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    Memory Usage
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="performanceMemoryChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    CPU Utilization
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="cpuUtilizationChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    Indexing Performance
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="indexingChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    Scaling Efficiency
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="scalingChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    Historical Performance
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Timestamp</th>
+                                                <th>Version</th>
+                                                <th>Query</th>
+                                                <th>Query Time (ms)</th>
+                                                <th>Memory Usage (MB)</th>
+                                                <th>Results</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="performance-history">
+                                            <!-- This will be populated with data from the API -->
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -470,120 +487,190 @@
                 </div>
 
                 <!-- Compare Tab -->
-                <div class="tab-pane fade" id="compare">
-                    <div class="row">
-                        <div class="col-md-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5>Version Comparison</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row mb-4">
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label>Query Set</label>
-                                                <select class="form-select">
-                                                    <option>Default Queries</option>
-                                                    <option>Simple Queries</option>
-                                                    <option>Complex Queries</option>
-                                                    <option>Custom Query Set</option>
-                                                </select>
-                                            </div>
+                <div class="tab-pane" id="compare">
+                    <h2>Version Comparison</h2>
+                    <div class="compare-form mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                Comparison Settings
+                            </div>
+                            <div class="card-body">
+                                <form id="compare-form">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="compare-query" class="form-label">Search Query</label>
+                                            <input type="text" class="form-control" id="compare-query" placeholder="Enter search query for comparison">
                                         </div>
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label>Comparison Type</label>
-                                                <select class="form-select">
-                                                    <option>Performance</option>
-                                                    <option>Memory Usage</option>
-                                                    <option>Scaling Efficiency</option>
-                                                    <option>All Metrics</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4 d-flex align-items-end">
-                                            <button class="btn btn-primary w-100">Run Comparison</button>
+                                        <div class="col-md-6">
+                                            <label for="compare-dataset" class="form-label">Dataset</label>
+                                            <select class="form-select" id="compare-dataset">
+                                                <option value="default" selected>Default Dataset</option>
+                                                <option value="custom">Custom Dataset</option>
+                                            </select>
                                         </div>
                                     </div>
-
-                                    <ul class="nav nav-tabs" id="compareVersions">
-                                        <li class="nav-item">
-                                            <a class="nav-link active" data-bs-toggle="tab" href="#performanceComparison">Performance</a>
-                                        </li>
-                                        <li class="nav-item">
-                                            <a class="nav-link" data-bs-toggle="tab" href="#scalingComparison">Scaling</a>
-                                        </li>
-                                        <li class="nav-item">
-                                            <a class="nav-link" data-bs-toggle="tab" href="#memoryComparison">Memory Usage</a>
-                                        </li>
-                                        <li class="nav-item">
-                                            <a class="nav-link" data-bs-toggle="tab" href="#accuracyComparison">Accuracy</a>
-                                        </li>
-                                    </ul>
-
-                                    <div class="tab-content mt-3">
-                                        <div class="tab-pane fade show active" id="performanceComparison">
-                                            <canvas id="performanceComparisonChart"></canvas>
-
-                                            <div class="comparison-summary mt-4">
-                                                <h6>Performance Summary</h6>
-                                                <p>The MPI version shows the best performance with an average query time of 78.3ms, followed by the OpenMP version at 124.6ms. The serial version is significantly slower at 365.2ms per query.</p>
-                                                <p>For indexing operations, we observe a similar pattern with MPI performing 3.95x faster than the serial version, while OpenMP shows a 2.67x improvement.</p>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Data Source Options</label>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="compare-use-website">
+                                            <label class="form-check-label" for="compare-use-website">
+                                                Use Website Crawling
+                                            </label>
+                                        </div>
+                                        <div id="website-crawl-options" class="mt-2" style="display: none;">
+                                            <div class="row">
+                                                <div class="col-md-12 mb-2">
+                                                    <label for="compare-website-url" class="form-label">Website URL</label>
+                                                    <input type="text" class="form-control" id="compare-website-url" placeholder="https://medium.com/@lpramithamj">
+                                                </div>
+                                                <div class="col-md-6 mb-2">
+                                                    <label for="compare-website-depth" class="form-label">Crawl Depth</label>
+                                                    <select class="form-select" id="compare-website-depth">
+                                                        <option value="1">1</option>
+                                                        <option value="2" selected>2</option>
+                                                        <option value="3">3</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6 mb-2">
+                                                    <label for="compare-website-max-pages" class="form-label">Max Pages</label>
+                                                    <input type="number" class="form-control" id="compare-website-max-pages" value="10" min="5" max="100">
+                                                </div>
                                             </div>
                                         </div>
-                                        <div class="tab-pane fade" id="scalingComparison">
-                                            <canvas id="scalingComparisonChart"></canvas>
-
-                                            <div class="comparison-summary mt-4">
-                                                <h6>Scaling Efficiency</h6>
-                                                <p>MPI demonstrates significantly better scaling across multiple nodes, with near-linear scaling up to 8 nodes, while OpenMP shows diminishing returns beyond 8 threads on a single node.</p>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Versions to Compare</label>
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="serial" id="compare-serial" checked>
+                                                    <label class="form-check-label" for="compare-serial">
+                                                        Serial
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="openmp" id="compare-openmp" checked>
+                                                    <label class="form-check-label" for="compare-openmp">
+                                                        OpenMP
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="mpi" id="compare-mpi" checked>
+                                                    <label class="form-check-label" for="compare-mpi">
+                                                        MPI
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="hybrid" id="compare-hybrid" checked>
+                                                    <label class="form-check-label" for="compare-hybrid">
+                                                        Hybrid
+                                                    </label>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div class="tab-pane fade" id="memoryComparison">
-                                            <canvas id="memoryComparisonChart"></canvas>
-
-                                            <div class="comparison-summary mt-4">
-                                                <h6>Memory Usage Summary</h6>
-                                                <p>The serial version has the lowest memory footprint (245.6 MB), while the MPI version consumes the most memory (412.9 MB) due to its distributed nature. The OpenMP version falls in between at 283.7 MB.</p>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Configuration</label>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="compare-threads" class="form-label">OpenMP Threads</label>
+                                                    <select class="form-select" id="compare-threads">
+                                                        <option value="1">1</option>
+                                                        <option value="2">2</option>
+                                                        <option value="4" selected>4</option>
+                                                        <option value="8">8</option>
+                                                        <option value="16">16</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="compare-processes" class="form-label">MPI Processes</label>
+                                                    <select class="form-select" id="compare-processes">
+                                                        <option value="1">1</option>
+                                                        <option value="2">2</option>
+                                                        <option value="4" selected>4</option>
+                                                        <option value="8">8</option>
+                                                    </select>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div class="tab-pane fade" id="accuracyComparison">
-                                            <div class="alert alert-info">
-                                                <p>All three versions use the same BM25 ranking algorithm and produce identical search results.</p>
-                                            </div>
-
-                                            <table class="table table-bordered">
+                                    </div>
+                                    
+                                    <button type="button" class="btn btn-primary" id="run-comparison">Run Comparison</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="comparison-results" style="display: none;" id="comparison-results">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        Query Time Comparison
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="compareQueryTimeChart" width="400" height="200"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        Memory Usage Comparison
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="compareMemoryChart" width="400" height="200"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        Indexing Time Comparison
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="compareIndexingChart" width="400" height="200"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        Result Comparison
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-striped">
                                                 <thead>
                                                     <tr>
-                                                        <th>Query</th>
-                                                        <th>Serial Results</th>
-                                                        <th>OpenMP Results</th>
-                                                        <th>MPI Results</th>
-                                                        <th>Match?</th>
+                                                        <th>Version</th>
+                                                        <th>Query Time (ms)</th>
+                                                        <th>Indexing Time (ms)</th>
+                                                        <th>Memory Usage (MB)</th>
+                                                        <th>Results</th>
+                                                        <th>Top Result</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody>
-                                                    <tr>
-                                                        <td>"circuit breaker"</td>
-                                                        <td>5 results</td>
-                                                        <td>5 results</td>
-                                                        <td>5 results</td>
-                                                        <td><i class="fas fa-check text-success"></i></td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>"distributed tracing"</td>
-                                                        <td>3 results</td>
-                                                        <td>3 results</td>
-                                                        <td>3 results</td>
-                                                        <td><i class="fas fa-check text-success"></i></td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>"parallel computing"</td>
-                                                        <td>7 results</td>
-                                                        <td>7 results</td>
-                                                        <td>7 results</td>
-                                                        <td><i class="fas fa-check text-success"></i></td>
-                                                    </tr>
+                                                <tbody id="comparison-table">
+                                                    <!-- Will be populated with comparison data -->
                                                 </tbody>
                                             </table>
                                         </div>
@@ -595,133 +682,153 @@
                 </div>
 
                 <!-- Build Tab -->
-                <div class="tab-pane fade" id="build">
+                <div class="tab-pane" id="build">
+                    <h2>Build & Deploy</h2>
                     <div class="row">
-                        <div class="col-md-12 mb-4">
-                            <div class="card">
+                        <div class="col-md-6">
+                            <div class="card mb-4">
                                 <div class="card-header">
-                                    <h5>Build & Deploy Search Engine</h5>
+                                    Build Settings
                                 </div>
                                 <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <div class="form-group mb-3">
-                                                <label>Version to Build</label>
-                                                <select class="form-select" id="buildVersion">
-                                                    <option value="serial">Serial Version</option>
-                                                    <option value="openmp">OpenMP Version</option>
-                                                    <option value="mpi">MPI Version</option>
-                                                    <option value="all">All Versions</option>
-                                                </select>
-                                            </div>
-                                            <div class="form-group mb-3">
-                                                <label>Build Type</label>
-                                                <select class="form-select" id="buildType">
-                                                    <option value="debug">Debug</option>
-                                                    <option value="release">Release</option>
-                                                    <option value="production">Production</option>
-                                                </select>
-                                            </div>
-                                            <div class="form-group mb-3">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="cleanBuild">
-                                                    <label class="form-check-label" for="cleanBuild">Clean before build</label>
+                                    <form id="build-form">
+                                        <div class="mb-3">
+                                            <label class="form-label">Version to Build</label>
+                                            <div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="buildVersion" id="build-serial" value="serial" checked>
+                                                    <label class="form-check-label" for="build-serial">Serial</label>
                                                 </div>
-                                            </div>
-                                            <button id="startBuild" class="btn btn-primary mb-3 w-100">Start Build</button>
-                                            <button id="runTests" class="btn btn-outline-secondary w-100">Run Tests</button>
-                                        </div>
-                                        <div class="col-md-8">
-                                            <div class="terminal">
-                                                <div class="terminal-header">
-                                                    <span>Terminal Output</span>
-                                                    <button class="btn btn-sm btn-outline-light float-end">Clear</button>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="buildVersion" id="build-openmp" value="openmp">
+                                                    <label class="form-check-label" for="build-openmp">OpenMP</label>
                                                 </div>
-                                                <div class="terminal-content">
-                                                    <div class="terminal-line">$ cd /Users/pramithajayasooriya/Desktop/Academic/Semester 7/HPC/hpc/HPC Project/High-Performance-Parallel-Search-Engine</div>
-                                                    <div class="terminal-line">$ make clean</div>
-                                                    <div class="terminal-line">rm -f obj/*.o bin/search_engine bin/test_url_normalization bin/test_medium_urls bin/evaluate</div>
-                                                    <div class="terminal-line">$ make all</div>
-                                                    <div class="terminal-line">gcc -Wall -Wextra -g -O3 -fopenmp -I./include -c -o obj/main.o src/main.c</div>
-                                                    <div class="terminal-line">gcc -Wall -Wextra -g -O3 -fopenmp -I./include -c -o obj/parser.o src/parser.c</div>
-                                                    <div class="terminal-line">gcc -Wall -Wextra -g -O3 -fopenmp -I./include -c -o obj/index.o src/index.c</div>
-                                                    <div class="terminal-line">gcc -Wall -Wextra -g -O3 -fopenmp -I./include -c -o obj/ranking.o src/ranking.c</div>
-                                                    <div class="terminal-line">gcc -Wall -Wextra -g -O3 -fopenmp -I./include -c -o obj/crawler.o src/crawler.c</div>
-                                                    <div class="terminal-line">gcc -o bin/search_engine obj/main.o obj/parser.o obj/index.o obj/ranking.o obj/crawler.o -fopenmp -lcurl</div>
-                                                    <div class="terminal-line">Build complete! Executable created at bin/search_engine</div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="buildVersion" id="build-mpi" value="mpi">
+                                                    <label class="form-check-label" for="build-mpi">MPI</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="buildVersion" id="build-hybrid" value="hybrid">
+                                                    <label class="form-check-label" for="build-hybrid">Hybrid</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="buildVersion" id="build-all" value="all">
+                                                    <label class="form-check-label" for="build-all">All Versions</label>
                                                 </div>
                                             </div>
                                         </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Build Options</label>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="build-clean" value="clean">
+                                                <label class="form-check-label" for="build-clean">Clean Build</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="build-optimize" value="optimize" checked>
+                                                <label class="form-check-label" for="build-optimize">Optimization</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="build-debug" value="debug">
+                                                <label class="form-check-label" for="build-debug">Debug Symbols</label>
+                                            </div>
+                                        </div>
+                                        
+                                        <button type="button" class="btn btn-primary" id="start-build">Start Build</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    Build Status
+                                </div>
+                                <div class="card-body">
+                                    <div class="build-status">
+                                        <div class="alert alert-primary" role="alert" id="build-progress" style="display: none;">
+                                            <div class="d-flex align-items-center">
+                                                <div class="spinner-border spinner-border-sm me-2" role="status">
+                                                    <span class="visually-hidden">Building...</span>
+                                                </div>
+                                                <div>
+                                                    Building... This may take a few seconds.
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="alert alert-success" role="alert" id="build-success" style="display: none;">
+                                            Build completed successfully.
+                                        </div>
+                                        <div class="alert alert-danger" role="alert" id="build-error" style="display: none;">
+                                            Build failed. Check the logs for details.
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="build-log">
+                                        <pre id="build-log-output" class="border p-3 bg-light" style="height: 200px; overflow: auto;"></pre>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <div class="card">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card mb-4">
                                 <div class="card-header">
-                                    <h5>MPI Deployment Configuration</h5>
+                                    System Status
                                 </div>
                                 <div class="card-body">
-                                    <div class="form-group mb-3">
-                                        <label>Number of Nodes</label>
-                                        <input type="number" class="form-control" value="4" min="1">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <label>Processes per Node</label>
-                                        <input type="number" class="form-control" value="4" min="1">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <label>Hostfile</label>
-                                        <textarea class="form-control" rows="4">node1 slots=4
-node2 slots=4
-node3 slots=4
-node4 slots=4</textarea>
-                                    </div>
-                                    <button class="btn btn-primary">Deploy MPI Version</button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5>Build History</h5>
-                                </div>
-                                <div class="card-body">
-                                    <table class="table table-striped">
+                                    <table class="table">
                                         <thead>
                                             <tr>
-                                                <th>Date</th>
                                                 <th>Version</th>
                                                 <th>Status</th>
+                                                <th>Path</th>
+                                                <th>Last Build</th>
                                                 <th>Actions</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
+                                        <tbody id="version-status-table">
                                             <tr>
-                                                <td>2025-06-18 13:42</td>
-                                                <td>MPI v1.1.0</td>
-                                                <td><span class="badge bg-success">Success</span></td>
-                                                <td><button class="btn btn-sm btn-outline-primary">View Log</button></td>
+                                                <td>Serial</td>
+                                                <td><span class="badge bg-success">Available</span></td>
+                                                <td>/path/to/Serial Version/bin/search_engine</td>
+                                                <td>2023-06-19 15:23:45</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-primary">Rebuild</button>
+                                                    <button class="btn btn-sm btn-danger">Clean</button>
+                                                </td>
                                             </tr>
                                             <tr>
-                                                <td>2025-06-17 15:30</td>
-                                                <td>OpenMP v1.1.0</td>
-                                                <td><span class="badge bg-success">Success</span></td>
-                                                <td><button class="btn btn-sm btn-outline-primary">View Log</button></td>
+                                                <td>OpenMP</td>
+                                                <td><span class="badge bg-success">Available</span></td>
+                                                <td>/path/to/OpenMP Version/bin/search_engine</td>
+                                                <td>2023-06-19 15:24:32</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-primary">Rebuild</button>
+                                                    <button class="btn btn-sm btn-danger">Clean</button>
+                                                </td>
                                             </tr>
                                             <tr>
-                                                <td>2025-06-15 09:25</td>
-                                                <td>Serial v1.1.0</td>
-                                                <td><span class="badge bg-success">Success</span></td>
-                                                <td><button class="btn btn-sm btn-outline-primary">View Log</button></td>
+                                                <td>MPI</td>
+                                                <td><span class="badge bg-success">Available</span></td>
+                                                <td>/path/to/MPI Version/bin/search_engine</td>
+                                                <td>2023-06-19 15:25:18</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-primary">Rebuild</button>
+                                                    <button class="btn btn-sm btn-danger">Clean</button>
+                                                </td>
                                             </tr>
                                             <tr>
-                                                <td>2025-06-14 18:12</td>
-                                                <td>MPI v1.0.9</td>
-                                                <td><span class="badge bg-danger">Failed</span></td>
-                                                <td><button class="btn btn-sm btn-outline-primary">View Log</button></td>
+                                                <td>Hybrid</td>
+                                                <td><span class="badge bg-success">Available</span></td>
+                                                <td>/path/to/Hybrid Version/bin/search_engine</td>
+                                                <td>2023-06-19 15:26:05</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-primary">Rebuild</button>
+                                                    <button class="btn btn-sm btn-danger">Clean</button>
+                                                </td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -732,83 +839,136 @@ node4 slots=4</textarea>
                 </div>
 
                 <!-- Settings Tab -->
-                <div class="tab-pane fade" id="settings">
+                <div class="tab-pane" id="settings">
+                    <h2>Settings</h2>
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="card">
+                            <div class="card mb-4">
                                 <div class="card-header">
-                                    <h5>General Settings</h5>
+                                    General Settings
                                 </div>
                                 <div class="card-body">
-                                    <div class="form-group mb-3">
-                                        <label>Default Version</label>
-                                        <select class="form-select">
-                                            <option>Serial</option>
-                                            <option selected>OpenMP</option>
-                                            <option>MPI</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <label>Default OpenMP Threads</label>
-                                        <input type="number" class="form-control" value="4" min="1">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <label>Default MPI Processes</label>
-                                        <input type="number" class="form-control" value="4" min="1">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <label>Dataset Path</label>
-                                        <input type="text" class="form-control" value="dataset">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="autosaveResults" checked>
-                                            <label class="form-check-label" for="autosaveResults">Auto-save search results</label>
+                                    <form id="general-settings-form">
+                                        <div class="mb-3">
+                                            <label for="default-version" class="form-label">Default Engine Version</label>
+                                            <select class="form-select" id="default-version">
+                                                <option value="serial">Serial</option>
+                                                <option value="openmp" selected>OpenMP</option>
+                                                <option value="mpi">MPI</option>
+                                                <option value="hybrid">Hybrid</option>
+                                            </select>
                                         </div>
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="autoMeasure" checked>
-                                            <label class="form-check-label" for="autoMeasure">Auto-measure performance</label>
+                                        <div class="mb-3">
+                                            <label for="default-threads" class="form-label">Default OpenMP Threads</label>
+                                            <select class="form-select" id="default-threads">
+                                                <option value="1">1</option>
+                                                <option value="2">2</option>
+                                                <option value="4" selected>4</option>
+                                                <option value="8">8</option>
+                                                <option value="16">16</option>
+                                            </select>
                                         </div>
-                                    </div>
-                                    <button class="btn btn-primary">Save Settings</button>
+                                        <div class="mb-3">
+                                            <label for="default-processes" class="form-label">Default MPI Processes</label>
+                                            <select class="form-select" id="default-processes">
+                                                <option value="1">1</option>
+                                                <option value="2">2</option>
+                                                <option value="4" selected>4</option>
+                                                <option value="8">8</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="default-dataset" class="form-label">Default Dataset Path</label>
+                                            <input type="text" class="form-control" id="default-dataset" value="../dataset">
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="save-history" checked>
+                                                <label class="form-check-label" for="save-history">
+                                                    Save Search History
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-primary" id="save-general-settings">Save Settings</button>
+                                    </form>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="card">
+                            <div class="card mb-4">
                                 <div class="card-header">
-                                    <h5>Advanced Settings</h5>
+                                    Advanced Settings
                                 </div>
                                 <div class="card-body">
-                                    <div class="form-group mb-3">
-                                        <label>BM25 k1 Parameter</label>
-                                        <input type="number" class="form-control" value="1.2" step="0.1">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <label>BM25 b Parameter</label>
-                                        <input type="number" class="form-control" value="0.75" step="0.05">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <label>Max Crawl Depth</label>
-                                        <input type="number" class="form-control" value="3" min="1" max="10">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <label>Max Pages to Crawl</label>
-                                        <input type="number" class="form-control" value="20" min="1">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <label>Metrics File Path</label>
-                                        <input type="text" class="form-control" value="data/serial_metrics.csv">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="debugMode">
-                                            <label class="form-check-label" for="debugMode">Debug Mode</label>
+                                    <form id="advanced-settings-form">
+                                        <div class="mb-3">
+                                            <label for="bm25-k1" class="form-label">BM25 k1 Parameter</label>
+                                            <input type="number" class="form-control" id="bm25-k1" value="1.2" step="0.1">
+                                            <div class="form-text">Controls term frequency saturation (0.5-3.0)</div>
                                         </div>
-                                    </div>
-                                    <button class="btn btn-primary">Save Advanced Settings</button>
+                                        <div class="mb-3">
+                                            <label for="bm25-b" class="form-label">BM25 b Parameter</label>
+                                            <input type="number" class="form-control" id="bm25-b" value="0.75" step="0.05" min="0" max="1">
+                                            <div class="form-text">Controls document length normalization (0-1)</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="crawl-timeout" class="form-label">Crawl Timeout (seconds)</label>
+                                            <input type="number" class="form-control" id="crawl-timeout" value="30" min="5" max="300">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="search-timeout" class="form-label">Search Timeout (seconds)</label>
+                                            <input type="number" class="form-control" id="search-timeout" value="10" min="1" max="60">
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="use-stemming" checked>
+                                                <label class="form-check-label" for="use-stemming">
+                                                    Enable Stemming
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="remove-stopwords" checked>
+                                                <label class="form-check-label" for="remove-stopwords">
+                                                    Remove Stopwords
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-primary" id="save-advanced-settings">Save Settings</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    MPI Configuration
+                                </div>
+                                <div class="card-body">
+                                    <form id="mpi-settings-form">
+                                        <div class="mb-3">
+                                            <label for="hostfile" class="form-label">Hostfile Path</label>
+                                            <input type="text" class="form-control" id="hostfile" value="../MPI Version/hostfile">
+                                            <div class="form-text">Path to the hostfile for MPI processes</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="mpi-options" class="form-label">Additional MPI Options</label>
+                                            <input type="text" class="form-control" id="mpi-options" placeholder="--bind-to core">
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="mpi-debug" value="debug">
+                                                <label class="form-check-label" for="mpi-debug">
+                                                    Enable MPI Debug Mode
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-primary" id="save-mpi-settings">Save MPI Settings</button>
+                                    </form>
                                 </div>
                             </div>
                         </div>
@@ -819,8 +979,6 @@ node4 slots=4</textarea>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="js/bootstrap-tab-fix.js"></script>
-    <script src="js/search-utils.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>
