@@ -1016,6 +1016,322 @@
                         </div>
                     </div>
 
+                    <!-- Parallelization Details Section -->
+                    <div class="doc-section mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="fas fa-cogs"></i> Parallelization Implementation Details</h4>
+                            </div>
+                            <div class="card-body">
+                                <!-- Serial Version -->
+                                <div class="version-details mb-4">
+                                    <h5 class="serial-color"><i class="fas fa-microchip"></i> Serial Version</h5>
+                                    <p>The baseline implementation with no parallelization.</p>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Core Functions:</h6>
+                                            <ul class="function-list">
+                                                <li><code>build_index()</code> - Sequential document processing</li>
+                                                <li><code>search_index()</code> - Linear search through documents</li>
+                                                <li><code>calculate_bm25_score()</code> - Sequential ranking</li>
+                                                <li><code>parse_document()</code> - Single-threaded parsing</li>
+                                                <li><code>crawl_website()</code> - Sequential URL processing</li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>Processing Flow:</h6>
+                                            <div class="processing-visualization">
+                                                <div class="process-step serial">Document 1</div>
+                                                <div class="process-arrow">→</div>
+                                                <div class="process-step serial">Document 2</div>
+                                                <div class="process-arrow">→</div>
+                                                <div class="process-step serial">Document 3</div>
+                                                <div class="process-arrow">→</div>
+                                                <div class="process-step serial">...</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- OpenMP Version -->
+                                <div class="version-details mb-4">
+                                    <h5 class="openmp-color"><i class="fas fa-sitemap"></i> OpenMP Version</h5>
+                                    <p>Shared-memory parallelization using OpenMP directives.</p>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Parallelized Functions:</h6>
+                                            <ul class="function-list">
+                                                <li><code>build_index()</code> - <span class="parallel-tag">#pragma omp parallel for</span>
+                                                    <ul>
+                                                        <li>Document processing loop</li>
+                                                        <li>Critical section for index updates</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>search_index()</code> - <span class="parallel-tag">#pragma omp parallel for</span>
+                                                    <ul>
+                                                        <li>Parallel search across documents</li>
+                                                        <li>Thread-safe result collection</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>calculate_bm25_score()</code> - <span class="parallel-tag">#pragma omp parallel reduction</span>
+                                                    <ul>
+                                                        <li>Parallel score calculation</li>
+                                                        <li>Average document length computation</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>ranking_enhanced()</code> - <span class="parallel-tag">#pragma omp parallel sections</span>
+                                                    <ul>
+                                                        <li>Concurrent ranking algorithms</li>
+                                                        <li>Dynamic scheduling</li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>OpenMP Directives Used:</h6>
+                                            <ul class="directive-list">
+                                                <li><code>#pragma omp parallel for</code> - Loop parallelization</li>
+                                                <li><code>#pragma omp critical</code> - Thread-safe sections</li>
+                                                <li><code>#pragma omp atomic</code> - Atomic operations</li>
+                                                <li><code>#pragma omp reduction</code> - Reduction operations</li>
+                                                <li><code>#pragma omp sections</code> - Task parallelism</li>
+                                                <li><code>schedule(dynamic)</code> - Load balancing</li>
+                                            </ul>
+                                            <div class="thread-visualization mt-3">
+                                                <h6>Thread Execution:</h6>
+                                                <div class="thread-grid">
+                                                    <div class="thread-row">
+                                                        <span class="thread-label">Thread 1:</span>
+                                                        <div class="doc-box openmp processing" data-doc="1">Doc 1</div>
+                                                        <div class="doc-box openmp processing" data-doc="5">Doc 5</div>
+                                                    </div>
+                                                    <div class="thread-row">
+                                                        <span class="thread-label">Thread 2:</span>
+                                                        <div class="doc-box openmp processing" data-doc="2">Doc 2</div>
+                                                        <div class="doc-box openmp processing" data-doc="6">Doc 6</div>
+                                                    </div>
+                                                    <div class="thread-row">
+                                                        <span class="thread-label">Thread 3:</span>
+                                                        <div class="doc-box openmp processing" data-doc="3">Doc 3</div>
+                                                        <div class="doc-box openmp processing" data-doc="7">Doc 7</div>
+                                                    </div>
+                                                    <div class="thread-row">
+                                                        <span class="thread-label">Thread 4:</span>
+                                                        <div class="doc-box openmp processing" data-doc="4">Doc 4</div>
+                                                        <div class="doc-box openmp processing" data-doc="8">Doc 8</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- MPI Version -->
+                                <div class="version-details mb-4">
+                                    <h5 class="mpi-color"><i class="fas fa-network-wired"></i> MPI Version</h5>
+                                    <p>Distributed memory parallelization using Message Passing Interface.</p>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Parallelized Functions:</h6>
+                                            <ul class="function-list">
+                                                <li><code>distribute_indexing()</code> - <span class="parallel-tag">MPI_Send/MPI_Recv</span>
+                                                    <ul>
+                                                        <li>Document distribution across processes</li>
+                                                        <li>Load balancing with work stealing</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>parallel_search()</code> - <span class="parallel-tag">MPI_Bcast/MPI_Gather</span>
+                                                    <ul>
+                                                        <li>Query broadcasting to all processes</li>
+                                                        <li>Result gathering and merging</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>mpi_process_files()</code> - <span class="parallel-tag">Process-based distribution</span>
+                                                    <ul>
+                                                        <li>File assignment per process</li>
+                                                        <li>Inter-process communication</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>collect_results()</code> - <span class="parallel-tag">MPI_Reduce</span>
+                                                    <ul>
+                                                        <li>Distributed result aggregation</li>
+                                                        <li>Global ranking coordination</li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>MPI Functions Used:</h6>
+                                            <ul class="directive-list">
+                                                <li><code>MPI_Init/MPI_Finalize</code> - Process management</li>
+                                                <li><code>MPI_Send/MPI_Recv</code> - Point-to-point communication</li>
+                                                <li><code>MPI_Bcast</code> - Broadcast operations</li>
+                                                <li><code>MPI_Gather/MPI_Allgather</code> - Data collection</li>
+                                                <li><code>MPI_Reduce</code> - Reduction operations</li>
+                                                <li><code>MPI_Comm_rank/MPI_Comm_size</code> - Process identification</li>
+                                            </ul>
+                                            <div class="process-visualization mt-3">
+                                                <h6>Process Distribution:</h6>
+                                                <div class="process-grid">
+                                                    <div class="process-node">
+                                                        <div class="process-header">Process 0 (Master)</div>
+                                                        <div class="doc-box mpi processing" data-doc="coord">Coordination</div>
+                                                        <div class="doc-box mpi processing" data-doc="collect">Result Collection</div>
+                                                    </div>
+                                                    <div class="process-node">
+                                                        <div class="process-header">Process 1</div>
+                                                        <div class="doc-box mpi processing" data-doc="1-10">Docs 1-10</div>
+                                                    </div>
+                                                    <div class="process-node">
+                                                        <div class="process-header">Process 2</div>
+                                                        <div class="doc-box mpi processing" data-doc="11-20">Docs 11-20</div>
+                                                    </div>
+                                                    <div class="process-node">
+                                                        <div class="process-header">Process 3</div>
+                                                        <div class="doc-box mpi processing" data-doc="21-30">Docs 21-30</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Hybrid Version -->
+                                <div class="version-details mb-4">
+                                    <h5 class="hybrid-color"><i class="fas fa-project-diagram"></i> Hybrid Version (MPI + OpenMP)</h5>
+                                    <p>Combines distributed and shared memory parallelization for maximum performance.</p>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Hybrid Parallelized Functions:</h6>
+                                            <ul class="function-list">
+                                                <li><code>hybrid_index_build()</code> - <span class="parallel-tag">MPI + OpenMP</span>
+                                                    <ul>
+                                                        <li>MPI: Document distribution across nodes</li>
+                                                        <li>OpenMP: Multi-threaded processing per node</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>hybrid_search()</code> - <span class="parallel-tag">Nested parallelism</span>
+                                                    <ul>
+                                                        <li>MPI: Query distribution</li>
+                                                        <li>OpenMP: Parallel search within each process</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>hybrid_crawler()</code> - <span class="parallel-tag">Two-level parallelism</span>
+                                                    <ul>
+                                                        <li>MPI: URL distribution across processes</li>
+                                                        <li>OpenMP: Concurrent crawling threads</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>hybrid_ranking()</code> - <span class="parallel-tag">Hierarchical computation</span>
+                                                    <ul>
+                                                        <li>MPI: Distributed scoring</li>
+                                                        <li>OpenMP: Thread-level optimizations</li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>Hybrid Architecture:</h6>
+                                            <div class="hybrid-visualization">
+                                                <div class="node-container">
+                                                    <div class="node-header">Node 1 (Process 0)</div>
+                                                    <div class="thread-container">
+                                                        <div class="doc-box hybrid processing" data-doc="t1">Thread 1</div>
+                                                        <div class="doc-box hybrid processing" data-doc="t2">Thread 2</div>
+                                                        <div class="doc-box hybrid processing" data-doc="t3">Thread 3</div>
+                                                        <div class="doc-box hybrid processing" data-doc="t4">Thread 4</div>
+                                                    </div>
+                                                </div>
+                                                <div class="node-container">
+                                                    <div class="node-header">Node 2 (Process 1)</div>
+                                                    <div class="thread-container">
+                                                        <div class="doc-box hybrid processing" data-doc="t1">Thread 1</div>
+                                                        <div class="doc-box hybrid processing" data-doc="t2">Thread 2</div>
+                                                        <div class="doc-box hybrid processing" data-doc="t3">Thread 3</div>
+                                                        <div class="doc-box hybrid processing" data-doc="t4">Thread 4</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="performance-comparison mt-3">
+                                                <h6>Performance Benefits:</h6>
+                                                <ul>
+                                                    <li><strong>Scalability:</strong> Scales across multiple machines</li>
+                                                    <li><strong>Efficiency:</strong> Utilizes all CPU cores per node</li>
+                                                    <li><strong>Memory:</strong> Combines shared and distributed memory</li>
+                                                    <li><strong>Fault Tolerance:</strong> Process-level isolation</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Visualization Section -->
+                    <div class="doc-section mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="fas fa-play-circle"></i> Interactive Parallel Processing Visualization</h4>
+                            </div>
+                            <div class="card-body">
+                                <p>Click on any version below to see how parallel processing works:</p>
+                                
+                                <div class="visualization-controls mb-3">
+                                    <button class="btn btn-outline-primary me-2" data-version="serial">
+                                        <i class="fas fa-microchip"></i> Serial Demo
+                                    </button>
+                                    <button class="btn btn-outline-success me-2" data-version="openmp">
+                                        <i class="fas fa-sitemap"></i> OpenMP Demo
+                                    </button>
+                                    <button class="btn btn-outline-warning me-2" data-version="mpi">
+                                        <i class="fas fa-network-wired"></i> MPI Demo
+                                    </button>
+                                    <button class="btn btn-outline-danger me-2" data-version="hybrid">
+                                        <i class="fas fa-project-diagram"></i> Hybrid Demo
+                                    </button>
+                                    <button class="btn btn-secondary" id="reset-demo">
+                                        <i class="fas fa-redo"></i> Reset
+                                    </button>
+                                </div>
+
+                                <div id="processing-visualization" class="processing-demo">
+                                    <div class="demo-grid" id="demo-grid">
+                                        <!-- This will be populated by JavaScript -->
+                                    </div>
+                                    <div class="demo-stats mt-3" id="demo-stats">
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <div class="stat-box">
+                                                    <div class="stat-label">Processing Time</div>
+                                                    <div class="stat-value" id="demo-time">0ms</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="stat-box">
+                                                    <div class="stat-label">Documents Processed</div>
+                                                    <div class="stat-value" id="demo-docs">0</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="stat-box">
+                                                    <div class="stat-label">Parallel Units</div>
+                                                    <div class="stat-value" id="demo-units">1</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="stat-box">
+                                                    <div class="stat-label">Efficiency</div>
+                                                    <div class="stat-value" id="demo-efficiency">100%</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Version Comparison Section -->
                     <div class="doc-section mb-4">
                         <div class="card">
