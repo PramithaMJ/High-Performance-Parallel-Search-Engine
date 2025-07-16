@@ -360,16 +360,6 @@ void print_thread_info()
     }
 }
 
-// Function to get the filename for a document ID (thread-safe)
-const char* get_doc_filename(int doc_id)
-{
-    if (doc_id >= 0 && doc_id < 1000)
-    {
-        return documents[doc_id].filename;
-    }
-    return "Unknown Document";
-}
-
 // Function to synchronize document filenames across MPI processes
 void synchronize_document_filenames()
 {

@@ -1,5 +1,6 @@
 #include "../include/crawler.h"
 #include "../include/metrics.h"
+#include "../include/mpi_crawler_utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -8,10 +9,17 @@
 #include <curl/curl.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <dirent.h> 
-#include <time.h>
-#include <math.h> 
-#include <limits.h>    // For INT_MAX constant
+#include <dirent.h>
+#include <math.h>
+#include <omp.h>
+#include <mpi.h>      // Added MPI for distributed crawling
+
+// Structure to track MPI workload distribution
+typedef struct {
+    int urls_processed;
+    int urls_successful;
+    int urls_pending;
+} MPI_WorkloadStats;
 
 // On macOS we need special handling for OpenMP
 #ifdef __APPLE__
@@ -1390,9 +1398,52 @@ static int is_valid_crawl_url(const char* url, const char* base_domain) {
     return 0;
 }
 
+// Structure to manage URL distribution across MPI processes
+typedef struct {
+    int process_id;
+    int urls_processed;
+    int urls_successful;
+} MPI_CrawlerStats;
+
+// Function to visualize MPI and OpenMP hierarchy
+static void visualize_parallel_structure(int mpi_rank, int mpi_size, int omp_threads) {
+    // Only rank 0 prints the visualization
+    if (mpi_rank == 0) {
+        printf("\n╔══════════════════════════════════════════════╗\n");
+        printf("║     Hybrid Parallel Crawling Architecture     ║\n");
+        printf("╠══════════════════════════════════════════════╣\n");
+        printf("║ Total MPI Processes: %-3d                     ║\n", mpi_size);
+        printf("║ OpenMP Threads per Process: %-3d              ║\n", omp_threads);
+        printf("║ Total Parallel Units: %-3d                    ║\n", mpi_size * omp_threads);
+        printf("╚══════════════════════════════════════════════╝\n");
+        
+        printf("\nParallel Structure:\n");
+        for (int i = 0; i < mpi_size; i++) {
+            printf("MPI Process %d: [", i);
+            for (int j = 0; j < omp_threads; j++) {
+                printf("T%d%s", j, (j < omp_threads-1) ? "|" : "");
+            }
+            printf("]\n");
+        }
+        printf("\n");
+    }
+    
+    // Give time for visualization to be seen
+    if (mpi_rank == 0) {
+        fflush(stdout);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+}
+
 // Function to recursively crawl a website starting from a URL
+// Enhanced with MPI and OpenMP hybrid parallelism
 int crawl_website(const char* start_url, int maxDepth, int maxPages) {
     if (!start_url || maxDepth < 1 || maxPages < 1) return 0;
+    
+    // Get MPI information
+    int mpi_rank, mpi_size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
     
     // Start measuring crawling time
     start_timer();
@@ -1413,17 +1464,45 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
     int total_pages_crawled = 0;
     int total_failed_downloads = 0;
     
+    // Array to track stats for each MPI process
+    MPI_CrawlerStats* mpi_stats = NULL;
+    if (mpi_rank == 0) {
+        mpi_stats = (MPI_CrawlerStats*)malloc(mpi_size * sizeof(MPI_CrawlerStats));
+        if (mpi_stats) {
+            for (int i = 0; i < mpi_size; i++) {
+                mpi_stats[i].process_id = i;
+                mpi_stats[i].urls_processed = 0;
+                mpi_stats[i].urls_successful = 0;
+            }
+        }
+    }
+    
+    // Determine per-process page allocation
+    int pages_per_process = maxPages / mpi_size;
+    int extra_pages = maxPages % mpi_size;
+    
+    // Calculate how many pages this process should crawl
+    int my_max_pages = pages_per_process + (mpi_rank < extra_pages ? 1 : 0);
+    
+    // Adjust URL seeds based on MPI rank for better distribution
+    char adjusted_start_url[MAX_URL_LENGTH];
+    if (strstr(start_url, "?") != NULL) {
+        snprintf(adjusted_start_url, MAX_URL_LENGTH, "%s&mpi_rank=%d", start_url, mpi_rank);
+    } else {
+        snprintf(adjusted_start_url, MAX_URL_LENGTH, "%s?mpi_rank=%d", start_url, mpi_rank);
+    }
+    
     // Normalize and add start URL to queue
-    char* normalized_start_url = normalize_url(start_url);
+    char* normalized_start_url = normalize_url(mpi_rank == 0 ? start_url : adjusted_start_url);
     if (!normalized_start_url || normalized_start_url[0] == '\0') {
-        printf("Invalid starting URL: %s\n", start_url);
+        printf("[MPI Rank %d] Invalid starting URL: %s\n", mpi_rank, start_url);
         return 0;
     }
     
     // Safely add to queue
     queue[rear] = strdup(normalized_start_url);
     if (!queue[rear]) {
-        printf("Memory allocation failed for starting URL\n");
+        printf("[MPI Rank %d] Memory allocation failed for starting URL\n", mpi_rank);
         return 0;
     }
     
@@ -1433,7 +1512,16 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
     // Mark as visited
     mark_visited(normalized_start_url);
     
-    printf("Starting crawl from: %s (max depth: %d, max pages: %d)\n", normalized_start_url, maxDepth, maxPages);
+    // Only root process prints the full details
+    if (mpi_rank == 0) {
+        printf("\nStarting hybrid parallel crawl from: %s\n", start_url);
+        printf("Global settings: max depth: %d, max pages: %d\n", maxDepth, maxPages);
+        printf("Using %d MPI processes with OpenMP threads in each process\n\n", mpi_size);
+    }
+    
+    // Each process prints its own allocation
+    printf("[MPI Rank %d] Starting crawl with allocation of %d pages\n", 
+           mpi_rank, my_max_pages);
     
     // Extract base domain from start_url
     char* base_domain = extract_base_domain(start_url);
@@ -1444,7 +1532,10 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
     
     // Get the number of available threads for parallel processing
     int num_threads = omp_get_max_threads();
-    printf("Crawling with %d parallel threads\n", num_threads);
+    printf("[MPI Rank %d] Using %d OpenMP threads\n", mpi_rank, num_threads);
+    
+    // Visualize the parallel execution structure
+    visualize_hybrid_structure(mpi_rank, mpi_size, num_threads);
     
     // Initialize the thread state flags for better coordination
     int active_threads = num_threads;
@@ -1537,9 +1628,10 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
     }
     
     // Start crawling in parallel with explicitly fixed number of threads and improved coordination
+    // Each MPI process creates its own team of OpenMP threads
     #pragma omp parallel num_threads(num_threads) shared(queue, depth, front, rear, queue_lock, \
                                                          total_pages_crawled, total_failed_downloads, \
-                                                         thread_active, active_threads, thread_pages)
+                                                         thread_active, active_threads, thread_pages, mpi_rank, my_max_pages)
     {
         // Thread-local variables for better performance
         int thread_id = omp_get_thread_num();
@@ -1547,8 +1639,14 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
         int local_failed_downloads = 0;
         int consecutive_empty = 0;  // Track consecutive empty queue encounters
         
+        // Create hybrid ID for better tracking (MPI rank + OpenMP thread)
+        char hybrid_id[32];
+        snprintf(hybrid_id, sizeof(hybrid_id), "MPI-%d/OMP-%d", mpi_rank, thread_id);
+        
         // Print initial thread info
-        show_crawling_progress(thread_id, "Thread started and ready to crawl");
+        char start_msg[128];
+        snprintf(start_msg, sizeof(start_msg), "Hybrid crawler unit %s started and ready", hybrid_id);
+        show_crawling_progress(thread_id, start_msg);
         
         // Set random seed differently for each thread to avoid synchronization issues
         // Plus use a better seed with microsecond precision if available
@@ -1561,12 +1659,15 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
         }
         srand(thread_seed);
         
-        // Each thread processes URLs until all work is done or max pages reached
-        while (total_pages_crawled < maxPages) {
+        // Each thread processes URLs until all work is done or this process's page limit is reached
+        while (total_pages_crawled < my_max_pages) {
             char* current_url = NULL;
             int current_depth = 0;
             int should_continue = 0;
             int queue_empty = 0;
+            
+            // Check if global termination has been signaled (by any process)
+            int global_termination = 0;
             
             // Critical section for getting a URL from the queue - only one thread at a time
             #pragma omp critical(queue_access)
@@ -1694,9 +1795,14 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
             
             // Process the current URL with better progress reporting
             char progress_msg[256];
-            snprintf(progress_msg, sizeof(progress_msg), "Crawling: %s (depth %d/%d)", 
-                    current_url, current_depth, maxDepth);
-            show_crawling_progress(thread_id, progress_msg);
+            snprintf(progress_msg, sizeof(progress_msg), "Crawling: %s (depth %d/%d) [%d/%d pages]", 
+                    current_url, current_depth, maxDepth, total_pages_crawled + 1, my_max_pages);
+            
+            // Use hybrid ID for progress reporting
+            char hybrid_progress[320];
+            snprintf(hybrid_progress, sizeof(hybrid_progress), "[MPI-%d/OMP-%d] %s", 
+                     mpi_rank, thread_id, progress_msg);
+            show_crawling_progress(thread_id, hybrid_progress);
             
             // Download the URL content
             struct MemoryStruct chunk;
@@ -1928,6 +2034,25 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
             #pragma omp atomic
             total_failed_downloads += local_failed_downloads;
             
+            // Periodically share URLs between MPI processes to balance workload
+            // Only threads with ID 0 do this to avoid contention
+            if (thread_id == 0 && total_pages_crawled > 0 && total_pages_crawled % 5 == 0) {
+                #pragma omp critical(queue_access)
+                {
+                    // Share URLs with other MPI processes
+                    int added_urls = mpi_share_urls(
+                        queue, depth, &front, &rear, MAX_URLS, 
+                        mpi_rank, mpi_size, has_visited, mark_visited);
+                    
+                    if (added_urls > 0) {
+                        // If we received new URLs, wake up any sleeping threads
+                        for (int i = 0; i < num_threads; i++) {
+                            thread_active[i] = 1;
+                        }
+                    }
+                }
+            }
+            
             // Reset local counters after updating global ones
             local_pages_crawled = 0;
             local_failed_downloads = 0;
@@ -2003,17 +2128,41 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
     // Record crawling time
     metrics.crawling_time = stop_timer();
     
-    printf("\nCrawling completed. Crawled %d pages in %.2f ms.\n", 
-           total_pages_crawled, metrics.crawling_time);
+    // Gather statistics from all MPI processes
+    int global_pages_crawled = 0;
+    mpi_gather_stats(total_pages_crawled, &global_pages_crawled, mpi_size);
+    
+    // Print local process statistics
+    printf("\n[MPI Rank %d] Crawling completed. Process crawled %d pages in %.2f ms.\n", 
+           mpi_rank, total_pages_crawled, metrics.crawling_time);
+    
+    // Process 0 prints global statistics
+    if (mpi_rank == 0) {
+        printf("\n╔══════════════════════════════════════════════╗\n");
+        printf("║           HYBRID CRAWLING COMPLETED          ║\n");
+        printf("╠══════════════════════════════════════════════╣\n");
+        printf("║ Total Pages Crawled: %-24d ║\n", global_pages_crawled);
+        printf("║ Time Taken: %-30.2f ms ║\n", metrics.crawling_time);
+        printf("║ MPI Processes: %-27d ║\n", mpi_size);
+        printf("║ OpenMP Threads/Process: %-20d ║\n", num_threads);
+        printf("║ Total Parallel Units: %-22d ║\n", mpi_size * num_threads);
+        printf("╚══════════════════════════════════════════════╝\n");
+    }
+    
+    // Wait for all processes to reach this point before returning
+    MPI_Barrier(MPI_COMM_WORLD);
+    
+    // Return local count for this process
     return total_pages_crawled;
 }
 
-// Function to display a progress indicator for crawling
+// Function to display a progress indicator for crawling with hybrid MPI/OpenMP support
 static void show_crawling_progress(int thread_id, const char* message) {
     // Using critical section to prevent output garbling
     #pragma omp critical(output)
     {
-        printf("[Thread %d] %s\n", thread_id, message);
+        // Thread ID is included in the message already as part of hybrid ID
+        printf("%s\n", message);
     }
 }
 

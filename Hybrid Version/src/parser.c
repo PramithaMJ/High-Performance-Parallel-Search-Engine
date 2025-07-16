@@ -7,6 +7,9 @@
 #include <string.h>
 #include <ctype.h>
 
+// External reference to global metrics structure
+extern SearchEngineMetrics metrics;
+
 int parse_file(const char *filepath, int doc_id)
 {
     // Start timing for parsing
@@ -89,7 +92,6 @@ void tokenize(char *text, int doc_id)
     
     printf("DEBUG: Tokenized %d tokens, added %d terms for doc_id %d\n", 
            token_count, added_count, doc_id);
-}
     
     // Record tokenizing time
     metrics.tokenizing_time += stop_timer();
