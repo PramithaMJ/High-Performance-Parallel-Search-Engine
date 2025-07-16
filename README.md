@@ -1,6 +1,11 @@
 # High Performance Parallel Search Engine
 
+## Project Demo Link
+
+### [YOUTUBE](https://youtu.be/6qh2ma2kjVk)
+
 ## Table of Contents
+
 - [Core Components](#core-components)
   - [Main (main.c)](#1-main-mainc)
   - [Crawler (crawler.c)](#2-crawler-crawlerc)
@@ -169,7 +174,7 @@ The serial implementation has several performance bottlenecks:
 
 ### 1. Index Building (index.c)
 
--  Building the index from multiple files
+- Building the index from multiple files
 
 **Why parallelized:**
 
@@ -183,7 +188,7 @@ The serial implementation has several performance bottlenecks:
 
 ### 2. Term Indexing and Document Length Updates
 
--  Adding a token to the index (called during parsing)
+- Adding a token to the index (called during parsing)
 
 **Why parallelized:**
 
@@ -211,7 +216,7 @@ The serial implementation has several performance bottlenecks:
 
 ### 4. BM25 Ranking (ranking.c)
 
--  Score calculation for search results
+- Score calculation for search results
 
 **Why parallelized:**
 
