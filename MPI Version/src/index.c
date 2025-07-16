@@ -140,6 +140,9 @@ int build_index(const char *folder_path)
     // Synchronize all processes
     MPI_Barrier(MPI_COMM_WORLD);
     
+    // Merge index data from all processes to create a unified index
+    merge_mpi_index();
+    
     // Update index statistics
     update_index_stats(successful_docs, metrics.total_tokens, index_size);
 
@@ -472,4 +475,141 @@ char* get_node_name(void) {
     int name_len;
     MPI_Get_processor_name(hostname, &name_len);
     return hostname;
+}
+
+// Function to merge index data from all MPI processes
+void merge_mpi_index() {
+    // Skip if we only have one process
+    if (mpi_size <= 1) {
+        return;
+    }
+    
+    // First, gather the size of each process's index
+    int all_sizes[32] = {0};  // Assume max 32 processes
+    MPI_Allgather(&index_size, 1, MPI_INT, all_sizes, 1, MPI_INT, MPI_COMM_WORLD);
+    
+    // Temporary storage for merged index data
+    InvertedIndex* merged_data = NULL;
+    int merged_size = 0;
+    
+    // Process 0 will collect all index data
+    if (mpi_rank == 0) {
+        // Calculate total size of merged index
+        int total_size = 0;
+        for (int i = 0; i < mpi_size; i++) {
+            total_size += all_sizes[i];
+        }
+        
+        // Allocate memory for the merged index
+        merged_data = (InvertedIndex*)malloc(total_size * sizeof(InvertedIndex));
+        if (!merged_data) {
+            printf("Error: Failed to allocate memory for merged index\n");
+            MPI_Abort(MPI_COMM_WORLD, 1);
+            return;
+        }
+        
+        // Copy local index data first
+        for (int i = 0; i < index_size; i++) {
+            memcpy(&merged_data[i], &index_data[i], sizeof(InvertedIndex));
+        }
+        merged_size = index_size;
+        
+        // Receive index data from other processes
+        for (int proc = 1; proc < mpi_size; proc++) {
+            if (all_sizes[proc] > 0) {
+                MPI_Status status;
+                
+                // Receive the index data from process proc
+                MPI_Recv(&merged_data[merged_size], 
+                        all_sizes[proc] * sizeof(InvertedIndex),
+                        MPI_BYTE, proc, 0, MPI_COMM_WORLD, &status);
+                
+                // Merge any duplicate terms
+                for (int i = merged_size; i < merged_size + all_sizes[proc]; i++) {
+                    int is_duplicate = 0;  // Using int instead of bool for C compatibility
+                    
+                    // Check for duplicates in the already merged data
+                    for (int j = 0; j < merged_size; j++) {
+                        if (strcmp(merged_data[j].term, merged_data[i].term) == 0) {
+                            // Merge postings
+                            for (int k = 0; k < merged_data[i].posting_count; k++) {
+                                // Check if this doc_id already exists in the postings
+                                int doc_exists = 0;  // Using int instead of bool
+                                for (int l = 0; l < merged_data[j].posting_count; l++) {
+                                    if (merged_data[j].postings[l].doc_id == 
+                                        merged_data[i].postings[k].doc_id) {
+                                        // Update frequency
+                                        merged_data[j].postings[l].freq += 
+                                            merged_data[i].postings[k].freq;
+                                        doc_exists = 1;
+                                        break;
+                                    }
+                                }
+                                
+                                // Add new posting if doc_id doesn't exist
+                                if (!doc_exists && merged_data[j].posting_count < 1000) {
+                                    merged_data[j].postings[merged_data[j].posting_count++] = 
+                                        merged_data[i].postings[k];
+                                }
+                            }
+                            
+                            is_duplicate = 1;
+                            break;
+                        }
+                    }
+                    
+                    // If not a duplicate, keep it in the merged data
+                    if (!is_duplicate) {
+                        if (i != merged_size) {
+                            memcpy(&merged_data[merged_size], &merged_data[i], sizeof(InvertedIndex));
+                        }
+                        merged_size++;
+                    }
+                }
+            }
+        }
+        
+        printf("Merged index from all processes: %d total terms\n", merged_size);
+    } else {
+        // Non-root processes send their index data
+        if (index_size > 0) {
+            MPI_Send(index_data, index_size * sizeof(InvertedIndex), 
+                    MPI_BYTE, 0, 0, MPI_COMM_WORLD);
+        }
+    }
+    
+    // Broadcast merged index size to all processes
+    MPI_Bcast(&merged_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    
+    // Root process broadcasts the merged data
+    if (mpi_rank == 0) {
+        // Clear local index before copying the merged data
+        memset(index_data, 0, sizeof(index_data));
+        
+        // Copy merged data to index_data
+        for (int i = 0; i < merged_size && i < 10000; i++) {
+            memcpy(&index_data[i], &merged_data[i], sizeof(InvertedIndex));
+        }
+        
+        // Update index_size
+        index_size = merged_size < 10000 ? merged_size : 10000;
+        
+        // Free the temporary storage
+        free(merged_data);
+    } else {
+        // Clear local index to receive the merged data
+        memset(index_data, 0, sizeof(index_data));
+    }
+    
+    // Broadcast the merged index to all processes
+    MPI_Bcast(index_data, merged_size * sizeof(InvertedIndex), MPI_BYTE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&index_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    
+    // Synchronize all processes after merging
+    MPI_Barrier(MPI_COMM_WORLD);
+    
+    if (mpi_rank == 0) {
+        printf("Distributed index synchronized: %d total entries across %d processes\n", 
+               index_size, mpi_size);
+    }
 }

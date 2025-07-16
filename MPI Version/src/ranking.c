@@ -82,23 +82,20 @@ void rank_bm25(const char *query, int total_docs, int top_k)
                 int df = index_data[found_index].posting_count;
                 double idf = log((total_docs - df + 0.5) / (df + 0.5) + 1.0);
                 
-                // Process postings for documents in this process's range
+                // Process all postings since we have the full merged index
                 for (int j = 0; j < df; ++j)
                 {
                     int d = index_data[found_index].postings[j].doc_id;
                     
-                    // Only process documents in this process's range
-                    if (d >= start_doc && d < end_doc)
-                    {
-                        int tf = index_data[found_index].postings[j].freq;
-                        double dl = get_doc_length(d);
-                        double score = idf * ((tf * (1.5 + 1)) / (tf + 1.5 * (1 - 0.75 + 0.75 * dl / avg_dl)));
+                    // Process all documents (not just in this process's range)
+                    int tf = index_data[found_index].postings[j].freq;
+                    double dl = get_doc_length(d);
+                    double score = idf * ((tf * (1.5 + 1)) / (tf + 1.5 * (1 - 0.75 + 0.75 * dl / avg_dl)));
 
-                        local_results[d].doc_id = d;
-                        local_results[d].score += score;
-                        if (d + 1 > local_result_count)
-                            local_result_count = d + 1;
-                    }
+                    local_results[d].doc_id = d;
+                    local_results[d].score += score;
+                    if (d + 1 > local_result_count)
+                        local_result_count = d + 1;
                 }
             }
         }
@@ -149,8 +146,9 @@ void rank_bm25(const char *query, int total_docs, int top_k)
         }
         
         // Gather all results using the custom datatype
-        MPI_Gatherv(local_results, local_top, MPI_RESULT_TYPE,
-                   gathered_results, all_counts, displacements, MPI_RESULT_TYPE, 0, MPI_COMM_WORLD);
+        // Each process sends local_top results, receives local_top from each process
+        MPI_Gather(local_results, local_top, MPI_RESULT_TYPE,
+                  gathered_results, local_top, MPI_RESULT_TYPE, 0, MPI_COMM_WORLD);
         
         // Sort all gathered results
         qsort(gathered_results, gathered_count, sizeof(Result), cmp);
@@ -181,7 +179,8 @@ void rank_bm25(const char *query, int total_docs, int top_k)
         }
     } else {
         // Non-root processes just send their results using the custom datatype
-        MPI_Gatherv(local_results, local_top, MPI_RESULT_TYPE,
-                   NULL, NULL, NULL, MPI_RESULT_TYPE, 0, MPI_COMM_WORLD);
+        // The receive parameters are ignored on non-root processes, but must match root's send count
+        MPI_Gather(local_results, local_top, MPI_RESULT_TYPE,
+                  NULL, local_top, MPI_RESULT_TYPE, 0, MPI_COMM_WORLD);
     }
 }
