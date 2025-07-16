@@ -1191,407 +1191,330 @@ static int is_valid_crawl_url(const char* url, const char* base_domain) {
     return 0;
 }
 
-// Function to recursively crawl a website starting from a URL
+// MPI work sharing structure
+typedef struct {
+    char url[MAX_URL_LENGTH];
+    int depth;
+    int assigned_rank;
+    int processed;
+} MPIWorkItem;
+
+// Global work queue shared among all MPI processes
+static MPIWorkItem mpi_work_queue[MAX_URLS];
+static int mpi_queue_size = 0;
+static int global_pages_crawled = 0;
+static int work_distribution_round = 0;
+
+// Traditional queue variables for compatibility
+static char* queue[MAX_URLS];
+static int depth[MAX_URLS];
+static int front = 0;
+static int rear = 0;
+static int pages_crawled = 0;
+static int failed_downloads = 0;
+
+// Function to distribute work among MPI processes
+static void distribute_mpi_work(const char* start_url, int maxDepth, int maxPages) {
+    if (mpi_rank == 0) {
+        // Master process initializes the work queue
+        mpi_queue_size = 0;
+        global_pages_crawled = 0;
+        
+        // Add initial URL to work queue
+        strcpy(mpi_work_queue[0].url, start_url);
+        mpi_work_queue[0].depth = 1;
+        mpi_work_queue[0].assigned_rank = 0;
+        mpi_work_queue[0].processed = 0;
+        mpi_queue_size = 1;
+        
+        printf("Master process initialized work queue with %s\n", start_url);
+    }
+    
+    // Broadcast the initial work queue to all processes
+    MPI_Bcast(&mpi_queue_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(mpi_work_queue, MAX_URLS * sizeof(MPIWorkItem), MPI_BYTE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&global_pages_crawled, 1, MPI_INT, 0, MPI_COMM_WORLD);
+}
+
+// Function to get next work item for this MPI process
+static int get_mpi_work_item(char* url_out, int* depth_out, int maxPages) {
+    // Check if we've reached the page limit
+    if (global_pages_crawled >= maxPages) {
+        return 0; // No more work
+    }
+    
+    // Look for unassigned work items
+    for (int i = 0; i < mpi_queue_size; i++) {
+        if (!mpi_work_queue[i].processed) {
+            // Assign work in round-robin fashion
+            int target_rank = work_distribution_round % mpi_size;
+            
+            if (mpi_rank == target_rank) {
+                strcpy(url_out, mpi_work_queue[i].url);
+                *depth_out = mpi_work_queue[i].depth;
+                mpi_work_queue[i].assigned_rank = mpi_rank;
+                mpi_work_queue[i].processed = 1;
+                work_distribution_round++;
+                
+                printf("Process %d took work item %d: %s (depth %d)\n", 
+                       mpi_rank, i, url_out, *depth_out);
+                return 1; // Got work
+            }
+            work_distribution_round++;
+        }
+    }
+    
+    return 0; // No work available for this process
+}
+
+// Function to add new URLs to the shared work queue
+static void add_mpi_work_items(char** urls, int* depths, int url_count, int maxDepth) {
+    if (url_count == 0) return;
+    
+    int added_count = 0;
+    for (int i = 0; i < url_count && mpi_queue_size < MAX_URLS && added_count < 50; i++) {
+        if (urls[i] && depths[i] <= maxDepth) {
+            // Check if URL is already in queue
+            int already_exists = 0;
+            for (int j = 0; j < mpi_queue_size; j++) {
+                if (strcmp(mpi_work_queue[j].url, urls[i]) == 0) {
+                    already_exists = 1;
+                    break;
+                }
+            }
+            
+            if (!already_exists && !has_visited(urls[i])) {
+                strcpy(mpi_work_queue[mpi_queue_size].url, urls[i]);
+                mpi_work_queue[mpi_queue_size].depth = depths[i];
+                mpi_work_queue[mpi_queue_size].assigned_rank = -1;
+                mpi_work_queue[mpi_queue_size].processed = 0;
+                mpi_queue_size++;
+                added_count++;
+                
+                printf("Process %d added to queue: %s (depth %d)\n", 
+                       mpi_rank, urls[i], depths[i]);
+            }
+        }
+    }
+    
+    if (added_count > 0) {
+        printf("Process %d added %d new URLs to shared queue (total: %d)\n", 
+               mpi_rank, added_count, mpi_queue_size);
+    }
+}
+
+// Function to synchronize work queues across all MPI processes
+static void sync_mpi_work_queues() {
+    // Each process contributes its local queue updates
+    MPIWorkItem temp_queue[MAX_URLS];
+    int temp_queue_size = mpi_queue_size;
+    
+    // Gather queue sizes from all processes
+    int all_queue_sizes[mpi_size];
+    MPI_Allgather(&temp_queue_size, 1, MPI_INT, all_queue_sizes, 1, MPI_INT, MPI_COMM_WORLD);
+    
+    // Find the process with the largest queue (most up-to-date)
+    int max_size = 0;
+    int master_process = 0;
+    for (int i = 0; i < mpi_size; i++) {
+        if (all_queue_sizes[i] > max_size) {
+            max_size = all_queue_sizes[i];
+            master_process = i;
+        }
+    }
+    
+    // Broadcast the most up-to-date queue from the master process
+    if (max_size > 0) {
+        MPI_Bcast(&mpi_queue_size, 1, MPI_INT, master_process, MPI_COMM_WORLD);
+        MPI_Bcast(mpi_work_queue, MAX_URLS * sizeof(MPIWorkItem), MPI_BYTE, master_process, MPI_COMM_WORLD);
+    }
+}
+
+// Function to recursively crawl a website starting from a URL using MPI parallelization
 int crawl_website(const char* start_url, int maxDepth, int maxPages) {
     // Start measuring crawling time
-    start_timer();
+    if (mpi_rank == 0) {
+        start_timer();
+    }
     
     // Initialize MPI info if not already initialized
     if (!mpi_initialized) {
         init_mpi_crawler_info();
     }
     
-    // Reset the visited URLs
+    // Reset the visited URLs on all processes
     visited_count = 0;
     
-    // Initialize the queue with the start URL
-    char* queue[MAX_URLS];
-    int depth[MAX_URLS];  // Track depth of each URL
-    int queue_lock; // Lock for queue operations
-    // omp_init_lock(&queue_lock);
-    int front = 0, rear = 0, pages_crawled = 0;
-    int failed_downloads = 0;
-    
-    // Normalize and add start URL to queue
+    // Normalize start URL
     char* normalized_start_url = normalize_url(start_url);
     if (!normalized_start_url || normalized_start_url[0] == '\0') {
-        printf("Invalid starting URL: %s\n", start_url);
+        if (mpi_rank == 0) {
+            printf("Invalid starting URL: %s\n", start_url);
+        }
         return 0;
     }
-    
-    // Safely add to queue
-    queue[rear] = strdup(normalized_start_url);
-    if (!queue[rear]) {
-        printf("Memory allocation failed for starting URL\n");
-        return 0;
-    }
-    
-    depth[rear] = 1;
-    rear = (rear + 1) % MAX_URLS;
-    
-    // Mark as visited
-    mark_visited(normalized_start_url);
-    
-    printf("Starting crawl from: %s (max depth: %d, max pages: %d)\n", normalized_start_url, maxDepth, maxPages);
     
     // Extract base domain from start_url
     char* base_domain = extract_base_domain(start_url);
-    printf("Base domain for crawling: %s\n", base_domain);
     
-    // Initialize curl globally (once)
-    curl_global_init(CURL_GLOBAL_DEFAULT);
-    
-    // Get the number of available threads for parallel processing
-    int num_threads = mpi_size;
-    printf("Crawling with %d parallel threads\n", num_threads);
-    
-    // Start crawling in parallel
-    // Using MPI instead of OpenMP num_threads(num_threads) shared(queue, depth, front, rear, pages_crawled, failed_downloads, queue_lock)
-    {
-        while (1) {
-            char* current_url = NULL;
-            int current_depth = 0;
-            int thread_id = mpi_rank;
-            int should_continue = 0;
-            
-            // Critical section for getting a URL from the queue - only one thread at a time
-            // omp_set_lock(&queue_lock);
-            if (front != rear && pages_crawled < maxPages && failed_downloads < 10) {
-                // Get a URL from the queue
-                current_url = queue[front];
-                current_depth = depth[front];
-                front = (front + 1) % MAX_URLS;
-                should_continue = 1;
-                
-                // Increment the pages crawled counter safely
-                pages_crawled++;
-            }
-            // omp_unset_lock(&queue_lock);
-            
-            // If there's no URL to process, exit the thread's loop
-            if (!should_continue) {
-                break;
-            }
-            
-            // Skip invalid URLs or already processed ones
-            if (!is_valid_crawl_url(current_url, base_domain)) {
-                printf("  Thread %d: Skipping invalid URL: %s\n", thread_id, current_url);
-                free(current_url);
-                continue;
-            }
-            
-            printf("\nThread %d crawling [%d/%d]: %s (depth %d/%d)\n", 
-                   thread_id, pages_crawled, maxPages, current_url, current_depth, maxDepth);
-            
-            // Download the URL content
-            struct MemoryStruct chunk;
-            chunk.memory = malloc(1);
-            chunk.size = 0;
-        
-            CURL* curl = curl_easy_init();
-            if (curl) {
-                curl_easy_setopt(curl, CURLOPT_URL, current_url);
-                curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data_callback);
-                curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&chunk);
-                curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
-                curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (compatible; SearchEngine-Crawler/1.1)");
-                curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
-                curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);  // Disable SSL verification for simplicity
-                
-                // Add headers to mimic a browser request
-                struct curl_slist *headers = NULL;
-                headers = curl_slist_append(headers, "Accept: text/html,application/xhtml+xml,application/xml");
-                headers = curl_slist_append(headers, "Accept-Language: en-US,en;q=0.9");
-                curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
-            
-            CURLcode res = curl_easy_perform(curl);
-            curl_slist_free_all(headers);
-            curl_easy_cleanup(curl);
-            
-            if (res == CURLE_OK && chunk.size > 100) {  // Ensure we have some content
-                if (chunk.memory == NULL) {
-                    fprintf(stderr, "  Downloaded content is NULL for %s\n", current_url);
-                    failed_downloads++;
-                } else {
-                    // Save the content to a file, but check if we already downloaded it
-                    // to avoid processing the same content twice
-                    char* normalized_current = normalize_url(current_url);
-                    int already_processed = 0;
-                    
-                    // Verify this URL hasn't already been processed in this session
-                    // Check if this URL has actually been downloaded to the dataset directory
-                    char potential_filename[512];
-                    
-                    // Try to construct the potential filename for this URL
-                    if (strstr(current_url, "medium.com") != NULL) {
-                        // For Medium URLs, we need to check multiple potential filenames
-                        // First try to find it using the title
-                        struct stat st;
-                        char medium_dir_pattern[256];
-                        snprintf(medium_dir_pattern, sizeof(medium_dir_pattern), "dataset/medium_%s", strrchr(normalized_current, '@'));
-                        
-                        // Check if any file in the dataset directory matches our URL pattern
-                        DIR* dir = opendir("dataset");
-                        if (dir) {
-                            struct dirent* entry;
-                            while ((entry = readdir(dir))) {
-                                if (strstr(entry->d_name, "medium_") && 
-                                    (strstr(entry->d_name, strrchr(normalized_current, '@') ? strrchr(normalized_current, '@') + 1 : "") ||
-                                     strstr(entry->d_name, normalized_current))) {
-                                    already_processed = 1;
-                                    break;
-                                }
-                            }
-                            closedir(dir);
-                        }
-                    } else {
-                        // For other URLs, try the standard filename
-                        snprintf(potential_filename, sizeof(potential_filename), "dataset/%s", get_url_filename(current_url));
-                        if (access(potential_filename, F_OK) == 0) {
-                            already_processed = 1;
-                        }
-                    }
-                    
-                    if (already_processed) {
-                        printf("  Already downloaded this URL to dataset, skipping download\n");
-                        // Still count as success
-                        pages_crawled++;
-                        
-                        // Extract links from the page even if already downloaded
-                        if (current_depth < maxDepth) {
-                            char* extracted_urls[MAX_URLS];
-                            int url_count = 0;
-                            
-                            // Read the file from disk to extract links
-                            FILE* f = NULL;
-                            
-                            if (strstr(current_url, "medium.com") != NULL) {
-                                // We need to find the filename for medium URLs
-                                DIR* dir = opendir("dataset");
-                                if (dir) {
-                                    struct dirent* entry;
-                                    while ((entry = readdir(dir))) {
-                                        if (strstr(entry->d_name, "medium_")) {
-                                            // Open the file and check if it contains our URL
-                                            char full_path[1024];
-                                            snprintf(full_path, sizeof(full_path), "dataset/%s", entry->d_name);
-                                            FILE* check_file = fopen(full_path, "r");
-                                            if (check_file) {
-                                                char line[1024];
-                                                if (fgets(line, sizeof(line), check_file)) {
-                                                    // Check if the first line contains our URL
-                                                    if (strstr(line, current_url) != NULL) {
-                                                        fclose(check_file);
-                                                        f = fopen(full_path, "r");
-                                                        break;
-                                                    }
-                                                }
-                                                fclose(check_file);
-                                            }
-                                        }
-                                    }
-                                    closedir(dir);
-                                }
-                            } else {
-                                // For other URLs, use the standard filename
-                                char file_path[512];
-                                snprintf(file_path, sizeof(file_path), "dataset/%s", get_url_filename(current_url));
-                                f = fopen(file_path, "r");
-                            }
-                            
-                            // If we found the file, download the URL again just to extract links
-                            // but don't save it to disk
-                            if (f) {
-                                fclose(f);
-                                // Download URL temporarily to extract links
-                                CURL* link_curl = curl_easy_init();
-                                if (link_curl) {
-                                    struct MemoryStruct link_chunk;
-                                    link_chunk.memory = malloc(1);
-                                    link_chunk.size = 0;
-                                    
-                                    curl_easy_setopt(link_curl, CURLOPT_URL, current_url);
-                                    curl_easy_setopt(link_curl, CURLOPT_WRITEFUNCTION, write_data_callback);
-                                    curl_easy_setopt(link_curl, CURLOPT_WRITEDATA, (void*)&link_chunk);
-                                    curl_easy_setopt(link_curl, CURLOPT_TIMEOUT, 30L);
-                                    
-                                    CURLcode link_res = curl_easy_perform(link_curl);
-                                    curl_easy_cleanup(link_curl);
-                                    
-                                    if (link_res == CURLE_OK && link_chunk.size > 0) {
-                                        // Extract links from HTML
-                                        extract_links(link_chunk.memory, current_url, extracted_urls, &url_count, MAX_URLS);
-                                        printf("  Found %d links from already downloaded page\n", url_count);
-                                        
-                                        // Add new URLs to the queue
-                                        int added_urls = 0;
-                                        for (int i = 0; i < url_count && rear != (front - 1 + MAX_URLS) % MAX_URLS && added_urls < 20; i++) {
-                                            if (!extracted_urls[i]) continue;
-                                            
-                                            if (!is_valid_crawl_url(extracted_urls[i], base_domain)) {
-                                                free(extracted_urls[i]);
-                                                extracted_urls[i] = NULL;
-                                                continue;
-                                            }
-                                            
-                                            char* url_copy = strdup(extracted_urls[i]);
-                                            if (!url_copy) {
-                                                free(extracted_urls[i]);
-                                                extracted_urls[i] = NULL;
-                                                continue;
-                                            }
-                                            
-                                            if (has_visited(url_copy)) {
-                                                free(url_copy);
-                                                free(extracted_urls[i]);
-                                                extracted_urls[i] = NULL;
-                                                continue;
-                                            }
-                                            
-                                            free(url_copy);
-                                            queue[rear] = extracted_urls[i];
-                                            depth[rear] = current_depth + 1;
-                                            rear = (rear + 1) % MAX_URLS;
-                                            mark_visited(extracted_urls[i]);
-                                            printf("  Queued: %s\n", extracted_urls[i]);
-                                            added_urls++;
-                                            extracted_urls[i] = NULL;
-                                        }
-                                        
-                                        // Free any remaining URLs
-                                        for (int i = 0; i < url_count; i++) {
-                                            if (extracted_urls[i] != NULL) {
-                                                free(extracted_urls[i]);
-                                                extracted_urls[i] = NULL;
-                                            }
-                                        }
-                                    }
-                                    
-                                    if (link_chunk.memory) {
-                                        free(link_chunk.memory);
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        // Download and process the URL
-                        char* filename = download_url(current_url);
-                        if (filename) {
-                            printf("  Downloaded to %s (%zu bytes)\n", filename, chunk.size);
-                            pages_crawled++;
-                            failed_downloads = 0;  // Reset consecutive failure counter
-                            
-                            // If we have not reached max depth, extract links and add to queue
-                            if (current_depth < maxDepth) {
-                                char* extracted_urls[MAX_URLS];
-                                int url_count = 0;
-                                
-                                // Pass the current URL as base URL for relative link resolution
-                                extract_links(chunk.memory, current_url, extracted_urls, &url_count, MAX_URLS);
-                                printf("  Found %d links\n", url_count);
-                                
-                                // Add new URLs to the queue
-                                int added_urls = 0;
-                                for (int i = 0; i < url_count && rear != (front - 1 + MAX_URLS) % MAX_URLS && added_urls < 20; i++) {
-                                    // Make sure URL is not NULL before proceeding
-                                    if (!extracted_urls[i]) continue;
-                                    
-                                    // First check if URL is valid for crawling before doing anything else
-                                    // This avoids unnecessary processing and potential memory issues
-                                    if (!is_valid_crawl_url(extracted_urls[i], base_domain)) {
-                                        free(extracted_urls[i]); 
-                                        extracted_urls[i] = NULL;
-                                        continue;
-                                    }
-                                    
-                                    // Check if already visited, but make a copy to compare
-                                    char* url_copy = strdup(extracted_urls[i]);
-                                    if (!url_copy) {
-                                        // Memory allocation failure, just free and continue
-                                        free(extracted_urls[i]);
-                                        extracted_urls[i] = NULL;
-                                        continue;
-                                    }
-                                    
-                                    if (has_visited(url_copy)) {
-                                        // Already visited, don't add to queue
-                                        free(url_copy);
-                                        free(extracted_urls[i]); 
-                                        extracted_urls[i] = NULL;
-                                        continue;
-                                    }
-                                    
-                                    // URL is valid and not visited, add to queue
-                                    free(url_copy); // Free the copy used for comparison
-                                    queue[rear] = extracted_urls[i];
-                                    depth[rear] = current_depth + 1;
-                                    rear = (rear + 1) % MAX_URLS;
-                                    
-                                    // Now mark it as visited
-                                    mark_visited(extracted_urls[i]);
-                                    printf("  Queued: %s\n", extracted_urls[i]);
-                                    added_urls++;
-                                    
-                                    // Mark as processed to avoid double-free
-                                    extracted_urls[i] = NULL;
-                                }
-                                
-                                // Free any remaining URLs
-                                for (int i = 0; i < url_count; i++) {
-                                    if (extracted_urls[i] != NULL) {
-                                        free(extracted_urls[i]);
-                                        extracted_urls[i] = NULL;
-                                    }
-                                }
-                            } // Close the if(current_depth < maxDepth) block
-                        } else {
-                            failed_downloads++;
-                            printf("  Failed to save content from: %s\n", current_url);
-                        }
-                } // Close the else block after the already_processed check
-            }
-            } else {
-                fprintf(stderr, "  Failed to download or process content from: %s (size: %zu bytes)\n", 
-                        current_url, chunk.size);
-                failed_downloads++;
-            }
-            // Safely free the memory chunk
-            if (chunk.memory) {
-                free(chunk.memory);
-                chunk.memory = NULL;
-            }
-        } else {
-            failed_downloads++;
-            fprintf(stderr, "  Failed to initialize curl for: %s\n", current_url);
-        }
-        
-        // Add a small delay between requests to be nice to servers (200-500ms)
-        usleep((rand() % 300 + 200) * 1000);
-        
-        free(current_url);
-        } // End of while(1) loop
-    } // End of parallel region
-    
-    // Clean up any remaining URLs in the queue
-    while (front != rear) {
-        if (queue[front] != NULL) {
-            free(queue[front]);
-            queue[front] = NULL;
-        }
-        front = (front + 1) % MAX_URLS;
+    if (mpi_rank == 0) {
+        printf("Starting crawl from: %s (max depth: %d, max pages: %d)\n", 
+               normalized_start_url, maxDepth, maxPages);
+        printf("Base domain for crawling: %s\n", base_domain);
+        printf("Crawling with %d MPI processes\n", mpi_size);
     }
     
-    // Clean up curl global state
-    curl_global_cleanup();
+    // Initialize curl globally (once per process)
+    curl_global_init(CURL_GLOBAL_DEFAULT);
     
-    // Clean up OpenMP locks
-    // omp_destroy_lock(&visited_lock);
-    // omp_destroy_lock(&queue_lock);
+    // Distribute initial work among MPI processes
+    distribute_mpi_work(normalized_start_url, maxDepth, maxPages);
     
-    // Record crawling time
+    // Mark initial URL as visited
+    mark_visited(normalized_start_url);
+    
+    // MPI parallel crawling loop
+    int local_pages_crawled = 0;
+    int local_failed_downloads = 0;
+    int sync_counter = 0;
+    
+    while (global_pages_crawled < maxPages) {
+        char current_url[MAX_URL_LENGTH];
+        int current_depth;
+        
+        // Synchronize work queues every few iterations
+        if (sync_counter % 5 == 0) {
+            sync_mpi_work_queues();
+            
+            // Update global page count
+            int local_count = local_pages_crawled;
+            MPI_Allreduce(&local_count, &global_pages_crawled, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+        }
+        sync_counter++;
+        
+        // Get next work item for this process
+        if (!get_mpi_work_item(current_url, &current_depth, maxPages)) {
+            // No work available, wait a bit and try again
+            usleep(100000); // 100ms
+            continue;
+        }
+        
+        // Check if URL is valid for crawling
+        if (!is_valid_crawl_url(current_url, base_domain)) {
+            printf("Process %d: Skipping invalid URL: %s\n", mpi_rank, current_url);
+            continue;
+        }
+        
+        printf("Process %d crawling [%d/%d]: %s (depth %d/%d)\n", 
+               mpi_rank, global_pages_crawled + 1, maxPages, current_url, current_depth, maxDepth);
+            
+        // Download the URL content
+        struct MemoryStruct chunk;
+        chunk.memory = malloc(1);
+        chunk.size = 0;
+    
+        CURL* curl = curl_easy_init();
+        if (curl) {
+            curl_easy_setopt(curl, CURLOPT_URL, current_url);
+            curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data_callback);
+            curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void*)&chunk);
+            curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+            curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (compatible; SearchEngine-Crawler/1.1)");
+            curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);  // Disable SSL verification for simplicity
+            
+            // Add headers to mimic a browser request
+            struct curl_slist *headers = NULL;
+            headers = curl_slist_append(headers, "Accept: text/html,application/xhtml+xml,application/xml");
+            headers = curl_slist_append(headers, "Accept-Language: en-US,en;q=0.9");
+            curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+        
+        CURLcode res = curl_easy_perform(curl);
+        curl_slist_free_all(headers);
+        curl_easy_cleanup(curl);
+        
+        if (res == CURLE_OK && chunk.size > 100) {  // Ensure we have some content
+            char* filename = download_url(current_url);
+            if (filename) {
+                printf("  Process %d downloaded to %s (%zu bytes)\n", mpi_rank, filename, chunk.size);
+                local_pages_crawled++;
+                
+                // If we have not reached max depth, extract links and add to queue
+                if (current_depth < maxDepth) {
+                    char* extracted_urls[MAX_URLS];
+                    int url_count = 0;
+                    
+                    // Extract links from HTML
+                    extract_links(chunk.memory, current_url, extracted_urls, &url_count, MAX_URLS);
+                    printf("  Process %d found %d links\n", mpi_rank, url_count);
+                    
+                    // Add new URLs to the MPI work queue
+                    if (url_count > 0) {
+                        int* depths = malloc(url_count * sizeof(int));
+                        for (int i = 0; i < url_count; i++) {
+                            depths[i] = current_depth + 1;
+                        }
+                        add_mpi_work_items(extracted_urls, depths, url_count, maxDepth);
+                        free(depths);
+                        
+                        // Free extracted URLs
+                        for (int i = 0; i < url_count; i++) {
+                            if (extracted_urls[i]) {
+                                free(extracted_urls[i]);
+                            }
+                        }
+                    }
+                }
+            } else {
+                local_failed_downloads++;
+                printf("  Process %d failed to save content from: %s\n", mpi_rank, current_url);
+            }
+        } else {
+            fprintf(stderr, "  Process %d failed to download content from: %s (size: %zu bytes)\n", 
+                    mpi_rank, current_url, chunk.size);
+            local_failed_downloads++;
+        }
+        
+        // Safely free the memory chunk
+        if (chunk.memory) {
+            free(chunk.memory);
+            chunk.memory = NULL;
+        }
+    } else {
+        local_failed_downloads++;
+        fprintf(stderr, "  Process %d failed to initialize curl for: %s\n", mpi_rank, current_url);
+    }
+    
+    // Add a small delay between requests to be nice to servers (200-500ms)
+    usleep((rand() % 300 + 200) * 1000);
+} // End of while loop
+
+// Clean up any remaining URLs in the queue
+while (front != rear) {
+    if (queue[front] != NULL) {
+        free(queue[front]);
+        queue[front] = NULL;
+    }
+    front = (front + 1) % MAX_URLS;
+}
+
+// Clean up curl global state
+curl_global_cleanup();
+
+// Synchronize all processes before final cleanup
+MPI_Barrier(MPI_COMM_WORLD);
+
+// Calculate final global page count
+MPI_Allreduce(&local_pages_crawled, &global_pages_crawled, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+// Record crawling time (only on master process)
+if (mpi_rank == 0) {
+    extern SearchEngineMetrics metrics;
     metrics.crawling_time = stop_timer();
     
     printf("\nCrawling completed. Crawled %d pages in %.2f ms.\n", 
-           pages_crawled, metrics.crawling_time);
-    return pages_crawled;
+           global_pages_crawled, metrics.crawling_time);
+}
+
+return global_pages_crawled;
 }
