@@ -53,10 +53,21 @@ void tokenize(char *text, int doc_id)
     // Start timing for tokenization
     start_timer();
     
+    // Debug counters
+    int token_count = 0;
+    int added_count = 0;
+    
     char *token = strtok(text, " \t\n\r.,;:!?\"()[]{}<>");
     while (token)
     {
+        token_count++;
         to_lowercase(token);
+        
+        // Special debug for microservice term
+        if (strstr(token, "microservice") != NULL) {
+            printf("DEBUG: Found 'microservice' in token: '%s'\n", token);
+        }
+        
         if (!is_stopword(token))
         {
             // Start timing stemming
@@ -65,10 +76,20 @@ void tokenize(char *text, int doc_id)
             // Record stemming time
             metrics.stemming_time += stop_timer();
             
+            // Debug output for important terms
+            if (strlen(token) > 5) {
+                printf("DEBUG: Token '%s' stemmed to '%s'\n", token, stemmed);
+            }
+            
             add_token(stemmed, doc_id);
+            added_count++;
         }
         token = strtok(NULL, " \t\n\r.,;:!?\"()[]{}<>");
     }
+    
+    printf("DEBUG: Tokenized %d tokens, added %d terms for doc_id %d\n", 
+           token_count, added_count, doc_id);
+}
     
     // Record tokenizing time
     metrics.tokenizing_time += stop_timer();

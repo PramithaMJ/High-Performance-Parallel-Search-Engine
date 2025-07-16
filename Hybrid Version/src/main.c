@@ -240,6 +240,10 @@ int main(int argc, char* argv[])
                         printf("No documents found in dataset directory.\n");
                         printf("Please download content first using -u, -c, or -m options.\n");
                         printf("Example: %s -c https://medium.com/@lpramithamj -q \"microservice\"\n", argv[0]);
+                    } else {
+                        // Print debug information about the index
+                        extern void print_all_index_terms();
+                        print_all_index_terms();
                     }
                 }
             }
