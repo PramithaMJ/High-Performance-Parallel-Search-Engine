@@ -1,89 +1,57 @@
 #!/bin/bash
+# Start the High-Performance Parallel Search Engine Dashboard
+# Usage: ./start_dashboard.sh [port]
 
-# start_dashboard.sh - Script to start the search engine dashboard
+PORT=${1:-8080}  # Changed default from 5000 to 8080 to avoid AirPlay conflict on macOS
+BASE_DIR="$(dirname "$(realpath "$0")")"
+PYTHON_CMD=$(command -v python3 || command -v python)
 
-# Get the directory of this script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-BASE_DIR="$(dirname "$SCRIPT_DIR")"
+echo "Starting High-Performance Parallel Search Engine Dashboard..."
+echo "Base directory: $BASE_DIR"
 
-# Check for Python
-if ! command -v python3 &> /dev/null; then
-    echo "Python 3 could not be found. Please install Python 3 to run the dashboard."
+# Check if Python is available
+if [ -z "$PYTHON_CMD" ]; then
+    echo "Error: Python 3 is not installed or not in PATH."
     exit 1
 fi
 
-# Check for required Python packages
-echo "Checking for required Python packages..."
-REQUIRED_PACKAGES=("flask" "flask-cors")
-MISSING_PACKAGES=()
-
-for package in "${REQUIRED_PACKAGES[@]}"; do
-    if ! python3 -c "import $package" &> /dev/null; then
-        MISSING_PACKAGES+=("$package")
-    fi
-done
-
-# Install missing packages if needed
-if [ ${#MISSING_PACKAGES[@]} -gt 0 ]; then
-    echo "Installing required packages: ${MISSING_PACKAGES[*]}"
-    pip3 install "${MISSING_PACKAGES[@]}"
+# Check if Flask is installed
+if ! $PYTHON_CMD -c "import flask" &>/dev/null; then
+    echo "Flask is not installed. Installing required packages..."
+    $PYTHON_CMD -m pip install flask flask-cors || { echo "Failed to install requirements"; exit 1; }
 fi
 
-# Check if any binaries need to be built
-if [ ! -f "$BASE_DIR/Serial Version/bin/search_engine" ] || \
-   [ ! -f "$BASE_DIR/OpenMP Version/bin/search_engine" ] || \
-   [ ! -f "$BASE_DIR/MPI Version/bin/search_engine" ]; then
-    echo "Some search engine binaries are missing. Would you like to build them now? (y/n)"
-    read -r build_choice
-    if [[ "$build_choice" =~ ^[Yy]$ ]]; then
-        # Build all versions
-        echo "Building Serial version..."
-        (cd "$BASE_DIR/Serial Version" && make clean && make)
-        
-        echo "Building OpenMP version..."
-        (cd "$BASE_DIR/OpenMP Version" && make clean && make)
-        
-        echo "Building MPI version..."
-        (cd "$BASE_DIR/MPI Version" && make clean && make)
-    else
-        echo "Warning: Some features may not work without the compiled binaries."
-    fi
+# Create config.ini if it doesn't exist
+CONFIG_FILE="$BASE_DIR/config.ini"
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Creating default config.ini..."
+    cat > "$CONFIG_FILE" << EOL
+# Website Dashboard Configuration
+
+# Server settings
+PORT=$PORT
+DEBUG=True
+
+# Search engine paths
+SERIAL_PATH=../Serial\ Version/bin/search_engine
+OPENMP_PATH=../OpenMP\ Version/bin/search_engine
+MPI_PATH=../MPI\ Version/bin/search_engine
+HYBRID_PATH=../Hybrid\ Version/bin/search_engine
+
+# MPI settings
+MPI_HOSTFILE=../MPI\ Version/hostfile
+MPI_NUM_PROCESSES=4
+
+# Default parameters
+DEFAULT_MAX_RESULTS=10
+DEFAULT_TIMEOUT=30
+EOL
+    echo "Created default config.ini"
 fi
 
-# Create data directory if it doesn't exist
-mkdir -p "$BASE_DIR/data"
+# Make sure the data directory exists
+mkdir -p "$BASE_DIR/../data"
 
-# Start the API server
-echo "Starting Search Engine Dashboard API server on port 5001..."
-cd "$SCRIPT_DIR"
-python3 "api.py" --debug &
-API_PID=$!
-
-# Open the dashboard in the browser (wait a few seconds for server to start)
-sleep 3
-echo "Opening dashboard in your default browser..."
-if [[ "$OSTYPE" == "darwin"* ]]; then
-    open "http://localhost:5001"
-elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    xdg-open "http://localhost:5001"
-elif [[ "$OSTYPE" == "msys"* ]]; then
-    start "http://localhost:5001"
-else
-    echo "Please open http://localhost:5001 in your browser to access the dashboard."
-fi
-
-echo "Dashboard is running. Press Ctrl+C to stop..."
-
-# Handle cleanup on exit
-function cleanup {
-    echo "Stopping API server..."
-    kill $API_PID
-    exit 0
-}
-
-trap cleanup INT
-
-# Wait for user to press Ctrl+C
-while true; do
-    sleep 1
-done
+echo "Starting server on port $PORT..."
+echo "Note: Using port 8080 by default to avoid conflicts with AirPlay Receiver on macOS"
+cd "$BASE_DIR" && $PYTHON_CMD -m flask --app api run --host=0.0.0.0 --port=$PORT

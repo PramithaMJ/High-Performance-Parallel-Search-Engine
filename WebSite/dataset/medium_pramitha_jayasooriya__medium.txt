@@ -1,0 +1,77 @@
+Source URL: https://medium.com/@lpramithamj
+
+Pinned
+
+## Why do we need to use Circuit Bracker Pattern inside Microservices?
+
+
+
+In today’s world of distributed systems and microservices architecture, ensuring resilience and fault tolerance is crucial. As…Apr 7, 2024Apr 7, 2024Pinned
+
+## Trace the Path: Distributed Tracing with Zipkin in Microservices-1
+
+
+
+Microservices architectures, with their numerous interacting services, can be complex to manage and debug. Distributed tracing is a…May 31, 2024May 31, 2024
+
+## Think Parallel, Compute Faster: ISPC and SPMD
+
+
+
+Understanding ISPC and SPMD ProgrammingMay 21May 21
+
+## lFixing the GPG Key Error for Visual Studio Code on Ubuntu
+
+
+
+GPG Keys Gone Missing? Time to Bribe the Linux Gatekeeper!Feb 23A response icon1Feb 23A response icon1
+
+## Linux Wake-Up Call: What Happens Before You See the Login Screen
+
+
+
+Press Power, Grab Coffee, and Watch Linux Do Its MagicFeb 23Feb 23
+
+## The Race to 1M Tasks!
+
+
+
+Benchmarking 1 Million Concurrent Tasks in Different Programming LanguagesFeb 22Feb 22
+
+## [Between You and the Web] Decoding Forward and Reverse Proxies
+
+
+
+Understanding Proxy Servers: Forward and Reverse Proxies ExplainedJan 4Jan 4
+
+## [Guide] Simplifying Slack Integration: How to Use the Go Slack SDK
+
+
+
+Slack integrations are vital for automating workflows, sending updates, and enhancing collaboration. As developers, we often seek an…Dec 29, 2024Dec 29, 2024
+
+## The Untold Story of GitHub
+
+
+
+The Inside Story of the Revolutionary Version Control SystemDec 5, 2024Dec 5, 2024
+
+## [Solved] Cross-Site Request Forgery (CSRF) Attacks with Spring Security.
+
+
+
+A typical Cross-Site Request Forgery (CSRF or XSRF) attack aims to perform an operation in a web application on behalf of a user without…Mar 8, 2024A response icon1Mar 8, 2024A response icon1
+
+## Pramitha Jayasooriya
+
+36 followersAspiring Computer Engineer with a specialized focus on backend technologies. BSc. Eng . (Hons.) Degree in Computer Engineering (UG).Following
+
+Lasithaharshanadesilva
+
+Sanjaya Edirisinghe
+
+Chameera Rupasinghe
+
+Malinda Gamage
+
+Srinath PereraSee all (47)HelpStatusAboutCareersPressBlogPrivacyRulesTermsText to speech 

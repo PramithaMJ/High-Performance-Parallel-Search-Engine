@@ -1,0 +1,1687 @@
+Source URL: https://medium.com/feed/@lpramithamj
+
+ 
+
+https://medium.com/@lpramithamj?source=rss-1bb96bc9f81a------2 https://cdn-images-1.medium.com/fit/c/150/150/1*lU1S63GUL3m8BO6mFjGKyw.jpeg 
+
+# Stories by Pramitha Jayasooriya on Medium
+
+
+
+https://medium.com/@lpramithamj?source=rss-1bb96bc9f81a------2 Medium Wed, 16 Jul 2025 20:40:53 GMT 
+
+https://medium.com/@lpramithamj/think-parallel-compute-faster-a-deep-dive-into-ispc-and-spmd-bd4be83190c2?source=rss-1bb96bc9f81a------2 https://medium.com/p/bd4be83190c2 Wed, 21 May 2025 03:49:55 GMT 2025-05-21T03:51:20.711Z 
+
+Understanding ISPC and SPMD Programming
+
+Introduction to ISPCISPC (Intel SPMD Program Compiler) is a compiler that enables high-performance parallel programming using the Single Program Multiple Data (SPMD) model. It is designed to take advantage of modern SIMD (Single Instruction Multiple Data) hardware, allowing developers to write parallel programs that efficiently utilize vectorized CPU instructions.
+
+A great resource for learning about ISPC is Matt Pharr’s blog post: The Story of ISPC.
+
+
+
+Key Features of ISPC:
+
+Uses SPMD programming for efficient parallel execution.
+
+Enables better utilization of CPU vector units.
+
+Provides a C-like syntax, making it easy for C/C++ programmers to adopt.
+
+Works well for tasks like graphics, physics simulations, and high-performance computing.
+
+Taylor Series Approximation for sin(x)One of the fundamental applications of ISPC is performing mathematical computations in parallel. Let’s consider the computation of the sine function using the Taylor Series Expansion:
+
+Taylor Series for Sin(x)
+
+C++ Implementation of sin(x)A naive implementation in C++ for computing sin(x) using the Taylor series for an array of numbers is as follows:
+
+void sinx(int N, int terms, float* x, float* result) {
+
+ for (int i = 0; i < N; i++) {
+
+ float value = x[i];
+
+ float numer = x[i] * x[i] * x[i];
+
+ int denom = 6; // 3!
+
+ int sign = -1;
+
+ 
+
+ for (int j = 1; j <= terms; j++) {
+
+ value += sign * numer / denom;
+
+ numer *= x[i] * x[i];
+
+ denom *= (2*j+2) * (2*j+3);
+
+ sign *= -1;
+
+ }
+
+ result[i] = value;
+
+ }
+
+}
+
+Explanation:
+
+Loops over an array of N elements.
+
+Uses a nested loop to calculate the Taylor series approximation.
+
+Computes sine values sequentially, one element at a time.
+
+Invoking sinx() in C++#include "sinx.h"
+
+int main() {
+
+ int N = 1024;
+
+ int terms = 5;
+
+ float* x = new float[N];
+
+ float* result = new float[N];
+
+ 
+
+ // Initialize x with some values
+
+ sinx(N, terms, x, result);
+
+ 
+
+ delete[] x;
+
+ delete[] result;
+
+ return 0;
+
+}This works, but it’s not optimized for parallel execution. We can improve this using ISPC.
+
+
+
+ISPC Implementation of sin(x)Using ISPC, we can parallelize the sine computation by leveraging the SPMD programming model.
+
+export void ispc_sinx(
+
+ uniform int N,
+
+ uniform int terms,
+
+ uniform float* x,
+
+ uniform float* result) {
+
+ 
+
+ for (uniform int i = 0; i < N; i += programCount) {
+
+ int idx = i + programIndex;
+
+ float value = x[idx];
+
+ float numer = x[idx] * x[idx] * x[idx];
+
+ uniform int denom = 6; // 3!
+
+ uniform int sign = -1;
+
+ 
+
+ for (uniform int j = 1; j <= terms; j++) {
+
+ value += sign * numer / denom;
+
+ numer *= x[idx] * x[idx];
+
+ denom *= (2*j+2) * (2*j+3);
+
+ sign *= -1;
+
+ }
+
+ result[idx] = value;
+
+ }
+
+}
+
+Key ISPC Features Used:
+
+programCount: Represents the number of parallel program instances.
+
+programIndex: Represents the unique index of each instance in the gang.
+
+uniform: Indicates that all instances share the same value for a variable (optimization for efficiency).
+
+Explanation:
+
+The loop runs with interleaved execution, where multiple instances of the function execute concurrently.
+
+Instead of sequential execution, ISPC assigns different parts of the array to different program instances.
+
+Each instance computes sin(x) in parallel, utilizing SIMD instructions for higher efficiency.
+
+Invoking ispc_sinx() in C++To call the ISPC function from C++, we use:
+
+#include "sinx_ispc.h"
+
+int main() {
+
+ int N = 1024;
+
+ int terms = 5;
+
+ float* x = new float[N];
+
+ float* result = new float[N];
+
+ 
+
+ // Initialize x with some values
+
+ ispc_sinx(N, terms, x, result);
+
+ 
+
+ delete[] x;
+
+ delete[] result;
+
+ return 0;
+
+}This spawns multiple ISPC program instances, running the function in parallel and improving performance significantly compared to the standard C++ implementation.
+
+
+
+Understanding SPMD Execution in ISPC
+
+How SPMD Works in ISPC:
+
+A gang of ISPC program instances is created.
+
+Each instance runs the same program but operates on different elements of the input array.
+
+Execution is interleaved, meaning different instances work on separate elements in parallel.
+
+Each instance has its own local variables but shares uniform values where necessary.
+
+Example: Interleaved ExecutionIf programCount = 8, the array elements are assigned as follows:
+
+This maximizes CPU vectorization and speeds up execution dramatically compared to a sequential approach.
+
+
+
+ConclusionISPC enables efficient parallel programming using the SPMD model, allowing developers to optimize computations for SIMD architectures. By replacing sequential loops with parallel ISPC implementations, we can achieve significant performance improvements in applications like scientific computing, graphics, and simulations.
+
+If you’re interested in learning more, check out The Story of ISPC and try ISPC in your own projects!
+
+Stanford CS149 Parallel Computing
+
+~ By Pramitha Jayasooriya
+
+
+
+Contact DetailsFor further information or to discuss potential opportunities, please feel free to connect with me on my professional and social platforms:
+
+
+
+LinkedIn: Pramitha-Jayasooriya
+
+Stackoverflow: https://stackoverflow.com/users/21953303/pramitha-jayasooriya
+
+GitHub: PramithaMJ
+
+Personal Website: PramithaMJ.live
+
+Email : lpramithamj@gmail.comLooking forward to connecting with you!
+
+]]> 
+
+https://medium.com/@lpramithamj/fixing-the-gpg-key-error-for-visual-studio-code-on-ubuntu-f29562a38182?source=rss-1bb96bc9f81a------2 https://medium.com/p/f29562a38182 Sun, 23 Feb 2025 13:34:07 GMT 2025-04-04T12:57:00.628Z 
+
+GPG Keys Gone Missing? Time to Bribe the Linux Gatekeeper!Generated by AIAfter installing Visual Studio Code (VS Code) on my Ubuntu machine, I encountered an error when trying to update my package manager using the sudo apt update command. The error message looked like this:
+
+Err:4 https://packages.microsoft.com/repos/code stable InRelease 
+
+ The following signatures couldnt be verified because the public key is not available: NO_PUBKEY EB3E94ADBE1229CFAdditionally, I saw these warnings:
+
+W: GPG error: https://packages.microsoft.com/repos/code stable InRelease: The following signatures couldnt be verified because the public key is not available: NO_PUBKEY EB3E94ADBE1229CF
+
+E: The repository https://packages.microsoft.com/repos/code stable InRelease is not signed.
+
+N: Updating from such a repository cant be done securely, and is therefore disabled by default.
+
+N: See apt-secure(8) manpage for repository creation and user configuration details.Despite this error, VS Code was running fine, but the error was annoying every time I updated my system. In this article, I’ll explain why this error occurs, what GPG keys are, and how to fix it properly.
+
+
+
+What is GPG?GPG (GNU Privacy Guard) is an encryption system used to sign and verify software packages in Linux. When a software package is signed with a GPG key, it ensures that the package comes from a trusted source and hasn’t been tampered with.
+
+In Ubuntu, APT (Advanced Package Tool) relies on GPG keys to verify package authenticity. If a repository does not have a valid GPG key, APT will reject it and show errors like the one I encountered.
+
+
+
+Why Does This Error Happen?The error occurs because Ubuntu’s package manager (APT) cannot verify the Microsoft repository due to a missing or outdated GPG key.
+
+Microsoft’s repository for VS Code is located at:
+
+However, the public key needed to verify this repository (EB3E94ADBE1229CF) is missing, leading to the error.
+
+This issue can happen due to:
+
+
+
+Missing GPG key: The key was never added to the system.
+
+Expired or outdated key: The key has changed, but the system is still using an old version.
+
+Repository not correctly configured: The repository might be misconfigured, preventing the key from being used correctly.To fix this, we need to download and install the correct Microsoft GPG key and ensure the repository is correctly set up.
+
+
+
+How to Fix the GPG Key Error
+
+Step 1: Download and Install the Microsoft GPG KeyRun the following command to download and securely store the Microsoft GPG key:
+
+wget -qO - https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
+
+What This Command Does:
+
+wget -qO - https://packages.microsoft.com/keys/microsoft.asc → Downloads the Microsoft public key.
+
+sudo gpg --dearmor -o /usr/share/keyrings/microsoft.gpg → Converts the key into a format usable by APT and saves it securely in the /usr/share/keyrings/ directory.This ensures the key is stored in the correct location and can be used for verification.
+
+
+
+Step 2: Update the Microsoft Repository ListNext, we need to make sure the repository is correctly configured. Run:
+
+echo "deb [signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list
+
+What This Command Does:
+
+deb [signed-by=/usr/share/keyrings/microsoft.gpg] ... → Specifies that APT should use the newly added key to verify the Microsoft repository.
+
+sudo tee /etc/apt/sources.list.d/vscode.list → Ensures the repository information is saved in the correct location.This ensures APT knows where to find VS Code and that it should use the correct key for verification.
+
+
+
+Step 3: Update and Upgrade PackagesNow, update the package lists and upgrade the system to apply the changes:
+
+sudo apt update && sudo apt upgrade -y
+
+Expected Output (No More Errors!)Now, sudo apt update should complete without any GPG errors, and VS Code updates should install normally.
+
+
+
+Alternative Fix (If the Above Doesn’t Work)If the issue persists, try these additional steps:
+
+
+
+1. Remove the Old Repository and Keysudo rm /etc/apt/sources.list.d/vscode.list
+
+sudo rm /usr/share/keyrings/microsoft.gpgThis removes any old or incorrect repository settings.
+
+
+
+2. Reinstall the Key and Repositorywget -qO - https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft.gpg
+
+echo "deb [signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list
+
+3. Update Againsudo apt updateNow, the error should be resolved! 🎉
+
+
+
+Why This Fix WorksUbuntu no longer allows GPG keys to be stored in /etc/apt/trusted.gpg for security reasons. Instead, keys must be stored in /usr/share/keyrings/ and explicitly referenced in the repository list (/etc/apt/sources.list.d/).
+
+By following this method, we ensure: The Microsoft GPG key is stored securely. The repository list is properly configured to use the key. Ubuntu can verify VS Code updates without errors.
+
+
+
+ConclusionIf you’re getting a GPG key error when updating Ubuntu after installing VS Code, it’s due to a missing or outdated Microsoft GPG key. You can fix this by:
+
+
+
+Downloading and installing the correct key (microsoft.asc).
+
+Updating the repository list to reference the correct key.
+
+Running sudo apt update again to verify everything works.
+
+FAQsQ: Is this fix safe? A: Yes! This method follows best practices and ensures package security by using GPG verification.
+
+Q: Will VS Code stop working if I don’t fix this error? A: No, VS Code will still work fine, but you won’t get automatic updates for new features and security patches.
+
+Q: Do I need to repeat these steps in the future? A: Only if Microsoft changes its GPG key again. If that happens, just repeat the steps to update the key.
+
+~ By Pramitha Jayasooriya
+
+
+
+Contact DetailsFor further information or to discuss potential opportunities, please feel free to connect with me on my professional and social platforms:
+
+
+
+LinkedIn: Pramitha-Jayasooriya
+
+Stackoverflow: https://stackoverflow.com/users/21953303/pramitha-jayasooriya
+
+GitHub: PramithaMJ
+
+Personal Website: PramithaMJ.live
+
+Email : lpramithamj@gmail.comLooking forward to connecting with you!
+
+]]> 
+
+https://medium.com/@lpramithamj/linux-wake-up-call-what-happens-before-you-see-the-login-screen-e5f2089c3ad6?source=rss-1bb96bc9f81a------2 https://medium.com/p/e5f2089c3ad6 Sun, 23 Feb 2025 06:56:33 GMT 2025-02-23T06:56:33.092Z 
+
+Press Power, Grab Coffee, and Watch Linux Do Its MagicSource: Generated By AILinux Boot Process Steps
+
+1. Powering On and Firmware Initialization
+
+BIOS and UEFI: The System FirmwareThe first stage of the boot process begins when the computer receives power. The motherboard firmware, either BIOS (Basic Input/Output System) or UEFI (Unified Extensible Firmware Interface), initializes the hardware.
+
+
+
+BIOS (Basic Input/Output System)
+
+UEFI (Unified Extensible Firmware Interface)
+
+2. Bootloader ExecutionAfter firmware initialization, the system loads the bootloader, responsible for finding and starting the operating system kernel.
+
+
+
+GRUB2: The Most Common BootloaderGRUB2 (Grand Unified Bootloader 2) is the most widely used Linux bootloader. It supports booting multiple operating systems and offers a graphical/text-based menu. The bootloader’s tasks include:
+
+
+
+Locating the Linux kernel on disk.
+
+Loading the kernel into memory.
+
+Passing control to the kernel.The boot order can be customized in BIOS/UEFI settings. The first sector of the hard drive, called the Master Boot Record (MBR), contains the bootloader’s first stage. GRUB2 reads configuration files (usually /boot/grub/grub.cfg) to determine available boot options.
+
+
+
+3. Kernel InitializationOnce GRUB2 loads the kernel, it takes control of the system.
+
+
+
+The Linux kernel is a compressed binary that extracts itself into memory.
+
+It detects and initializes hardware components.
+
+The kernel loads necessary drivers (kernel modules) for devices.
+
+It mounts the root filesystem (/) to access system files.
+
+The kernel starts the first user-space process, which is usually init.
+
+4. Systemd and User-Space InitializationThe kernel hands control to the init system, which manages the rest of the boot process.
+
+Systemd: The Modern Init System
+
+Most Linux distributions use systemd as the init system.
+
+Systemd is responsible for:
+
+
+
+Loading additional hardware drivers.
+
+Mounting remaining filesystems.
+
+Starting background services (networking, power management, sound, etc.).
+
+Handling user logins.
+
+Setting the system’s target (graphical or text mode).Systemd uses .service and .target files to define services and boot levels.
+
+
+
+5. User Login and Desktop EnvironmentOnce systemd has started all necessary services, the system reaches the final stage.
+
+Graphical vs. Command-Line Login
+
+
+
+If the system boots into graphical mode, a Display Manager (GDM, SDDM, or LightDM) provides a graphical login screen.
+
+If booting into text mode, a login prompt appears on the terminal (TTY).
+
+Once the user logs in, their shell session or desktop environment starts, completing the boot process.
+
+ConclusionImage Source: https://blog.bytebytego.com/The Linux boot process is a multi-step procedure involving firmware initialization, bootloader execution, kernel setup, and system initialization. Understanding each step can help troubleshoot boot failures and optimize performance. Whether using BIOS or UEFI, GRUB2 or another bootloader, Linux ensures a structured and efficient startup process.
+
+~ By Pramitha Jayasooriya
+
+
+
+Contact DetailsFor further information or to discuss potential opportunities, please feel free to connect with me on my professional and social platforms:
+
+
+
+LinkedIn: https://www.linkedin.com/in/pramitha-jayasooriya/
+
+Email: lpramithamj@gmail.com
+
+GitHub: https://github.com/JayasooriyaLPM
+
+Personal Website: https://pramithamj.meLooking forward to connecting with you!
+
+]]> 
+
+https://medium.com/@lpramithamj/the-race-to-1m-tasks-35018c35e347?source=rss-1bb96bc9f81a------2 https://medium.com/p/35018c35e347 Sat, 22 Feb 2025 04:08:20 GMT 2025-02-22T04:08:20.322Z 
+
+Benchmarking 1 Million Concurrent Tasks in Different Programming LanguagesThe idea behind this test was simple: to measure how efficiently each language could handle a large number of concurrent tasks, while also keeping an eye on key factors such as execution time, memory usage, and CPU efficiency.
+
+Image Source: Generated By AI
+
+
+
+1. Why This Benchmark?Concurrency is critical in modern computing, affecting performance in web servers, microservices, and data processing. Different languages handle concurrency through threads, coroutines, async/await, or worker threads. This benchmark evaluates how well these languages handle 1 million concurrent CPU-bound tasks using a Fibonacci calculation.
+
+
+
+2. Benchmark Task: Fibonacci CalculationsI selected the Fibonacci sequence for its simplicity and computational intensity. Fibonacci numbers are often computed using recursion, which can lead to redundant calculations. This is especially useful for a concurrency benchmark, as it tests the languages’ ability to handle computation-heavy tasks while distributing the workload across multiple threads or processes.
+
+Each implementation computes Fibonacci(20) across 1 million concurrent tasks and measures:
+
+
+
+Execution Time (Total time taken)
+
+Memory Usage (Peak memory consumption)
+
+CPU Utilization (Processor efficiency)The Fibonacci function is defined recursively:
+
+int fib(int n) {
+
+ if (n <= 1) return n;
+
+ return fib(n-1) + fib(n-2);
+
+}This task is CPU-bound, meaning performance depends on the language’s ability to schedule concurrent executions efficiently.
+
+
+
+3. The SetupThe Fibonacci calculation was implemented recursively, which resulted in redundant calls. I chose this because it would really push the boundaries of each language’s concurrency capabilities, as redundant recursive calls often lead to performance bottlenecks, particularly in memory and CPU usage.
+
+
+
+4. What Was Measured?The following metrics were tracked during the benchmark:
+
+
+
+Execution Time: How quickly could each language process the 1 million Fibonacci calculations concurrently?
+
+Memory Usage: What was the memory footprint of each language during the execution? Did the language perform automatic garbage collection, and how did that affect performance?
+
+CPU Efficiency: How well did each language use the machine’s CPU cores and threads? Was there underutilization or excessive overhead?
+
+5. Implementations
+
+Go (Goroutines)func main() {
+
+ start := time.Now()
+
+ var wg sync.WaitGroup
+
+ for i := 0; i < 1_000_000; i++ {
+
+ wg.Add(1)
+
+ go func() { fib(20); wg.Done() }()
+
+ }
+
+ wg.Wait()
+
+ fmt.Println("Execution Time:", time.Since(start))
+
+}
+
+Rust (Tokio async tasks)#[tokio::main]
+
+async fn main() {
+
+ let start = Instant::now();
+
+ let mut handles = vec![];
+
+ for _ in 0..1_000_000 {
+
+ handles.push(tokio::spawn(async { fib(20) }));
+
+ }
+
+ for h in handles { h.await.unwrap(); }
+
+ println!("Execution Time: {:?}", start.elapsed());
+
+}
+
+Java (Virtual Threads — Project Loom)ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
+
+for (int i = 0; i < 1_000_000; i++) {
+
+ executor.submit(() -> fib(20));
+
+}
+
+Python (Asyncio — Limited Performance Due to GIL)async def task(): fib(20)
+
+async def main():
+
+ await asyncio.gather(*[task() for _ in range(1_000_000)])
+
+asyncio.run(main())
+
+C++ (std::async — Multithreading)std::vector<std::future<void>> futures;
+
+for (int i = 0; i < 1000000; i++) {
+
+ futures.push_back(std::async(std::launch::async, []() { fib(20); }));
+
+}
+
+C# (Task-based concurrency)Task[] tasks = new Task[1_000_000];
+
+for (int i = 0; i < 1_000_000; i++) { tasks[i] = Task.Run(() => Fib(20)); }
+
+await Task.WhenAll(tasks);
+
+4. The ResultsLanguage Execution Time (s) Memory Usage (MB) CPU Utilization (%) Go 4.8 850 92 Rust 3.5 800 95 Java 5.2 1100 89 Python 38.0 500 70 Node.js 22.4 600 75 C++ 6.1 950 90 C# 5.8 900 91
+
+
+
+Diagram: Execution Time Comparison| Go | ████ 4.8s |
+
+| Rust | ███ 3.5s |
+
+| Java | █████ 5.2s |
+
+| Python | ████████████ 38s |
+
+| Node.js | ████████ 22.4s |
+
+| C++ | █████ 6.1s |
+
+| C# | █████ 5.8s |
+
+5. Analysis
+
+Rust was the fastest due to lightweight Tokio async runtime and zero-cost abstractions.
+
+Go performed well due to goroutines’ lightweight scheduling.
+
+Java (Loom) was competitive, benefiting from virtual threads.
+
+C++ had high performance but needed careful memory management.
+
+C# was efficient but slightly slower than Go/Rust.
+
+Node.js struggled with CPU-bound tasks, as JavaScript is optimized for I/O.
+
+Python was the slowest due to the Global Interpreter Lock (GIL).
+
+Go: Go’s goroutines are very lightweight and well-suited for high-concurrency applications. Go completed the task quickly, with moderate memory usage. The Go scheduler efficiently distributed tasks, making it one of the fastest in the benchmark. The language performed very well in terms of both execution time and CPU efficiency.
+
+Rust: Rust was a close contender, delivering excellent performance with a slightly lower execution time than Go. Its memory management is more hands-on than Go’s but more efficient overall. Rust’s ownership model ensures that there are no data races, making it safe for concurrent computations. The only downside was that its concurrency model requires explicit management, which adds a bit of complexity compared to Go.
+
+Java: Java’s performance was not as good as Go or Rust, especially in terms of execution time. The JVM adds overhead in managing threads, and garbage collection contributed to a high memory usage. Java’s thread-based concurrency model works well, but it couldn’t keep up with the more lightweight approaches of Go and Rust.
+
+Python: Despite Python’s ability to use multiprocessing, the GIL limits its performance in concurrent tasks. Even though it can process tasks concurrently with multiple processes, Python was still the slowest in the benchmark. However, Python is widely known for ease of use and rapid development, which may make it more suited for projects where performance isn’t the only concern.
+
+Node.js: Node.js’ single-threaded event loop performs well for I/O-bound tasks but struggles with CPU-bound tasks. Its event-driven architecture is highly efficient for handling many lightweight asynchronous tasks, but for CPU-heavy operations like Fibonacci calculations, Node.js was less efficient compared to Go or C++.
+
+C++: C++ performed the best in terms of execution time, running the tasks in 6.1 seconds. Its low-level nature allowed it to take full advantage of the CPU’s capabilities. The memory usage was the lowest, and CPU efficiency was almost perfect. However, C++ requires explicit management of concurrency, which can be more error-prone compared to higher-level languages like Go and C#.
+
+C#: C# performed well, with a decent balance between execution time and memory usage. Its async/await mechanism is highly effective in managing concurrency, but its performance was slightly below that of Go and C++ in this benchmark. Its memory usage was also on the higher side due to the .NET runtime.
+
+6. Conclusion: Which Language is Best?
+
+Best Choice Based on Use Case
+
+High-performance concurrent tasks: Rust, Go, C++
+
+Enterprise applications: Java (Virtual Threads), C#
+
+Web and I/O-heavy applications: Node.js
+
+General scripting and prototyping: Python (despite performance limitations)After running this benchmark, it’s clear that Go, Rust, and C++ are the top contenders when it comes to efficiently handling a high number of concurrent tasks. Go and Rust provide a more modern approach to concurrency, making them more suitable for scalable, high-performance systems. C++ is still a powerhouse for low-level concurrency but requires more manual effort and management.
+
+For developers focusing on high-concurrency systems, Go and Rust are fantastic choices, with Rust edging out slightly for its performance but requiring more effort. Java and C# provide solid performance for less demanding concurrent tasks, but they still have some overhead due to the JVM and .NET runtimes.
+
+Python and Node.js, while fantastic for asynchronous or I/O-bound tasks, may not be the best choice for CPU-intensive concurrent processing as seen in this benchmark.
+
+Now we discuss all these with indeeply,
+
+Let’s break this down into a comprehensive, in-depth analysis and heap memory usage, stack overflow errors, memory comparison, and how to fix and test such issues with code examples and detailed explanations.
+
+
+
+Understanding Memory Usage: Stack vs HeapIn computer programming, understanding memory management is crucial for optimizing performance and preventing errors. Two key regions of memory are stack and heap memory.
+
+Stack Memory:
+
+
+
+The stack is where local variables are stored. It’s a LIFO (Last In, First Out) data structure, meaning that the most recently allocated memory is freed first.
+
+It is fast but limited in size.
+
+When a function is called, its local variables are pushed onto the stack. Once the function returns, the memory is automatically freed.Heap Memory:
+
+
+
+The heap is used for dynamic memory allocation. When you allocate memory at runtime (using new in C++ or malloc in C), it is allocated on the heap.
+
+Unlike the stack, heap memory is not automatically freed, so you must manually manage memory allocation and deallocation to avoid memory leaks.
+
+Heap Memory Usage and OptimizationHeap memory usage typically grows as you allocate objects dynamically, while the stack is usually filled with function calls and local variables. Proper heap memory usage is essential for ensuring efficient memory management and preventing leaks, but excessive heap allocation can lead to memory exhaustion.
+
+
+
+Common Memory Errors: Stack OverflowStack Overflow occurs when the stack exceeds its allocated size. It usually happens due to excessive recursion or large local variables.
+
+Example of a stack overflow due to infinite recursion:
+
+#include <iostream>
+
+using namespace std;
+
+void recursiveFunction() {
+
+ // Calls itself indefinitely, causing stack overflow
+
+ recursiveFunction();
+
+}
+
+int main() {
+
+ recursiveFunction();
+
+ return 0;
+
+}In this example, the function recursiveFunction keeps calling itself without an exit condition, and eventually, the stack runs out of space, causing a stack overflow error.
+
+
+
+How to Fix Stack OverflowTo fix a stack overflow error, consider the following strategies:
+
+
+
+Optimize Recursion: Make sure that your recursive functions have a proper base case, or refactor them into an iterative solution.
+
+// Tail recursion optimization int factorial(int n, int result = 1) { if (n == 0) return result; return factorial(n - 1, n * result); }
+
+Increase Stack Size: In some cases, you may want to increase the default stack size, especially if you need deep recursion.
+
+For example, in Linux, you can increase the stack size using ulimit -s:
+
+ulimit -s 65532
+
+Use Heap for Large Data: If you need to store large data, allocate it on the heap instead of the stack.
+
+// Instead of declaring a large array on the stack int largeArray[1000000]; // This can cause stack overflow. // Allocate the array on the heap int* largeArray = new int[1000000]; // Safer, using heap.
+
+Heap Memory Issues: Memory LeaksA memory leak happens when you allocate memory on the heap but forget to free it, leading to the application consuming more and more memory over time.
+
+Example of a memory leak:
+
+#include <iostream>
+
+using namespace std;
+
+void allocateMemory() {
+
+ int* p = new int[100]; // Allocates memory on the heap.
+
+ // Forgot to delete p, leading to a memory leak.
+
+}
+
+int main() {
+
+ allocateMemory();
+
+ // Heap memory is not freed here.
+
+ return 0;
+
+}
+
+How to Fix Memory LeaksTo avoid memory leaks, always free memory once you are done with it:
+
+void allocateMemory() {
+
+ int* p = new int[100];
+
+ // Do something with p...
+
+ delete[] p; // Properly free memory.
+
+}For automatic memory management, consider using smart pointers in C++ (like std::unique_ptr or std::shared_ptr), which automatically free memory when no longer in use.
+
+
+
+Memory Usage Comparison: Stack vs Heap
+
+Stack Memory Advantages:
+
+Faster allocation and deallocation: The stack is managed by the system and is extremely fast.
+
+Automatic memory management: The memory is automatically freed when a function exits, reducing the risk of memory leaks.
+
+Heap Memory Advantages:
+
+Dynamic allocation: Heap allows dynamic memory allocation during runtime, which is flexible for varying memory sizes.
+
+Larger memory space: The heap is usually much larger than the stack, allowing for the storage of large structures or arrays.
+
+Drawbacks:
+
+Stack: Limited size. Too many recursive calls or large arrays will overflow it.
+
+Heap: Slower memory allocation and deallocation. If not carefully managed, it can lead to fragmentation or leaks.
+
+Testing Memory Usage in CodeYou can monitor and analyze memory usage using various tools:
+
+
+
+Valgrind (for C/C++): This tool helps to detect memory leaks and improper memory usage.
+
+valgrind --leak-check=full ./your_program
+
+AddressSanitizer: Built into GCC and Clang, it detects memory errors like out-of-bounds accesses and memory leaks.
+
+g++ -fsanitize=address -g your_program.cpp -o your_program
+
+Profiling Tools:
+
+gprof: Use this to profile the performance of your program, including memory usage.
+
+Google’s tcmalloc: This is a thread-caching malloc implementation for better heap management.
+
+[Story Explanation]: Memory Usage in ActionLet’s say you’re developing a game where each player has a profile that stores their data. Initially, you store all player profiles in a list, dynamically allocating each player’s memory.
+
+However, over time, as the game grows and more players join, you start noticing the game’s performance slow down and memory usage increasing unexpectedly. After analyzing the system, you realize that:
+
+
+
+The heap memory for player profiles is not being freed correctly when players leave.
+
+You’re storing too many small local variables in functions, pushing them onto the stack and exceeding its limit.To fix this:
+
+
+
+You refactor the player profile storage to use smart pointers so that memory is freed automatically.
+
+You change the data structures that store temporary information to be dynamically allocated on the heap, reducing stack memory usage.
+
+You optimize the recursion in the game’s event handling, ensuring that the stack does not grow too large.By testing your system with tools like Valgrind and AddressSanitizer, you confirm that memory leaks are fixed, and the system now uses both stack and heap memory efficiently.
+
+
+
+ConclusionIn deep programming, memory management is a key aspect. Both stack and heap memory have their strengths and weaknesses, and understanding when to use each can significantly improve your program’s performance and reliability. Common errors like stack overflow and memory leaks are solvable with optimization techniques, and profiling tools help ensure that your memory usage is efficient.
+
+By analyzing these concepts, fixing errors, and testing with tools, you can ensure that your code runs efficiently and without memory-related issues.
+
+
+
+7. References
+
+A. Tanenbaum, “Modern Operating Systems” (4th Edition), Pearson, 2014.
+
+J. Reinders, “Intel Threading Building Blocks,” O’Reilly Media, 2007.
+
+Rust Tokio Async Documentation: https://tokio.rs
+
+Go Concurrency Model: https://golang.org/doc/effective_go#concurrency~ By Pramitha Jayasooriya
+
+
+
+Contact DetailsFor further information or to discuss potential opportunities, please feel free to connect with me on my professional and social platforms:
+
+
+
+LinkedIn: https://www.linkedin.com/in/pramitha-jayasooriya/
+
+GitHub: https://github.com/PramithaMJ
+
+Personal Website: https://pramithamj.meLooking forward to connecting with you!
+
+]]> 
+
+https://medium.com/@lpramithamj/between-you-and-the-web-decoding-forward-and-reverse-proxies-31b8100d3c26?source=rss-1bb96bc9f81a------2 https://medium.com/p/31b8100d3c26 Sat, 04 Jan 2025 10:50:04 GMT 2025-01-04T10:50:04.578Z Generated By AI
+
+Understanding Proxy Servers: Forward and Reverse Proxies ExplainedProxy servers play a crucial role in modern networking by acting as intermediaries between clients and servers. Whether you’re browsing the web anonymously, bypassing restrictions, or managing heavy traffic for a website, proxy servers can offer numerous advantages. This article dives into proxy servers, their types, and practical applications with relatable examples.
+
+
+
+What Is a Proxy Server?A proxy server is a server that sits between client devices (like a computer, smartphone, or tablet) and the internet. It intercepts requests from the client and forwards them to the destination server. The response from the destination server is then relayed back to the client by the proxy server. Essentially, it acts as a middleman in internet communication.
+
+
+
+Types of Proxy ServersProxy servers can be broadly categorized into two types:
+
+
+
+Forward Proxies
+
+Reverse Proxies
+
+1. Forward ProxyA forward proxy serves as a gateway for client devices to access the internet. It stands in front of a group of client devices and forwards their requests to destination servers on their behalf.
+
+
+
+How It Works:Imagine three computers:
+
+
+
+A: A user’s computer
+
+B: The forward proxy server
+
+C: The website’s origin serverInstead of directly sending requests from A to C, A communicates with B (the proxy), which then forwards the requests to C. The response from C is relayed back to A through B.
+
+
+
+Example Use Cases of Forward Proxies:
+
+Bypassing Restrictions:
+
+Scenario: John is a student at a school that blocks access to social media. By configuring his browser to use a forward proxy located outside the school’s network, he can access restricted sites.2. Content Filtering:
+
+
+
+Scenario: A company sets up a proxy to block access to non-work-related websites, ensuring employees remain focused on their tasks.3. Online Anonymity:
+
+
+
+Scenario: Maria lives in a country with strict internet censorship. She uses a forward proxy to hide her IP address and post opinions anonymously without government detection.
+
+2. Reverse ProxyA reverse proxy is positioned in front of web servers, intercepting requests from clients. It then forwards these requests to the appropriate server in the backend.
+
+
+
+How It Works:Imagine another set of computers:
+
+
+
+D: A user’s computer
+
+E: The reverse proxy server
+
+F: A pool of web servers (origin servers)Instead of D communicating directly with F, D sends requests to E. E decides which server in F to forward the request to and then sends the response back to D.
+
+
+
+Example Use Cases of Reverse Proxies:
+
+Load Balancing:
+
+Scenario: A popular e-commerce site receives millions of daily visitors. A reverse proxy distributes traffic evenly across multiple servers, preventing any one server from overloading.2. Protection Against Attacks:
+
+
+
+Scenario: A gaming platform uses a reverse proxy to hide its origin servers’ IP addresses, mitigating potential Distributed Denial of Service (DDoS) attacks.3. Caching:
+
+
+
+Scenario: A news website serves its content via a reverse proxy that caches articles. When multiple users in New York access the site, the proxy delivers cached content from its local server, speeding up load times.4. SSL Termination:
+
+
+
+Scenario: A reverse proxy handles the encryption and decryption of secure communications for a healthcare platform, reducing the computational load on the backend servers.
+
+Advanced Features of Proxy Servers
+
+1. Security Enhancements
+
+Encryption: Proxies can add SSL/TLS encryption to protect data.
+
+Access Control: Proxies can enforce user authentication and IP whitelisting.
+
+2. Performance Optimization
+
+Compression: Proxies can compress data to reduce bandwidth usage.
+
+Data Caching: Reduces the time required to access frequently visited resources.
+
+3. Traffic Management
+
+Bandwidth Management: Ensures fair bandwidth distribution among users.
+
+Geolocation-Based Routing: Sends users to servers closest to their physical location.
+
+How to Set Up Proxy Servers
+
+Forward Proxy Setup:
+
+Choose software like Squid Proxy or Apache Traffic Server.
+
+Install the software on a dedicated server.
+
+Configure client devices to connect to the proxy.
+
+Reverse Proxy Setup:
+
+Use software like Nginx, Apache HTTP Server, or commercial CDNs like Cloudflare.
+
+Define backend servers in the proxy configuration.
+
+Enable features like caching, SSL termination, and load balancing as required.
+
+Real-Life Applications
+
+Content Delivery Networks (CDNs): Companies like Cloudflare use reverse proxies to improve website performance and security.
+
+Corporate Networks: Enterprises use forward proxies to filter traffic and enforce corporate policies.
+
+Streaming Services: Streaming platforms use reverse proxies for efficient content distribution.
+
+Conclusion
+
+References~ By Pramitha Jayasooriya
+
+
+
+Contact DetailsFor further information or to discuss potential opportunities, please feel free to connect with me on my professional and social platforms:
+
+
+
+LinkedIn: https://www.linkedin.com/in/pramitha-jayasooriya/
+
+GitHub: https://github.com/JayasooriyaLPM
+
+Personal Website: https://pramithamj.meLooking forward to connecting with you!
+
+]]> 
+
+https://medium.com/@lpramithamj/guide-simplifying-slack-integration-how-to-use-the-go-slack-sdk-6d1d51553606?source=rss-1bb96bc9f81a------2 https://medium.com/p/6d1d51553606 Sun, 29 Dec 2024 20:55:48 GMT 2024-12-29T20:55:48.624Z Slack integrations are vital for automating workflows, sending updates, and enhancing collaboration. As developers, we often seek an easy-to-use tool that abstracts the complexities of interacting with Slack’s APIs. Enter the Slack SDK for Go — a streamlined library that makes Slack integration a breeze.
+
+In this article, I’ll guide you through using the SDK step-by-step, from installation to advanced features.
+
+Step 1: Installation
+
+First, add the SDK to your Go project:
+
+go get github.com/pramithamj/slack-sdk-go/pkg/slack
+
+slack-sdk-go
+
+slackOnce installed, import the package:
+
+import "github.com/pramithamj/slack-sdk-go/slack"Step 2: Setting Up Your Slack App
+
+To use Slack APIs, you’ll need to create a Slack App:
+
+1.Navigate to Slack API Console.
+
+2. Create a new app and assign the necessary permissions:
+
+• chat:write for sending messages.
+
+• Additional scopes as needed.
+
+3. Install the app in your workspace and retrieve the Bot User OAuth Token (it starts with xoxb-).
+
+Step 3: Initialize the SDK
+
+Initialize the SDK with your Slack token:
+
+package main
+
+
+
+import (
+
+ "log"
+
+
+
+ "github.com/pramithamj/slack-sdk-go/slack"
+
+)
+
+
+
+func main() {
+
+ sdk := slack.New("xoxb-your-slack-token")
+
+ log.Println("Slack SDK initialized successfully!")
+
+}Step 4: Send Your First Message
+
+With the SDK initialized, you can send a message to a Slack channel:
+
+channel := "ChannelID"
+
+message := "Hello, Slack from Go SDK!"
+
+
+
+response, err := sdk.SendMessage(channel, message)
+
+if err != nil {
+
+ log.Fatalf("Error sending message: %v", err)
+
+}
+
+
+
+log.Printf("Message sent successfully: %v", response)And that’s it! Your message is live in Slack.
+
+Advanced Features
+
+Custom API Requests
+
+Want to access Slack API features not directly supported by the SDK? Use SendRequest for custom API calls:
+
+payload := map[string]interface{}{
+
+ "channel": "#general",
+
+ "text": "Custom API call message!",
+
+}
+
+
+
+response, err := sdk.SendRequest("chat.postMessage", "POST", payload)
+
+if err != nil {
+
+ log.Fatalf("Failed to send custom message: %v", err)
+
+}
+
+
+
+log.Printf("Custom API response: %v", response)Error Handling
+
+The SDK provides robust error handling. Always check Slack API responses:
+
+if !response["ok"].(bool) {
+
+ log.Printf("Slack API error: %v", response["error"])
+
+}Environment Variables for Tokens
+
+Avoid hardcoding tokens in your code. Use environment variables for better security:
+
+export SLACK_BOT_TOKEN="xoxb-your-slack-token"Retrieve it in your Go code:
+
+token := os.Getenv("SLACK_BOT_TOKEN")
+
+sdk := slack.New(token)Example: Automating Notifications
+
+Here’s a complete example to send daily reminders to a Slack channel:
+
+package main
+
+
+
+import (
+
+ "log"
+
+ "time"
+
+
+
+ "github.com/<your-username>/slack-go-sdk/slack"
+
+)
+
+
+
+func main() {
+
+ sdk := slack.New("xoxb-your-slack-token")
+
+
+
+ for {
+
+ _, err := sdk.SendMessage("#general", "This is your daily reminder!")
+
+ if err != nil {
+
+ log.Printf("Failed to send message: %v", err)
+
+ }
+
+ time.Sleep(24 * time.Hour)
+
+ }
+
+}This SDK is open source, and contributions are encouraged. Feel free to star, fork, or open issues on GitHub:
+
+GitHub - PramithaMJ/slack-sdk-go: Slack Go SDK
+
+The Slack SDK for Go makes integrating with Slack simple and efficient. Whether you’re automating workflows or building a fully-fledged Slack app, this SDK has you covered.
+
+Give it a try today and let me know what you think!
+
+~ By Pramitha Jayasooriya
+
+
+
+Contact DetailsFor further information or to discuss potential opportunities, please feel free to connect with me on my professional and social platforms:
+
+
+
+LinkedIn: https://www.linkedin.com/in/pramitha-jayasooriya/
+
+GitHub: https://github.com/PramithaMJ
+
+Personal Website: https://pramithamj.meLooking forward to connecting with you!
+
+]]> 
+
+https://medium.com/@lpramithamj/the-untold-story-of-github-b4bcdc63ce90?source=rss-1bb96bc9f81a------2 https://medium.com/p/b4bcdc63ce90 Thu, 05 Dec 2024 05:32:42 GMT 2024-12-05T05:32:42.781Z 
+
+The Inside Story of the Revolutionary Version Control SystemIn the world of software development, version control systems (VCS) are fundamental tools for managing changes to codebases and facilitating collaboration among developers. One of the most widely used and powerful version control systems today is Git. But how did Git come into existence, and what is the inside story of its creation?
+
+
+
+The Problem Before Git: Centralized Version ControlBefore Git, developers primarily used centralized version control systems (CVCS) like CVS (Concurrent Versions System) and Subversion (SVN). These systems were designed to store the project’s entire history in a central repository. While these systems worked well to track changes, they had their shortcomings:
+
+
+
+Single Point of Failure: The central repository could become a bottleneck. If the server went down, developers couldn’t commit changes or access the project’s history.
+
+Limited Offline Capabilities: Developers could only commit changes when connected to the central server. Working offline was difficult.
+
+Poor Branching and Merging: Branching (creating separate lines of development) and merging (combining changes from different branches) were cumbersome and error-prone. This limited developers’ ability to experiment and work on features in isolation.As software development grew more complex, these issues became more pressing. A more flexible, distributed system was needed.
+
+
+
+The Birth of Git: The Linus Torvalds StoryThe creation of Git is directly tied to the development of Linux, the open-source operating system kernel. In 2005, the development of the Linux kernel was in full swing, with hundreds of developers contributing code from all over the world. At that time, the kernel was using BitKeeper, a proprietary version control system, for managing the project.
+
+However, in early 2005, BitKeeper’s company, BitMover, decided to revoke the free license for open-source developers. This put the Linux kernel project in a difficult position. Without a version control system, the Linux development community would have to find an alternative solution quickly.
+
+Enter Linus Torvalds, the creator of Linux. Torvalds had a reputation for solving complex technical problems with innovative solutions. Faced with the need for a new version control system, Torvalds decided to create his own. The goal was to build a system that was fast, flexible, and capable of handling large-scale projects with many contributors.
+
+
+
+The Design Goals of GitLinus Torvalds had a clear vision for Git. His main goals were:
+
+
+
+Speed: The system had to be fast, especially in operations like committing changes, branching, and merging.
+
+Distributed: Git would be a distributed version control system (DVCS), meaning every developer would have a full copy of the project’s history on their own machine. This eliminated the need for a central server and allowed developers to work offline.
+
+Data Integrity: Git needed to ensure the integrity of data. Torvalds wanted to make sure that once a commit was made, it could never be altered, which was not always guaranteed by other systems.
+
+Support for Branching and Merging: Git would be optimized for branching and merging, making it easier for developers to work in parallel on different features or bug fixes.
+
+Simple Design: Despite its power, Git was designed to have a straightforward and minimalistic internal structure.
+
+The Development of GitThe first version of Git was developed in a matter of weeks. Torvalds famously worked on Git part-time, focusing on the core functionality and design. Git was designed to be a tool for developers, not a complicated system that required learning a lot of complex concepts. At the core, Git is built on a few simple ideas:
+
+
+
+Snapshots: Every commit in Git is essentially a snapshot of the project at a particular point in time. Instead of storing the differences between files (as many VCSs do), Git stores the entire file tree, making it much faster.
+
+Hashing: Git uses SHA-1 cryptographic hashes to identify commits, files, and directories. This ensures data integrity because any change to the data would result in a completely different hash, signaling an issue.
+
+Indexing: Git uses an index (also known as the staging area) where changes can be prepared before they are committed to the history.Git was initially designed to fit the needs of the Linux kernel, which involved handling a massive codebase with contributions from thousands of developers. But it quickly became apparent that Git was a useful tool for any software project, not just Linux.
+
+
+
+The Evolution and Adoption of GitGit was first released in April 2005, but its adoption didn’t take off immediately. In the early stages, it was largely used within the Linux kernel community. Over time, however, its power and flexibility became apparent, and developers in other open-source projects began to adopt it.
+
+In 2008, a tool called GitHub was created by Tom Preston-Werner, PJ Hyett, and Chris Wanstrath. GitHub provided a cloud-based platform for hosting Git repositories, making it easier for developers to collaborate and share code. GitHub’s popularity skyrocketed, and with it, Git’s adoption grew exponentially.
+
+By the early 2010s, Git had overtaken other version control systems like Subversion and CVS to become the most popular version control system in the world. Its adoption continued to rise as more companies, from startups to tech giants like Google and Microsoft, embraced it for managing their codebases.
+
+
+
+Git’s Impact on Software DevelopmentGit revolutionized the way developers work together on projects. Its distributed nature allowed developers to collaborate more easily, working offline, and pushing changes when it suited them. Its strong support for branching and merging made it possible to experiment with new features without disrupting the main project.
+
+Git also paved the way for new collaboration platforms like GitHub, GitLab, and Bitbucket, which offer additional tools for issue tracking, continuous integration, and project management. Git has become an essential part of the modern software development toolkit.
+
+
+
+Conclusion: The Legacy of GitIn many ways, Git’s story is still unfolding. As the world of software development continues to evolve, Git will remain at the heart of version control for the foreseeable future, providing developers with the tools they need to collaborate, innovate, and build the next generation of software.
+
+~ By Pramitha Jayasooriya
+
+
+
+Contact DetailsFor further information or to discuss potential opportunities, please feel free to connect with me on my professional and social platforms:
+
+
+
+LinkedIn: https://www.linkedin.com/in/pramitha-jayasooriya/
+
+GitHub: https://github.com/PramithaMJ
+
+Personal Website: https://pramithamj.meLooking forward to connecting with you!
+
+]]> 
+
+https://medium.com/@lpramithamj/trace-the-path-distributed-tracing-with-zipkin-in-microservices-1-5096aaade124?source=rss-1bb96bc9f81a------2 https://medium.com/p/5096aaade124 Fri, 31 May 2024 06:07:17 GMT 2024-05-31T06:29:35.863Z Microservices architectures, with their numerous interacting services, can be complex to manage and debug. Distributed tracing is a technique used to monitor and troubleshoot microservices applications by providing end-to-end visibility into service calls. This article will guide you through setting up distributed tracing using Zipkin, a popular open-source tracing system.
+
+
+
+What is Distributed Tracing?Distributed tracing tracks requests as they flow through the various services in a microservice architecture. It helps in:
+
+
+
+Identifying performance bottlenecks
+
+Diagnosing issues
+
+Monitoring latency
+
+Visualizing service dependencies
+
+Introducing ZipkinZipkin is an open-source distributed tracing system. It helps gather timing data needed to troubleshoot latency problems in service architectures. It provides powerful visualizations to trace and debug microservice interactions.
+
+
+
+Setting Up Distributed Tracing
+
+Step 1: Set Up ZipkinZipkin can be deployed in various ways, including Docker, Kubernetes, or as a standalone jar. For simplicity, we’ll use Docker.
+
+
+
+Install Docker: Ensure Docker is installed on your system. (zipkin.io)
+
+Run Zipkin:docker run -d -p 9411:9411 openzipkin/zipkinZipkin will now be available at http://localhost:9411
+
+
+
+Step 2: Instrument Your MicroservicesWe’ll use a simple example with two microservices: Service A and Service B.
+
+Example: Service A and Service B
+
+
+
+Service A calls Service B and returns a combined response.
+
+Service B performs a simple task and returns a result.We’ll use Spring Boot for this example and OpenTracing with the Brave tracer (used by Zipkin).
+
+@SpringBootApplication
+
+@RestController
+
+public class ServiceAApplication {
+
+
+
+ @Autowired
+
+ private RestTemplate restTemplate;
+
+
+
+ @Autowired
+
+ private Tracer tracer;
+
+
+
+ public static void main(String[] args) {
+
+ SpringApplication.run(ServiceAApplication.class, args);
+
+ }
+
+
+
+ @Bean
+
+ public RestTemplate restTemplate() {
+
+ return new RestTemplate();
+
+ }
+
+
+
+ @GetMapping("/serviceA")
+
+ public String serviceA() {
+
+ Span span = tracer.nextSpan().name("calling-serviceB").start();
+
+ try (Tracer.SpanInScope ws = tracer.withSpanInScope(span)) {
+
+ String response = restTemplate.getForObject("http://localhost:8081/serviceB", String.class);
+
+ return "Response from Service B: " + response;
+
+ } finally {
+
+ span.finish();
+
+ }
+
+ }
+
+}@SpringBootApplication
+
+@RestController
+
+public class ServiceBApplication {
+
+
+
+ public static void main(String[] args) {
+
+ SpringApplication.run(ServiceBApplication.class, args);
+
+ }
+
+
+
+ @GetMapping("/serviceB")
+
+ public String serviceB() {
+
+ return "Hello from Service B";
+
+ }
+
+}In both Service A and Service B, add the following dependencies to pom.xml:
+
+<dependency>
+
+ <groupId>io.zipkin.brave</groupId>
+
+ <artifactId>brave-instrumentation-http</artifactId>
+
+ <version>5.13.2</version>
+
+</dependency>
+
+<dependency>
+
+ <groupId>io.zipkin.reporter2</groupId>
+
+ <artifactId>zipkin-reporter-brave</artifactId>
+
+ <version>2.16.3</version>
+
+</dependency>
+
+<dependency>
+
+ <groupId>org.springframework.cloud</groupId>
+
+ <artifactId>spring-cloud-starter-zipkin</artifactId>
+
+ <version>2.2.7.RELEASE</version>
+
+</dependency>Configuring Tracing
+
+In application.properties for both services:
+
+spring.zipkin.baseUrl=http://localhost:9411
+
+spring.sleuth.sampler.probability=1.0
+
+Step 3: Run and Test the Services
+
+Start Service B:mvn spring-boot:run2. Start Service A:
+
+mvn spring-boot:run3. Call Service A:
+
+curl http://localhost:8080/serviceA
+
+Step 4: View Traces in ZipkinNavigate to http://localhost:9411 and you should see the traces for the requests made to Service A and Service B.
+
+
+
+ConclusionWith Zipkin and distributed tracing, you can effectively monitor, trace, and debug your microservices architecture. This setup allows you to gain insights into service dependencies and performance bottlenecks, facilitating quicker diagnosis and resolution of issues.
+
+By following this guide, you have set up a basic distributed tracing system using Zipkin, instrumented your microservices, and visualized the traces. This powerful tool will significantly enhance your ability to manage and optimize a microservices environment.
+
+~ By Pramitha Jayasooriya
+
+
+
+Contact DetailsFor further information or to discuss potential opportunities, please feel free to connect with me on my professional and social platforms:
+
+
+
+LinkedIn: https://www.linkedin.com/in/pramitha-jayasooriya/
+
+GitHub: https://github.com/PramithaMJ
+
+Personal Website: https://pramithamj.me
+
+Email: lpramithamj@gmail.comLooking forward to connecting with you!
+
+If you like what I do, may be consider buy me a coffee
+
+]]> 
+
+https://medium.com/@lpramithamj/why-do-we-need-to-use-circuit-bracker-pattern-inside-microservices-254a7a2b48d7?source=rss-1bb96bc9f81a------2 https://medium.com/p/254a7a2b48d7 Sun, 07 Apr 2024 16:03:36 GMT 2024-04-07T16:03:36.439Z 
+
+What is the Circuit Breaker Pattern?
+
+Why Use the Circuit Breaker Pattern in Microservices?
+
+Implementing the Circuit Breaker PatternLet’s illustrate the implementation of the Circuit Breaker pattern in a simple microservice scenario using Java and Spring Boot.
+
+
+
+Dependencies:<dependencies>
+
+ <dependency>
+
+ <groupId>org.springframework.boot</groupId>
+
+ <artifactId>spring-boot-starter-web</artifactId>
+
+ </dependency>
+
+ <dependency>
+
+ <groupId>org.springframework.cloud</groupId>
+
+ <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
+
+ </dependency>
+
+</dependencies>
+
+Circuit Breaker Configuration:import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+
+import org.springframework.stereotype.Service;@Service
+
+public class ServiceA {
+
+ @CircuitBreaker(name = "serviceA")
+
+ public String callServiceB() {
+
+ // Call to Service B
+
+ // Return response or throw exception if failed
+
+ }
+
+}
+
+Fallback Method:import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+
+import org.springframework.stereotype.Service;@Service
+
+public class ServiceA {
+
+ @CircuitBreaker(name = "serviceA", fallbackMethod = "fallback")
+
+ public String callServiceB() {
+
+ // Call to Service B
+
+ // Return response or throw exception if failed
+
+ }
+
+ public String fallback(Exception e) {
+
+ return "Fallback response";
+
+ }
+
+}
+
+Circuit Breaker Configuration (application.properties):resilience4j.circuitbreaker.instances.serviceA.register-health-indicator=true
+
+resilience4j.circuitbreaker.instances.serviceA.failure-rate-threshold=50
+
+resilience4j.circuitbreaker.instances.serviceA.wait-duration-in-open-state=5000
+
+resilience4j.circuitbreaker.instances.serviceA.sliding-window-size=5
+
+Conclusion:~ By Pramitha Jayasooriya
+
+
+
+Contact DetailsFor further information or to discuss potential opportunities, please feel free to connect with me on my professional and social platforms:
+
+
+
+LinkedIn: Pramitha-Jayasooriya
+
+GitHub: PramithaMJ
+
+Personal Website: PramithaMJ.me
+
+Email : lpramithamj@gmail.comLooking forward to connecting with you!
+
+]]> 
+
+https://medium.com/@lpramithamj/solved-cross-site-request-forgery-csrf-attacks-with-spring-security-0cf0935cc1be?source=rss-1bb96bc9f81a------2 https://medium.com/p/0cf0935cc1be Fri, 08 Mar 2024 05:51:24 GMT 2024-03-08T05:51:24.053Z A typical Cross-Site Request Forgery (CSRF or XSRF) attack aims to perform an operation in a web application on behalf of a user without their explicit consent. In general, it doesn’t directly steal the user’s identity, but it exploits the user to carry out an action without their will.
+
+Consider you are using the website nextflix.com and the attacker’s website evil.com.
+
+Step 1: The Netflix user login to Nextflix.com and the backend server of Nextflix will provide a cookie that will be stored in the browser against the domain name Nextflix.com
+
+Step 2: The same Nexflix user opens an evil.com website in another tab of the browser
+
+<form action="https://nextflix.com/changeEmail"
+
+method= "POST" id = "form">
+
+<input type= "hidden" name="email" value="user@evil.com">
+
+</form>
+
+<script>
+
+doucment.getElementById(form).submit()
+
+</script>
+
+Solution to CSRF attackTo defeat an SCRF attack, the application needs a way to determine if the HTTP request is legitimately generated via the application’s user interface. the best way to achieve this is through a CSRF token. A CSRF token is a secure random token that is used to prevent CSRF attacks. The token needs to be unique per user session and should be of large random value to make it difficult to guess.
+
+Let’s see how the CSRF attacks by taking the previous Netflix example again.
+
+Step 1: The Netflix user logs in to Nextflix.com and the backend server of Nextflix will provide a cookie that will be stored in the browser against the domain name Nextflix. com along with a randomly generated unique CSRF token for this particular user session. CSRF token is inserted within hidden parameters of HTML forms to avoid exposure to session cookies.
+
+Step 2: The same Nextflix user opens the evils.com website in another tab of the browser.
+
+The CSRF token will be used by the application server to verify the legitimacy of the end-user request if it is coming from the same App UI or not. the application server rejects the request if the CSRF token fails to match the test.
+
+
+
+TIPSBy default, Spring Security enables CSRF fixes for all the HTTP methods that result in data changes like POST, DELETE, etc. But not for GET.
+
+Using Spring Security configurations we can disable the CSRF protection for complete applications or only a few paths based on our requirements like below.
+
+http.csrf().disable()
+
+http.csrf().ignoring RequestMatchers("/saveMsg")Thymeleaf has great integration & support with Spring Security to generate a CSRF token. We just need to add the below code in the login HTML form code and Thymeleaf will automatically append the CSRF token for the remaining pages/forms inside the web application,
+
+<input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+Enhancements and Best Practices
+
+1. CSRF Token Storage:Ensure that the CSRF token is securely stored in the user’s session. Spring Security automatically handles this for you, but it’s crucial to emphasize the importance of secure session management.
+
+
+
+2. Token Expiry and Regeneration:Implement mechanisms to expire and regenerate CSRF tokens to prevent token reuse and enhance security. Spring Security offers built-in features for token expiration.
+
+
+
+3. Custom CSRF Header:Consider using a custom header for CSRF tokens, especially if your application involves multiple technologies or if you want to add an extra layer of security. Spring Security allows customization of the header name.
+
+http.csrf().headerName("X-CSRF-TOKEN");
+
+4. Strict Content Security Policy (CSP):Enforce strict Content Security Policy headers on your web pages to mitigate the risk of XSS attacks. This will further secure your application by limiting the sources from which resources can be loaded.
+
+http.headers().contentSecurityPolicy("default-src self");
+
+5. CSRF Token in AJAX Requests:If your application makes AJAX requests, ensure that the CSRF token is included and validated in those requests. Modify your Thymeleaf code accordingly to handle AJAX scenarios.
+
+$.ajax({
+
+ url: /changeEmail,
+
+ type: POST,
+
+ data: {
+
+ email: user@evil.com,
+
+ _csrf: /* CSRF Token value */
+
+ },
+
+ success: function(response) {
+
+ // Handle success
+
+ }
+
+});
+
+6. Educate Users:Educate your users about the importance of not clicking on suspicious links and being cautious while interacting with websites. User awareness is a crucial component in preventing CSRF attacks.
+
+
+
+7. Logging and Monitoring:Implement comprehensive logging and monitoring to keep track of suspicious activities and potential CSRF attacks. This will help in identifying and mitigating threats in real time.
+
+
+
+SummaryIncorporating CSRF protection is a fundamental step in securing your Spring Boot applications. By following best practices and leveraging the capabilities of Spring Security, you can significantly reduce the risk of CSRF attacks. Remember that security is an ongoing process, and staying informed about the latest security developments is essential to maintaining a robust defense against evolving threats.
+
+By implementing these additional measures and best practices, you can fortify your application’s security posture and provide a safer online experience for your users. Stay vigilant, keep your dependencies up-to-date, and regularly review and enhance your security practices to adapt to emerging threats.
+
+~ By Pramitha Jayasooriya
+
+
+
+Contact DetailsFor further information or to discuss potential opportunities, please feel free to connect with me on my professional and social platforms:
+
+
+
+LinkedIn: https://www.linkedin.com/in/pramitha-jayasooriya/
+
+GitHub: https://github.com/PramithaMJ
+
+Personal Website: https://pramithamj.meLooking forward to connecting with you!
+
+]]> 

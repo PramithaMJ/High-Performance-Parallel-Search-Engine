@@ -10,9 +10,12 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="js/performance-utils.js"></script>
     <script src="js/comparison-utils.js"></script>
+    <script src="js/search-utils.js"></script>
     <script src="js/tab-utils.js"></script>
-    <script src="js/tab-debug.js"></script>
     <script src="js/tab-navigator.js"></script>
+    <script src="js/error-monitor.js"></script>
+    <script src="js/bootstrap-tab-fix.js"></script>
+    <script src="js/documentation-utils.js"></script>
 </head>
 <body>
     <div class="wrapper">
@@ -40,89 +43,92 @@
                 <li>
                     <a href="#settings" data-bs-toggle="tab"><i class="fas fa-wrench"></i> Settings</a>
                 </li>
+                <li>
+                    <a href="#documentation" data-bs-toggle="tab"><i class="fas fa-book"></i> Documentation</a>
+                </li>
             </ul>
             <ul class="list-unstyled components version-info">
                 <li><a href="#serial" class="version-badge serial"><i class="fas fa-microchip"></i> Serial</a></li>
                 <li><a href="#openmp" class="version-badge openmp"><i class="fas fa-sitemap"></i> OpenMP</a></li>
                 <li><a href="#mpi" class="version-badge mpi"><i class="fas fa-network-wired"></i> MPI</a></li>
+                <li><a href="#hybrid" class="version-badge hybrid"><i class="fas fa-project-diagram"></i> Hybrid</a></li>
             </ul>
         </nav>
 
         <!-- Page Content -->
         <div id="content">
-            <!-- Top Navigation Bar -->
+            <!-- Top Navigation -->
             <nav class="navbar navbar-expand-lg navbar-light bg-light">
                 <div class="container-fluid">
-                    <button type="button" id="sidebarCollapse" class="btn">
+                    <button type="button" id="sidebarCollapse" class="btn btn-info">
                         <i class="fas fa-align-left"></i>
                         <span>Toggle Sidebar</span>
                     </button>
-                    <div>
-                        <h4>High Performance Parallel Search Engine</h4>
-                    </div>
-                    <div class="system-status">
-                        <span class="status-item"><i class="fas fa-server"></i> System: <span class="status-value running">Running</span></span>
+                    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                        <ul class="nav navbar-nav ms-auto">
+                            <li class="nav-item">
+                                <span class="nav-link">Status: <span id="system-status" class="badge bg-success">Online</span></span>
+                            </li>
+                        </ul>
                     </div>
                 </div>
             </nav>
 
-            <!-- Main Content Area -->
-            <div class="tab-content container-fluid">
+            <!-- Tab Content -->
+            <div class="tab-content">
                 <!-- Dashboard Tab -->
-                <div class="tab-pane fade show active" id="dashboard">
-                    <div class="row">
-                        <div class="col-md-6 col-lg-3">
-                            <div class="card stats-card">
-                                <div class="card-body">
-                                    <h5 class="card-title">Serial</h5>
-                                    <div class="stats-info">
-                                        <div class="stats-value">365ms</div>
-                                        <div class="stats-label">Average Query Time</div>
+                <div class="tab-pane active" id="dashboard">
+                    <h2>Dashboard</h2>
+                    <div class="dashboard-stats">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <h4>Serial Version</h4>
+                                    <div class="status-indicator" id="serial-status">
+                                        <span class="status-badge available">Available</span>
                                     </div>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-info" role="progressbar" style="width: 65%" aria-valuenow="65" aria-valuemin="0" aria-valuemax="100"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-lg-3">
-                            <div class="card stats-card">
-                                <div class="card-body">
-                                    <h5 class="card-title">OpenMP</h5>
-                                    <div class="stats-info">
-                                        <div class="stats-value">124ms</div>
-                                        <div class="stats-label">Average Query Time</div>
-                                    </div>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-success" role="progressbar" style="width: 82%" aria-valuenow="82" aria-valuemin="0" aria-valuemax="100"></div>
+                                    <div class="quick-stats">
+                                        <div>Avg. Query Time: <span id="serial-avg-query-time">45.3</span> ms</div>
+                                        <div>Memory Usage: <span id="serial-memory-usage">12.4</span> MB</div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="col-md-6 col-lg-3">
-                            <div class="card stats-card">
-                                <div class="card-body">
-                                    <h5 class="card-title">MPI</h5>
-                                    <div class="stats-info">
-                                        <div class="stats-value">78ms</div>
-                                        <div class="stats-label">Average Query Time</div>
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <h4>OpenMP Version</h4>
+                                    <div class="status-indicator" id="openmp-status">
+                                        <span class="status-badge available">Available</span>
                                     </div>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-warning" role="progressbar" style="width: 90%" aria-valuenow="90" aria-valuemin="0" aria-valuemax="100"></div>
+                                    <div class="quick-stats">
+                                        <div>Avg. Query Time: <span id="openmp-avg-query-time">20.7</span> ms</div>
+                                        <div>Memory Usage: <span id="openmp-memory-usage">14.2</span> MB</div>
+                                        <div>Threads: <span id="openmp-threads">4</span></div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="col-md-6 col-lg-3">
-                            <div class="card stats-card">
-                                <div class="card-body">
-                                    <h5 class="card-title">Speedup</h5>
-                                    <div class="stats-info">
-                                        <div class="stats-value">4.7x</div>
-                                        <div class="stats-label">MPI vs Serial</div>
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <h4>MPI Version</h4>
+                                    <div class="status-indicator" id="mpi-status">
+                                        <span class="status-badge available">Available</span>
                                     </div>
-                                    <div class="progress">
-                                        <div class="progress-bar bg-danger" role="progressbar" style="width: 95%" aria-valuenow="95" aria-valuemin="0" aria-valuemax="100"></div>
+                                    <div class="quick-stats">
+                                        <div>Avg. Query Time: <span id="mpi-avg-query-time">18.5</span> ms</div>
+                                        <div>Memory Usage: <span id="mpi-memory-usage">16.8</span> MB</div>
+                                        <div>Processes: <span id="mpi-processes">4</span></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="stat-card">
+                                    <h4>Hybrid Version</h4>
+                                    <div class="status-indicator" id="hybrid-status">
+                                        <span class="status-badge available">Available</span>
+                                    </div>
+                                    <div class="quick-stats">
+                                        <div>Avg. Query Time: <span id="hybrid-avg-query-time">15.2</span> ms</div>
+                                        <div>Memory Usage: <span id="hybrid-memory-usage">18.5</span> MB</div>
+                                        <div>Proc/Threads: <span id="hybrid-config">2/4</span></div>
                                     </div>
                                 </div>
                             </div>
@@ -136,17 +142,46 @@
                                     Performance Comparison
                                 </div>
                                 <div class="card-body">
-                                    <canvas id="performanceChart"></canvas>
+                                    <canvas id="performanceChart" width="400" height="200"></canvas>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-4">
                             <div class="card">
                                 <div class="card-header">
-                                    Memory Usage
+                                    Recent Searches
                                 </div>
                                 <div class="card-body">
-                                    <canvas id="memoryChart"></canvas>
+                                    <ul class="list-group" id="recent-searches">
+                                        <li class="list-group-item">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1">"parallel processing"</h6>
+                                                <small class="text-muted">5 min ago</small>
+                                            </div>
+                                            <p class="mb-1">Serial Version - 12 results (45.3ms)</p>
+                                        </li>
+                                        <li class="list-group-item">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1">"high performance computing"</h6>
+                                                <small class="text-muted">10 min ago</small>
+                                            </div>
+                                            <p class="mb-1">OpenMP Version - 18 results (20.7ms)</p>
+                                        </li>
+                                        <li class="list-group-item">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1">"distributed systems"</h6>
+                                                <small class="text-muted">15 min ago</small>
+                                            </div>
+                                            <p class="mb-1">MPI Version - 8 results (18.5ms)</p>
+                                        </li>
+                                        <li class="list-group-item">
+                                            <div class="d-flex w-100 justify-content-between">
+                                                <h6 class="mb-1">"hybrid parallelism"</h6>
+                                                <small class="text-muted">20 min ago</small>
+                                            </div>
+                                            <p class="mb-1">Hybrid Version - 6 results (15.2ms)</p>
+                                        </li>
+                                    </ul>
                                 </div>
                             </div>
                         </div>
@@ -156,64 +191,20 @@
                         <div class="col-md-6">
                             <div class="card">
                                 <div class="card-header">
-                                    Recent Searches
+                                    Memory Usage
                                 </div>
                                 <div class="card-body">
-                                    <ul class="list-group">
-                                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            "distributed tracing"
-                                            <span class="badge bg-primary rounded-pill">2.5s</span>
-                                        </li>
-                                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            "parallel computing"
-                                            <span class="badge bg-primary rounded-pill">1.8s</span>
-                                        </li>
-                                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            "microservices"
-                                            <span class="badge bg-primary rounded-pill">1.2s</span>
-                                        </li>
-                                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            "circuit breaker"
-                                            <span class="badge bg-primary rounded-pill">2.1s</span>
-                                        </li>
-                                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            "linux wake up"
-                                            <span class="badge bg-primary rounded-pill">1.5s</span>
-                                        </li>
-                                    </ul>
+                                    <canvas id="memoryChart" width="400" height="200"></canvas>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="card">
                                 <div class="card-header">
-                                    System Status
+                                    System Resource Usage
                                 </div>
                                 <div class="card-body">
-                                    <div class="system-metric">
-                                        <div class="metric-label">CPU Usage</div>
-                                        <div class="progress">
-                                            <div class="progress-bar bg-info" role="progressbar" style="width: 45%" aria-valuenow="45" aria-valuemin="0" aria-valuemax="100">45%</div>
-                                        </div>
-                                    </div>
-                                    <div class="system-metric">
-                                        <div class="metric-label">Memory Usage</div>
-                                        <div class="progress">
-                                            <div class="progress-bar bg-warning" role="progressbar" style="width: 65%" aria-valuenow="65" aria-valuemin="0" aria-valuemax="100">65%</div>
-                                        </div>
-                                    </div>
-                                    <div class="system-metric">
-                                        <div class="metric-label">Disk I/O</div>
-                                        <div class="progress">
-                                            <div class="progress-bar bg-success" role="progressbar" style="width: 25%" aria-valuenow="25" aria-valuemin="0" aria-valuemax="100">25%</div>
-                                        </div>
-                                    </div>
-                                    <div class="system-metric">
-                                        <div class="metric-label">Network</div>
-                                        <div class="progress">
-                                            <div class="progress-bar bg-danger" role="progressbar" style="width: 15%" aria-valuenow="15" aria-valuemin="0" aria-valuemax="100">15%</div>
-                                        </div>
-                                    </div>
+                                    <canvas id="resourceChart" width="400" height="200"></canvas>
                                 </div>
                             </div>
                         </div>
@@ -221,248 +212,278 @@
                 </div>
 
                 <!-- Search Engine Tab -->
-                <div class="tab-pane fade" id="search-engine">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5>Search Engine Interface</h5>
+                <div class="tab-pane" id="search-engine">
+                    <h2>Search Engine</h2>
+                    <div class="search-box">
+                        <div class="input-group mb-3">
+                            <input type="text" class="form-control search-input" placeholder="Enter your search query...">
+                            <button class="btn btn-primary" type="button" id="search-button">Search</button>
                         </div>
-                        <div class="card-body">
-                            <div class="search-container mb-4">
-                                <div class="input-group mb-3">
-                                    <input type="text" class="form-control search-input" placeholder="Enter search query...">
-                                    <button class="btn btn-primary" type="button" id="searchButton"><i class="fas fa-search"></i> Search</button>
-                                </div>
-                                <div class="search-options">
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="engineVersion" id="serialVersion" value="serial" checked>
-                                        <label class="form-check-label" for="serialVersion">Serial Version</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="engineVersion" id="openmpVersion" value="openmp">
-                                        <label class="form-check-label" for="openmpVersion">OpenMP Version</label>
-                                    </div>
-                                    <div class="form-check form-check-inline">
-                                        <input class="form-check-input" type="radio" name="engineVersion" id="mpiVersion" value="mpi">
-                                        <label class="form-check-label" for="mpiVersion">MPI Version</label>
-                                    </div>
-                                    
-                                    <div class="form-check form-check-inline ms-4">
-                                        <input class="form-check-input" type="checkbox" id="measurePerformance" value="measure">
-                                        <label class="form-check-label" for="measurePerformance">Measure Performance</label>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="advanced-options mb-4">
-                                <div class="card">
-                                    <div class="card-header" data-bs-toggle="collapse" href="#advancedOptionsCollapse">
-                                        Advanced Options <i class="fas fa-chevron-down float-end"></i>
-                                    </div>
-                                    <div class="collapse" id="advancedOptionsCollapse">
+                        
+                        <div class="search-options mb-4">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="card">
+                                        <div class="card-header">Engine Version</div>
                                         <div class="card-body">
-                                            <div class="row">
-                                                <div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label for="numThreads" class="form-label">Threads (OpenMP)</label>
-                                                        <input type="number" class="form-control" id="numThreads" value="4" min="1" max="32">
-                                                    </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="engineVersion" id="serialVersion" value="serial" checked>
+                                                <label class="form-check-label" for="serialVersion">
+                                                    Serial
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="engineVersion" id="openmpVersion" value="openmp">
+                                                <label class="form-check-label" for="openmpVersion">
+                                                    OpenMP
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="engineVersion" id="mpiVersion" value="mpi">
+                                                <label class="form-check-label" for="mpiVersion">
+                                                    MPI
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="engineVersion" id="hybridVersion" value="hybrid">
+                                                <label class="form-check-label" for="hybridVersion">
+                                                    Hybrid
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card">
+                                        <div class="card-header">Parallelism Options</div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label for="numThreads" class="form-label">Number of Threads</label>
+                                                <select class="form-select" id="numThreads">
+                                                    <option value="1">1</option>
+                                                    <option value="2">2</option>
+                                                    <option value="4" selected>4</option>
+                                                    <option value="8">8</option>
+                                                    <option value="16">16</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label for="numProcesses" class="form-label">Number of Processes</label>
+                                                <select class="form-select" id="numProcesses">
+                                                    <option value="1">1</option>
+                                                    <option value="2">2</option>
+                                                    <option value="4" selected>4</option>
+                                                    <option value="8">8</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card">
+                                        <div class="card-header">Data Source</div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <select class="form-select" id="dataSource">
+                                                    <option value="dataset" selected>Default Dataset</option>
+                                                    <option value="custom">Custom Data Path</option>
+                                                    <option value="crawl">Web Crawl</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3 data-option" id="customPathOption" style="display: none;">
+                                                <input type="text" class="form-control" id="customPath" placeholder="Path to dataset">
+                                            </div>
+                                            <div class="data-option" id="crawlOptions" style="display: none;">
+                                                <div class="mb-3">
+                                                    <input type="text" class="form-control" id="crawlUrl" placeholder="URL to crawl">
                                                 </div>
-                                                <div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label for="numProcesses" class="form-label">Processes (MPI)</label>
-                                                        <input type="number" class="form-control" id="numProcesses" value="4" min="1" max="64">
-                                                    </div>
+                                                <div class="mb-3">
+                                                    <label for="crawlDepth" class="form-label">Crawl Depth</label>
+                                                    <input type="number" class="form-control" id="crawlDepth" value="2" min="1" max="5">
                                                 </div>
-                                                <div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label for="resultLimit" class="form-label">Result Limit</label>
-                                                        <input type="number" class="form-control" id="resultLimit" value="10" min="1" max="100">
-                                                    </div>
+                                                <div class="mb-3">
+                                                    <label for="crawlMaxPages" class="form-label">Max Pages</label>
+                                                    <input type="number" class="form-control" id="crawlMaxPages" value="10" min="5" max="100">
                                                 </div>
                                             </div>
-                                            <div class="row">
-                                                <div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label for="dataSource" class="form-label">Data Source</label>
-                                                        <select class="form-select" id="dataSource">
-                                                            <option value="dataset" selected>Default Dataset</option>
-                                                            <option value="custom">Custom Dataset</option>
-                                                            <option value="crawl">Web Crawl</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-8">
-                                                    <div class="mb-3">
-                                                        <label for="crawlUrl" class="form-label">Crawl URL (if applicable)</label>
-                                                        <input type="text" class="form-control" id="crawlUrl" placeholder="https://example.com">
-                                                    </div>
-                                                </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="card">
+                                        <div class="card-header">Result Options</div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label for="resultLimit" class="form-label">Result Limit</label>
+                                                <select class="form-select" id="resultLimit">
+                                                    <option value="5">5</option>
+                                                    <option value="10" selected>10</option>
+                                                    <option value="20">20</option>
+                                                    <option value="50">50</option>
+                                                </select>
                                             </div>
-                                            <div class="row crawl-options" style="display: none;">
-                                                <div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label for="crawlDepth" class="form-label">Crawl Depth</label>
-                                                        <input type="number" class="form-control" id="crawlDepth" value="2" min="1" max="5">
-                                                        <small class="form-text text-muted">Depth of links to follow (1-5)</small>
-                                                    </div>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label for="crawlMaxPages" class="form-label">Max Pages</label>
-                                                        <input type="number" class="form-control" id="crawlMaxPages" value="20" min="1" max="100">
-                                                        <small class="form-text text-muted">Maximum pages to crawl</small>
-                                                    </div>
+                                            <div class="mb-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="" id="saveResultsCheck">
+                                                    <label class="form-check-label" for="saveResultsCheck">
+                                                        Save Results
+                                                    </label>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-
-                            <div class="search-results">
-                                <h5>Search Results</h5>
-                                <div class="search-info">
-                                    <span class="result-count">0 results</span>
-                                    <span class="result-time">in 0.00 ms</span>
-                                </div>
-                                <div class="result-list">
-                                    <!-- Results will appear here -->
-                                    <div class="alert alert-info">Enter a search query and press Search to see results.</div>
+                        </div>
+                    </div>
+                    
+                    <div class="search-results">
+                        <div class="search-status">
+                            <div class="alert alert-primary" role="alert" id="search-progress" style="display: none;">
+                                <div class="d-flex align-items-center">
+                                    <div class="spinner-border spinner-border-sm me-2" role="status">
+                                        <span class="visually-hidden">Searching...</span>
+                                    </div>
+                                    <div>
+                                        Searching... This may take a few seconds.
+                                    </div>
                                 </div>
                             </div>
+                            <div class="alert alert-danger" role="alert" id="search-error" style="display: none;">
+                                An error occurred during the search.
+                            </div>
+                        </div>
+                        
+                        <div class="search-metrics mb-3" id="search-metrics-panel" style="display: none;">
+                            <div class="card">
+                                <div class="card-header">
+                                    Search Metrics
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="metric-item">
+                                                <span class="metric-label">Version:</span>
+                                                <span class="metric-value" id="metrics-version">Serial</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="metric-item">
+                                                <span class="metric-label">Query Time:</span>
+                                                <span class="metric-value" id="metrics-query-time">45.3 ms</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="metric-item">
+                                                <span class="metric-label">Results:</span>
+                                                <span class="metric-value" id="metrics-result-count">12</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="metric-item">
+                                                <span class="metric-label">Memory Usage:</span>
+                                                <span class="metric-value" id="metrics-memory-usage">12.4 MB</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="result-count mb-2" id="result-count" style="display: none;">
+                            Showing <span id="result-count-number">0</span> results
+                        </div>
+                        
+                        <div class="result-list">
+                            <!-- Search results will be displayed here -->
                         </div>
                     </div>
                 </div>
 
                 <!-- Performance Tab -->
-                <div class="tab-pane fade" id="performance">
+                <div class="tab-pane" id="performance">
+                    <h2>Performance Metrics</h2>
                     <div class="row">
                         <div class="col-md-12">
-                            <div class="card">
+                            <div class="card mb-4">
                                 <div class="card-header">
-                                    <h5>Performance Metrics Dashboard</h5>
+                                    Query Processing Time
                                 </div>
                                 <div class="card-body">
-                                    <div class="row mb-4">
-                                        <div class="col-md-3">
-                                            <div class="form-group">
-                                                <label for="performanceVersion">Select Version</label>
-                                                <select class="form-select" id="performanceVersion">
-                                                    <option value="all">All Versions</option>
-                                                    <option value="serial">Serial</option>
-                                                    <option value="openmp">OpenMP</option>
-                                                    <option value="mpi">MPI</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="form-group">
-                                                <label for="performanceMetric">Select Metric</label>
-                                                <select class="form-select" id="performanceMetric">
-                                                    <option value="query_time">Query Time</option>
-                                                    <option value="indexing_time">Indexing Time</option>
-                                                    <option value="crawling_time">Crawling Time</option>
-                                                    <option value="memory_usage">Memory Usage</option>
-                                                    <option value="cpu_usage">CPU Usage</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3">
-                                            <div class="form-group">
-                                                <label for="performanceTimeRange">Time Range</label>
-                                                <select class="form-select" id="performanceTimeRange">
-                                                    <option value="last_run">Last Run</option>
-                                                    <option value="today">Today</option>
-                                                    <option value="week">Past Week</option>
-                                                    <option value="month">Past Month</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-3 d-flex align-items-end">
-                                            <button class="btn btn-primary w-100">Update Charts</button>
-                                        </div>
-                                    </div>
-
-                                    <div class="performance-charts">
-                                        <canvas id="performanceDetailChart"></canvas>
-                                    </div>
-                                    
-                                    <div class="row mt-4">
-                                        <div class="col-md-6">
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h6>Query Processing Breakdown</h6>
-                                                </div>
-                                                <div class="card-body">
-                                                    <canvas id="queryBreakdownChart"></canvas>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="card">
-                                                <div class="card-header">
-                                                    <h6>Memory Usage Over Time</h6>
-                                                </div>
-                                                <div class="card-body">
-                                                    <canvas id="memoryTimeChart"></canvas>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="card mt-4">
-                                        <div class="card-header">
-                                            <h6>Performance Tables</h6>
-                                        </div>
-                                        <div class="card-body">
-                                            <table class="table table-striped table-hover">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Metric</th>
-                                                        <th>Serial</th>
-                                                        <th>OpenMP</th>
-                                                        <th>MPI</th>
-                                                        <th>OpenMP Speedup</th>
-                                                        <th>MPI Speedup</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    <tr>
-                                                        <td>Indexing Time (ms)</td>
-                                                        <td>842.5</td>
-                                                        <td>315.8</td>
-                                                        <td>213.2</td>
-                                                        <td>2.67x</td>
-                                                        <td>3.95x</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>Query Time (ms)</td>
-                                                        <td>365.2</td>
-                                                        <td>124.6</td>
-                                                        <td>78.3</td>
-                                                        <td>2.93x</td>
-                                                        <td>4.66x</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>Crawling Time (ms)</td>
-                                                        <td>5236.9</td>
-                                                        <td>1752.3</td>
-                                                        <td>982.5</td>
-                                                        <td>2.99x</td>
-                                                        <td>5.33x</td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>Memory Usage (MB)</td>
-                                                        <td>245.6</td>
-                                                        <td>283.7</td>
-                                                        <td>412.9</td>
-                                                        <td>0.87x</td>
-                                                        <td>0.59x</td>
-                                                    </tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
+                                    <canvas id="queryTimeChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    Memory Usage
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="performanceMemoryChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    CPU Utilization
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="cpuUtilizationChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    Indexing Performance
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="indexingChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    Scaling Efficiency
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="scalingChart" width="400" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    Historical Performance
+                                </div>
+                                <div class="card-body">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Timestamp</th>
+                                                <th>Version</th>
+                                                <th>Query</th>
+                                                <th>Query Time (ms)</th>
+                                                <th>Memory Usage (MB)</th>
+                                                <th>Results</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="performance-history">
+                                            <!-- This will be populated with data from the API -->
+                                        </tbody>
+                                    </table>
                                 </div>
                             </div>
                         </div>
@@ -470,120 +491,190 @@
                 </div>
 
                 <!-- Compare Tab -->
-                <div class="tab-pane fade" id="compare">
-                    <div class="row">
-                        <div class="col-md-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5>Version Comparison</h5>
-                                </div>
-                                <div class="card-body">
-                                    <div class="row mb-4">
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label>Query Set</label>
-                                                <select class="form-select">
-                                                    <option>Default Queries</option>
-                                                    <option>Simple Queries</option>
-                                                    <option>Complex Queries</option>
-                                                    <option>Custom Query Set</option>
-                                                </select>
-                                            </div>
+                <div class="tab-pane" id="compare">
+                    <h2>Version Comparison</h2>
+                    <div class="compare-form mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                Comparison Settings
+                            </div>
+                            <div class="card-body">
+                                <form id="compare-form">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="compare-query" class="form-label">Search Query</label>
+                                            <input type="text" class="form-control" id="compare-query" placeholder="Enter search query for comparison">
                                         </div>
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label>Comparison Type</label>
-                                                <select class="form-select">
-                                                    <option>Performance</option>
-                                                    <option>Memory Usage</option>
-                                                    <option>Scaling Efficiency</option>
-                                                    <option>All Metrics</option>
-                                                </select>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4 d-flex align-items-end">
-                                            <button class="btn btn-primary w-100">Run Comparison</button>
+                                        <div class="col-md-6">
+                                            <label for="compare-dataset" class="form-label">Dataset</label>
+                                            <select class="form-select" id="compare-dataset">
+                                                <option value="default" selected>Default Dataset</option>
+                                                <option value="custom">Custom Dataset</option>
+                                            </select>
                                         </div>
                                     </div>
-
-                                    <ul class="nav nav-tabs" id="compareVersions">
-                                        <li class="nav-item">
-                                            <a class="nav-link active" data-bs-toggle="tab" href="#performanceComparison">Performance</a>
-                                        </li>
-                                        <li class="nav-item">
-                                            <a class="nav-link" data-bs-toggle="tab" href="#scalingComparison">Scaling</a>
-                                        </li>
-                                        <li class="nav-item">
-                                            <a class="nav-link" data-bs-toggle="tab" href="#memoryComparison">Memory Usage</a>
-                                        </li>
-                                        <li class="nav-item">
-                                            <a class="nav-link" data-bs-toggle="tab" href="#accuracyComparison">Accuracy</a>
-                                        </li>
-                                    </ul>
-
-                                    <div class="tab-content mt-3">
-                                        <div class="tab-pane fade show active" id="performanceComparison">
-                                            <canvas id="performanceComparisonChart"></canvas>
-
-                                            <div class="comparison-summary mt-4">
-                                                <h6>Performance Summary</h6>
-                                                <p>The MPI version shows the best performance with an average query time of 78.3ms, followed by the OpenMP version at 124.6ms. The serial version is significantly slower at 365.2ms per query.</p>
-                                                <p>For indexing operations, we observe a similar pattern with MPI performing 3.95x faster than the serial version, while OpenMP shows a 2.67x improvement.</p>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Data Source Options</label>
+                                        <div class="form-check mb-2">
+                                            <input class="form-check-input" type="checkbox" id="compare-use-website">
+                                            <label class="form-check-label" for="compare-use-website">
+                                                Use Website Crawling
+                                            </label>
+                                        </div>
+                                        <div id="website-crawl-options" class="mt-2" style="display: none;">
+                                            <div class="row">
+                                                <div class="col-md-12 mb-2">
+                                                    <label for="compare-website-url" class="form-label">Website URL</label>
+                                                    <input type="text" class="form-control" id="compare-website-url" placeholder="https://medium.com/@lpramithamj">
+                                                </div>
+                                                <div class="col-md-6 mb-2">
+                                                    <label for="compare-website-depth" class="form-label">Crawl Depth</label>
+                                                    <select class="form-select" id="compare-website-depth">
+                                                        <option value="1">1</option>
+                                                        <option value="2" selected>2</option>
+                                                        <option value="3">3</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-6 mb-2">
+                                                    <label for="compare-website-max-pages" class="form-label">Max Pages</label>
+                                                    <input type="number" class="form-control" id="compare-website-max-pages" value="10" min="5" max="100">
+                                                </div>
                                             </div>
                                         </div>
-                                        <div class="tab-pane fade" id="scalingComparison">
-                                            <canvas id="scalingComparisonChart"></canvas>
-
-                                            <div class="comparison-summary mt-4">
-                                                <h6>Scaling Efficiency</h6>
-                                                <p>MPI demonstrates significantly better scaling across multiple nodes, with near-linear scaling up to 8 nodes, while OpenMP shows diminishing returns beyond 8 threads on a single node.</p>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Versions to Compare</label>
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="serial" id="compare-serial" checked>
+                                                    <label class="form-check-label" for="compare-serial">
+                                                        Serial
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="openmp" id="compare-openmp" checked>
+                                                    <label class="form-check-label" for="compare-openmp">
+                                                        OpenMP
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="mpi" id="compare-mpi" checked>
+                                                    <label class="form-check-label" for="compare-mpi">
+                                                        MPI
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" value="hybrid" id="compare-hybrid" checked>
+                                                    <label class="form-check-label" for="compare-hybrid">
+                                                        Hybrid
+                                                    </label>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div class="tab-pane fade" id="memoryComparison">
-                                            <canvas id="memoryComparisonChart"></canvas>
-
-                                            <div class="comparison-summary mt-4">
-                                                <h6>Memory Usage Summary</h6>
-                                                <p>The serial version has the lowest memory footprint (245.6 MB), while the MPI version consumes the most memory (412.9 MB) due to its distributed nature. The OpenMP version falls in between at 283.7 MB.</p>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <label class="form-label">Configuration</label>
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="compare-threads" class="form-label">OpenMP Threads</label>
+                                                    <select class="form-select" id="compare-threads">
+                                                        <option value="1">1</option>
+                                                        <option value="2">2</option>
+                                                        <option value="4" selected>4</option>
+                                                        <option value="8">8</option>
+                                                        <option value="16">16</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label for="compare-processes" class="form-label">MPI Processes</label>
+                                                    <select class="form-select" id="compare-processes">
+                                                        <option value="1">1</option>
+                                                        <option value="2">2</option>
+                                                        <option value="4" selected>4</option>
+                                                        <option value="8">8</option>
+                                                    </select>
+                                                </div>
                                             </div>
                                         </div>
-                                        <div class="tab-pane fade" id="accuracyComparison">
-                                            <div class="alert alert-info">
-                                                <p>All three versions use the same BM25 ranking algorithm and produce identical search results.</p>
-                                            </div>
-
-                                            <table class="table table-bordered">
+                                    </div>
+                                    
+                                    <button type="button" class="btn btn-primary" id="run-comparison">Run Comparison</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="comparison-results" style="display: none;" id="comparison-results">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        Query Time Comparison
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="compareQueryTimeChart" width="400" height="200"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        Memory Usage Comparison
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="compareMemoryChart" width="400" height="200"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        Indexing Time Comparison
+                                    </div>
+                                    <div class="card-body">
+                                        <canvas id="compareIndexingChart" width="400" height="200"></canvas>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="card mb-4">
+                                    <div class="card-header">
+                                        Result Comparison
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-striped">
                                                 <thead>
                                                     <tr>
-                                                        <th>Query</th>
-                                                        <th>Serial Results</th>
-                                                        <th>OpenMP Results</th>
-                                                        <th>MPI Results</th>
-                                                        <th>Match?</th>
+                                                        <th>Version</th>
+                                                        <th>Query Time (ms)</th>
+                                                        <th>Indexing Time (ms)</th>
+                                                        <th>Memory Usage (MB)</th>
+                                                        <th>Results</th>
+                                                        <th>Top Result</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody>
-                                                    <tr>
-                                                        <td>"circuit breaker"</td>
-                                                        <td>5 results</td>
-                                                        <td>5 results</td>
-                                                        <td>5 results</td>
-                                                        <td><i class="fas fa-check text-success"></i></td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>"distributed tracing"</td>
-                                                        <td>3 results</td>
-                                                        <td>3 results</td>
-                                                        <td>3 results</td>
-                                                        <td><i class="fas fa-check text-success"></i></td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td>"parallel computing"</td>
-                                                        <td>7 results</td>
-                                                        <td>7 results</td>
-                                                        <td>7 results</td>
-                                                        <td><i class="fas fa-check text-success"></i></td>
-                                                    </tr>
+                                                <tbody id="comparison-table">
+                                                    <!-- Will be populated with comparison data -->
                                                 </tbody>
                                             </table>
                                         </div>
@@ -595,133 +686,153 @@
                 </div>
 
                 <!-- Build Tab -->
-                <div class="tab-pane fade" id="build">
+                <div class="tab-pane" id="build">
+                    <h2>Build & Deploy</h2>
                     <div class="row">
-                        <div class="col-md-12 mb-4">
-                            <div class="card">
+                        <div class="col-md-6">
+                            <div class="card mb-4">
                                 <div class="card-header">
-                                    <h5>Build & Deploy Search Engine</h5>
+                                    Build Settings
                                 </div>
                                 <div class="card-body">
-                                    <div class="row">
-                                        <div class="col-md-4">
-                                            <div class="form-group mb-3">
-                                                <label>Version to Build</label>
-                                                <select class="form-select" id="buildVersion">
-                                                    <option value="serial">Serial Version</option>
-                                                    <option value="openmp">OpenMP Version</option>
-                                                    <option value="mpi">MPI Version</option>
-                                                    <option value="all">All Versions</option>
-                                                </select>
-                                            </div>
-                                            <div class="form-group mb-3">
-                                                <label>Build Type</label>
-                                                <select class="form-select" id="buildType">
-                                                    <option value="debug">Debug</option>
-                                                    <option value="release">Release</option>
-                                                    <option value="production">Production</option>
-                                                </select>
-                                            </div>
-                                            <div class="form-group mb-3">
-                                                <div class="form-check">
-                                                    <input class="form-check-input" type="checkbox" id="cleanBuild">
-                                                    <label class="form-check-label" for="cleanBuild">Clean before build</label>
+                                    <form id="build-form">
+                                        <div class="mb-3">
+                                            <label class="form-label">Version to Build</label>
+                                            <div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="buildVersion" id="build-serial" value="serial" checked>
+                                                    <label class="form-check-label" for="build-serial">Serial</label>
                                                 </div>
-                                            </div>
-                                            <button id="startBuild" class="btn btn-primary mb-3 w-100">Start Build</button>
-                                            <button id="runTests" class="btn btn-outline-secondary w-100">Run Tests</button>
-                                        </div>
-                                        <div class="col-md-8">
-                                            <div class="terminal">
-                                                <div class="terminal-header">
-                                                    <span>Terminal Output</span>
-                                                    <button class="btn btn-sm btn-outline-light float-end">Clear</button>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="buildVersion" id="build-openmp" value="openmp">
+                                                    <label class="form-check-label" for="build-openmp">OpenMP</label>
                                                 </div>
-                                                <div class="terminal-content">
-                                                    <div class="terminal-line">$ cd /Users/pramithajayasooriya/Desktop/Academic/Semester 7/HPC/hpc/HPC Project/High-Performance-Parallel-Search-Engine</div>
-                                                    <div class="terminal-line">$ make clean</div>
-                                                    <div class="terminal-line">rm -f obj/*.o bin/search_engine bin/test_url_normalization bin/test_medium_urls bin/evaluate</div>
-                                                    <div class="terminal-line">$ make all</div>
-                                                    <div class="terminal-line">gcc -Wall -Wextra -g -O3 -fopenmp -I./include -c -o obj/main.o src/main.c</div>
-                                                    <div class="terminal-line">gcc -Wall -Wextra -g -O3 -fopenmp -I./include -c -o obj/parser.o src/parser.c</div>
-                                                    <div class="terminal-line">gcc -Wall -Wextra -g -O3 -fopenmp -I./include -c -o obj/index.o src/index.c</div>
-                                                    <div class="terminal-line">gcc -Wall -Wextra -g -O3 -fopenmp -I./include -c -o obj/ranking.o src/ranking.c</div>
-                                                    <div class="terminal-line">gcc -Wall -Wextra -g -O3 -fopenmp -I./include -c -o obj/crawler.o src/crawler.c</div>
-                                                    <div class="terminal-line">gcc -o bin/search_engine obj/main.o obj/parser.o obj/index.o obj/ranking.o obj/crawler.o -fopenmp -lcurl</div>
-                                                    <div class="terminal-line">Build complete! Executable created at bin/search_engine</div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="buildVersion" id="build-mpi" value="mpi">
+                                                    <label class="form-check-label" for="build-mpi">MPI</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="buildVersion" id="build-hybrid" value="hybrid">
+                                                    <label class="form-check-label" for="build-hybrid">Hybrid</label>
+                                                </div>
+                                                <div class="form-check form-check-inline">
+                                                    <input class="form-check-input" type="radio" name="buildVersion" id="build-all" value="all">
+                                                    <label class="form-check-label" for="build-all">All Versions</label>
                                                 </div>
                                             </div>
                                         </div>
+                                        
+                                        <div class="mb-3">
+                                            <label class="form-label">Build Options</label>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="build-clean" value="clean">
+                                                <label class="form-check-label" for="build-clean">Clean Build</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="build-optimize" value="optimize" checked>
+                                                <label class="form-check-label" for="build-optimize">Optimization</label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="build-debug" value="debug">
+                                                <label class="form-check-label" for="build-debug">Debug Symbols</label>
+                                            </div>
+                                        </div>
+                                        
+                                        <button type="button" class="btn btn-primary" id="start-build">Start Build</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    Build Status
+                                </div>
+                                <div class="card-body">
+                                    <div class="build-status">
+                                        <div class="alert alert-primary" role="alert" id="build-progress" style="display: none;">
+                                            <div class="d-flex align-items-center">
+                                                <div class="spinner-border spinner-border-sm me-2" role="status">
+                                                    <span class="visually-hidden">Building...</span>
+                                                </div>
+                                                <div>
+                                                    Building... This may take a few seconds.
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="alert alert-success" role="alert" id="build-success" style="display: none;">
+                                            Build completed successfully.
+                                        </div>
+                                        <div class="alert alert-danger" role="alert" id="build-error" style="display: none;">
+                                            Build failed. Check the logs for details.
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="build-log">
+                                        <pre id="build-log-output" class="border p-3 bg-light" style="height: 200px; overflow: auto;"></pre>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <div class="card">
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card mb-4">
                                 <div class="card-header">
-                                    <h5>MPI Deployment Configuration</h5>
+                                    System Status
                                 </div>
                                 <div class="card-body">
-                                    <div class="form-group mb-3">
-                                        <label>Number of Nodes</label>
-                                        <input type="number" class="form-control" value="4" min="1">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <label>Processes per Node</label>
-                                        <input type="number" class="form-control" value="4" min="1">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <label>Hostfile</label>
-                                        <textarea class="form-control" rows="4">node1 slots=4
-node2 slots=4
-node3 slots=4
-node4 slots=4</textarea>
-                                    </div>
-                                    <button class="btn btn-primary">Deploy MPI Version</button>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h5>Build History</h5>
-                                </div>
-                                <div class="card-body">
-                                    <table class="table table-striped">
+                                    <table class="table">
                                         <thead>
                                             <tr>
-                                                <th>Date</th>
                                                 <th>Version</th>
                                                 <th>Status</th>
+                                                <th>Path</th>
+                                                <th>Last Build</th>
                                                 <th>Actions</th>
                                             </tr>
                                         </thead>
-                                        <tbody>
+                                        <tbody id="version-status-table">
                                             <tr>
-                                                <td>2025-06-18 13:42</td>
-                                                <td>MPI v1.1.0</td>
-                                                <td><span class="badge bg-success">Success</span></td>
-                                                <td><button class="btn btn-sm btn-outline-primary">View Log</button></td>
+                                                <td>Serial</td>
+                                                <td><span class="badge bg-success">Available</span></td>
+                                                <td>/path/to/Serial Version/bin/search_engine</td>
+                                                <td>2023-06-19 15:23:45</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-primary">Rebuild</button>
+                                                    <button class="btn btn-sm btn-danger">Clean</button>
+                                                </td>
                                             </tr>
                                             <tr>
-                                                <td>2025-06-17 15:30</td>
-                                                <td>OpenMP v1.1.0</td>
-                                                <td><span class="badge bg-success">Success</span></td>
-                                                <td><button class="btn btn-sm btn-outline-primary">View Log</button></td>
+                                                <td>OpenMP</td>
+                                                <td><span class="badge bg-success">Available</span></td>
+                                                <td>/path/to/OpenMP Version/bin/search_engine</td>
+                                                <td>2023-06-19 15:24:32</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-primary">Rebuild</button>
+                                                    <button class="btn btn-sm btn-danger">Clean</button>
+                                                </td>
                                             </tr>
                                             <tr>
-                                                <td>2025-06-15 09:25</td>
-                                                <td>Serial v1.1.0</td>
-                                                <td><span class="badge bg-success">Success</span></td>
-                                                <td><button class="btn btn-sm btn-outline-primary">View Log</button></td>
+                                                <td>MPI</td>
+                                                <td><span class="badge bg-success">Available</span></td>
+                                                <td>/path/to/MPI Version/bin/search_engine</td>
+                                                <td>2023-06-19 15:25:18</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-primary">Rebuild</button>
+                                                    <button class="btn btn-sm btn-danger">Clean</button>
+                                                </td>
                                             </tr>
                                             <tr>
-                                                <td>2025-06-14 18:12</td>
-                                                <td>MPI v1.0.9</td>
-                                                <td><span class="badge bg-danger">Failed</span></td>
-                                                <td><button class="btn btn-sm btn-outline-primary">View Log</button></td>
+                                                <td>Hybrid</td>
+                                                <td><span class="badge bg-success">Available</span></td>
+                                                <td>/path/to/Hybrid Version/bin/search_engine</td>
+                                                <td>2023-06-19 15:26:05</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-primary">Rebuild</button>
+                                                    <button class="btn btn-sm btn-danger">Clean</button>
+                                                </td>
                                             </tr>
                                         </tbody>
                                     </table>
@@ -732,83 +843,830 @@ node4 slots=4</textarea>
                 </div>
 
                 <!-- Settings Tab -->
-                <div class="tab-pane fade" id="settings">
+                <div class="tab-pane" id="settings">
+                    <h2>Settings</h2>
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="card">
+                            <div class="card mb-4">
                                 <div class="card-header">
-                                    <h5>General Settings</h5>
+                                    General Settings
                                 </div>
                                 <div class="card-body">
-                                    <div class="form-group mb-3">
-                                        <label>Default Version</label>
-                                        <select class="form-select">
-                                            <option>Serial</option>
-                                            <option selected>OpenMP</option>
-                                            <option>MPI</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <label>Default OpenMP Threads</label>
-                                        <input type="number" class="form-control" value="4" min="1">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <label>Default MPI Processes</label>
-                                        <input type="number" class="form-control" value="4" min="1">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <label>Dataset Path</label>
-                                        <input type="text" class="form-control" value="dataset">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="autosaveResults" checked>
-                                            <label class="form-check-label" for="autosaveResults">Auto-save search results</label>
+                                    <form id="general-settings-form">
+                                        <div class="mb-3">
+                                            <label for="default-version" class="form-label">Default Engine Version</label>
+                                            <select class="form-select" id="default-version">
+                                                <option value="serial">Serial</option>
+                                                <option value="openmp" selected>OpenMP</option>
+                                                <option value="mpi">MPI</option>
+                                                <option value="hybrid">Hybrid</option>
+                                            </select>
                                         </div>
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="autoMeasure" checked>
-                                            <label class="form-check-label" for="autoMeasure">Auto-measure performance</label>
+                                        <div class="mb-3">
+                                            <label for="default-threads" class="form-label">Default OpenMP Threads</label>
+                                            <select class="form-select" id="default-threads">
+                                                <option value="1">1</option>
+                                                <option value="2">2</option>
+                                                <option value="4" selected>4</option>
+                                                <option value="8">8</option>
+                                                <option value="16">16</option>
+                                            </select>
                                         </div>
-                                    </div>
-                                    <button class="btn btn-primary">Save Settings</button>
+                                        <div class="mb-3">
+                                            <label for="default-processes" class="form-label">Default MPI Processes</label>
+                                            <select class="form-select" id="default-processes">
+                                                <option value="1">1</option>
+                                                <option value="2">2</option>
+                                                <option value="4" selected>4</option>
+                                                <option value="8">8</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="default-dataset" class="form-label">Default Dataset Path</label>
+                                            <input type="text" class="form-control" id="default-dataset" value="../dataset">
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="save-history" checked>
+                                                <label class="form-check-label" for="save-history">
+                                                    Save Search History
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-primary" id="save-general-settings">Save Settings</button>
+                                    </form>
                                 </div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="card">
+                            <div class="card mb-4">
                                 <div class="card-header">
-                                    <h5>Advanced Settings</h5>
+                                    Advanced Settings
                                 </div>
                                 <div class="card-body">
-                                    <div class="form-group mb-3">
-                                        <label>BM25 k1 Parameter</label>
-                                        <input type="number" class="form-control" value="1.2" step="0.1">
+                                    <form id="advanced-settings-form">
+                                        <div class="mb-3">
+                                            <label for="bm25-k1" class="form-label">BM25 k1 Parameter</label>
+                                            <input type="number" class="form-control" id="bm25-k1" value="1.2" step="0.1">
+                                            <div class="form-text">Controls term frequency saturation (0.5-3.0)</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="bm25-b" class="form-label">BM25 b Parameter</label>
+                                            <input type="number" class="form-control" id="bm25-b" value="0.75" step="0.05" min="0" max="1">
+                                            <div class="form-text">Controls document length normalization (0-1)</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="crawl-timeout" class="form-label">Crawl Timeout (seconds)</label>
+                                            <input type="number" class="form-control" id="crawl-timeout" value="30" min="5" max="300">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="search-timeout" class="form-label">Search Timeout (seconds)</label>
+                                            <input type="number" class="form-control" id="search-timeout" value="10" min="1" max="60">
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="use-stemming" checked>
+                                                <label class="form-check-label" for="use-stemming">
+                                                    Enable Stemming
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="remove-stopwords" checked>
+                                                <label class="form-check-label" for="remove-stopwords">
+                                                    Remove Stopwords
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-primary" id="save-advanced-settings">Save Settings</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="card mb-4">
+                                <div class="card-header">
+                                    MPI Configuration
+                                </div>
+                                <div class="card-body">
+                                    <form id="mpi-settings-form">
+                                        <div class="mb-3">
+                                            <label for="hostfile" class="form-label">Hostfile Path</label>
+                                            <input type="text" class="form-control" id="hostfile" value="../MPI Version/hostfile">
+                                            <div class="form-text">Path to the hostfile for MPI processes</div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="mpi-options" class="form-label">Additional MPI Options</label>
+                                            <input type="text" class="form-control" id="mpi-options" placeholder="--bind-to core">
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="mpi-debug" value="debug">
+                                                <label class="form-check-label" for="mpi-debug">
+                                                    Enable MPI Debug Mode
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-primary" id="save-mpi-settings">Save MPI Settings</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documentation Tab -->
+                <div class="tab-pane" id="documentation">
+                    <h2><i class="fas fa-book"></i> Parallel Processing Documentation</h2>
+                    
+                    <!-- Overview Section -->
+                    <div class="doc-section mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="fas fa-info-circle"></i> What is Parallel Processing?</h4>
+                            </div>
+                            <div class="card-body">
+                                <p class="lead">Parallel processing is a method of computation where multiple tasks are executed simultaneously, breaking down large problems into smaller, manageable parts that can be processed concurrently.</p>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h5>Why Use Parallel Processing?</h5>
+                                        <ul>
+                                            <li><strong>Speed:</strong> Faster execution by utilizing multiple processors</li>
+                                            <li><strong>Efficiency:</strong> Better resource utilization</li>
+                                            <li><strong>Scalability:</strong> Handle larger datasets and complex problems</li>
+                                            <li><strong>Performance:</strong> Improved response times for search operations</li>
+                                        </ul>
                                     </div>
-                                    <div class="form-group mb-3">
-                                        <label>BM25 b Parameter</label>
-                                        <input type="number" class="form-control" value="0.75" step="0.05">
+                                    <div class="col-md-6">
+                                        <h5>Applications in Search Engines</h5>
+                                        <ul>
+                                            <li>Concurrent indexing of multiple documents</li>
+                                            <li>Parallel query processing</li>
+                                            <li>Distributed search across multiple nodes</li>
+                                            <li>Real-time result ranking and filtering</li>
+                                        </ul>
                                     </div>
-                                    <div class="form-group mb-3">
-                                        <label>Max Crawl Depth</label>
-                                        <input type="number" class="form-control" value="3" min="1" max="10">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <label>Max Pages to Crawl</label>
-                                        <input type="number" class="form-control" value="20" min="1">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <label>Metrics File Path</label>
-                                        <input type="text" class="form-control" value="data/serial_metrics.csv">
-                                    </div>
-                                    <div class="form-group mb-3">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="debugMode">
-                                            <label class="form-check-label" for="debugMode">Debug Mode</label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Parallelization Details Section -->
+                    <div class="doc-section mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="fas fa-cogs"></i> Parallelization Implementation Details</h4>
+                            </div>
+                            <div class="card-body">
+                                <!-- Serial Version -->
+                                <div class="version-details mb-4">
+                                    <h5 class="serial-color"><i class="fas fa-microchip"></i> Serial Version</h5>
+                                    <p>The baseline implementation with no parallelization.</p>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Core Functions:</h6>
+                                            <ul class="function-list">
+                                                <li><code>build_index()</code> - Sequential document processing</li>
+                                                <li><code>search_index()</code> - Linear search through documents</li>
+                                                <li><code>calculate_bm25_score()</code> - Sequential ranking</li>
+                                                <li><code>parse_document()</code> - Single-threaded parsing</li>
+                                                <li><code>crawl_website()</code> - Sequential URL processing</li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>Processing Flow:</h6>
+                                            <div class="processing-visualization">
+                                                <div class="process-step serial">Document 1</div>
+                                                <div class="process-arrow">→</div>
+                                                <div class="process-step serial">Document 2</div>
+                                                <div class="process-arrow">→</div>
+                                                <div class="process-step serial">Document 3</div>
+                                                <div class="process-arrow">→</div>
+                                                <div class="process-step serial">...</div>
+                                            </div>
                                         </div>
                                     </div>
-                                    <button class="btn btn-primary">Save Advanced Settings</button>
+                                </div>
+
+                                <!-- OpenMP Version -->
+                                <div class="version-details mb-4">
+                                    <h5 class="openmp-color"><i class="fas fa-sitemap"></i> OpenMP Version</h5>
+                                    <p>Shared-memory parallelization using OpenMP directives.</p>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Parallelized Functions:</h6>
+                                            <ul class="function-list">
+                                                <li><code>build_index()</code> - <span class="parallel-tag">#pragma omp parallel for</span>
+                                                    <ul>
+                                                        <li>Document processing loop</li>
+                                                        <li>Critical section for index updates</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>search_index()</code> - <span class="parallel-tag">#pragma omp parallel for</span>
+                                                    <ul>
+                                                        <li>Parallel search across documents</li>
+                                                        <li>Thread-safe result collection</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>calculate_bm25_score()</code> - <span class="parallel-tag">#pragma omp parallel reduction</span>
+                                                    <ul>
+                                                        <li>Parallel score calculation</li>
+                                                        <li>Average document length computation</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>ranking_enhanced()</code> - <span class="parallel-tag">#pragma omp parallel sections</span>
+                                                    <ul>
+                                                        <li>Concurrent ranking algorithms</li>
+                                                        <li>Dynamic scheduling</li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>OpenMP Directives Used:</h6>
+                                            <ul class="directive-list">
+                                                <li><code>#pragma omp parallel for</code> - Loop parallelization</li>
+                                                <li><code>#pragma omp critical</code> - Thread-safe sections</li>
+                                                <li><code>#pragma omp atomic</code> - Atomic operations</li>
+                                                <li><code>#pragma omp reduction</code> - Reduction operations</li>
+                                                <li><code>#pragma omp sections</code> - Task parallelism</li>
+                                                <li><code>schedule(dynamic)</code> - Load balancing</li>
+                                            </ul>
+                                            <div class="thread-visualization mt-3">
+                                                <h6>Thread Execution:</h6>
+                                                <div class="thread-grid">
+                                                    <div class="thread-row">
+                                                        <span class="thread-label">Thread 1:</span>
+                                                        <div class="doc-box openmp processing" data-doc="1">Doc 1</div>
+                                                        <div class="doc-box openmp processing" data-doc="5">Doc 5</div>
+                                                    </div>
+                                                    <div class="thread-row">
+                                                        <span class="thread-label">Thread 2:</span>
+                                                        <div class="doc-box openmp processing" data-doc="2">Doc 2</div>
+                                                        <div class="doc-box openmp processing" data-doc="6">Doc 6</div>
+                                                    </div>
+                                                    <div class="thread-row">
+                                                        <span class="thread-label">Thread 3:</span>
+                                                        <div class="doc-box openmp processing" data-doc="3">Doc 3</div>
+                                                        <div class="doc-box openmp processing" data-doc="7">Doc 7</div>
+                                                    </div>
+                                                    <div class="thread-row">
+                                                        <span class="thread-label">Thread 4:</span>
+                                                        <div class="doc-box openmp processing" data-doc="4">Doc 4</div>
+                                                        <div class="doc-box openmp processing" data-doc="8">Doc 8</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- MPI Version -->
+                                <div class="version-details mb-4">
+                                    <h5 class="mpi-color"><i class="fas fa-network-wired"></i> MPI Version</h5>
+                                    <p>Distributed memory parallelization using Message Passing Interface.</p>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Parallelized Functions:</h6>
+                                            <ul class="function-list">
+                                                <li><code>distribute_indexing()</code> - <span class="parallel-tag">MPI_Send/MPI_Recv</span>
+                                                    <ul>
+                                                        <li>Document distribution across processes</li>
+                                                        <li>Load balancing with work stealing</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>parallel_search()</code> - <span class="parallel-tag">MPI_Bcast/MPI_Gather</span>
+                                                    <ul>
+                                                        <li>Query broadcasting to all processes</li>
+                                                        <li>Result gathering and merging</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>mpi_process_files()</code> - <span class="parallel-tag">Process-based distribution</span>
+                                                    <ul>
+                                                        <li>File assignment per process</li>
+                                                        <li>Inter-process communication</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>collect_results()</code> - <span class="parallel-tag">MPI_Reduce</span>
+                                                    <ul>
+                                                        <li>Distributed result aggregation</li>
+                                                        <li>Global ranking coordination</li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>MPI Functions Used:</h6>
+                                            <ul class="directive-list">
+                                                <li><code>MPI_Init/MPI_Finalize</code> - Process management</li>
+                                                <li><code>MPI_Send/MPI_Recv</code> - Point-to-point communication</li>
+                                                <li><code>MPI_Bcast</code> - Broadcast operations</li>
+                                                <li><code>MPI_Gather/MPI_Allgather</code> - Data collection</li>
+                                                <li><code>MPI_Reduce</code> - Reduction operations</li>
+                                                <li><code>MPI_Comm_rank/MPI_Comm_size</code> - Process identification</li>
+                                            </ul>
+                                            <div class="process-visualization mt-3">
+                                                <h6>Process Distribution:</h6>
+                                                <div class="process-grid">
+                                                    <div class="process-node">
+                                                        <div class="process-header">Process 0 (Master)</div>
+                                                        <div class="doc-box mpi processing" data-doc="coord">Coordination</div>
+                                                        <div class="doc-box mpi processing" data-doc="collect">Result Collection</div>
+                                                    </div>
+                                                    <div class="process-node">
+                                                        <div class="process-header">Process 1</div>
+                                                        <div class="doc-box mpi processing" data-doc="1-10">Docs 1-10</div>
+                                                    </div>
+                                                    <div class="process-node">
+                                                        <div class="process-header">Process 2</div>
+                                                        <div class="doc-box mpi processing" data-doc="11-20">Docs 11-20</div>
+                                                    </div>
+                                                    <div class="process-node">
+                                                        <div class="process-header">Process 3</div>
+                                                        <div class="doc-box mpi processing" data-doc="21-30">Docs 21-30</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Hybrid Version -->
+                                <div class="version-details mb-4">
+                                    <h5 class="hybrid-color"><i class="fas fa-project-diagram"></i> Hybrid Version (MPI + OpenMP)</h5>
+                                    <p>Combines distributed and shared memory parallelization for maximum performance.</p>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>Hybrid Parallelized Functions:</h6>
+                                            <ul class="function-list">
+                                                <li><code>hybrid_index_build()</code> - <span class="parallel-tag">MPI + OpenMP</span>
+                                                    <ul>
+                                                        <li>MPI: Document distribution across nodes</li>
+                                                        <li>OpenMP: Multi-threaded processing per node</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>hybrid_search()</code> - <span class="parallel-tag">Nested parallelism</span>
+                                                    <ul>
+                                                        <li>MPI: Query distribution</li>
+                                                        <li>OpenMP: Parallel search within each process</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>hybrid_crawler()</code> - <span class="parallel-tag">Two-level parallelism</span>
+                                                    <ul>
+                                                        <li>MPI: URL distribution across processes</li>
+                                                        <li>OpenMP: Concurrent crawling threads</li>
+                                                    </ul>
+                                                </li>
+                                                <li><code>hybrid_ranking()</code> - <span class="parallel-tag">Hierarchical computation</span>
+                                                    <ul>
+                                                        <li>MPI: Distributed scoring</li>
+                                                        <li>OpenMP: Thread-level optimizations</li>
+                                                    </ul>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>Hybrid Architecture:</h6>
+                                            <div class="hybrid-visualization">
+                                                <div class="node-container">
+                                                    <div class="node-header">Node 1 (Process 0)</div>
+                                                    <div class="thread-container">
+                                                        <div class="doc-box hybrid processing" data-doc="t1">Thread 1</div>
+                                                        <div class="doc-box hybrid processing" data-doc="t2">Thread 2</div>
+                                                        <div class="doc-box hybrid processing" data-doc="t3">Thread 3</div>
+                                                        <div class="doc-box hybrid processing" data-doc="t4">Thread 4</div>
+                                                    </div>
+                                                </div>
+                                                <div class="node-container">
+                                                    <div class="node-header">Node 2 (Process 1)</div>
+                                                    <div class="thread-container">
+                                                        <div class="doc-box hybrid processing" data-doc="t1">Thread 1</div>
+                                                        <div class="doc-box hybrid processing" data-doc="t2">Thread 2</div>
+                                                        <div class="doc-box hybrid processing" data-doc="t3">Thread 3</div>
+                                                        <div class="doc-box hybrid processing" data-doc="t4">Thread 4</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="performance-comparison mt-3">
+                                                <h6>Performance Benefits:</h6>
+                                                <ul>
+                                                    <li><strong>Scalability:</strong> Scales across multiple machines</li>
+                                                    <li><strong>Efficiency:</strong> Utilizes all CPU cores per node</li>
+                                                    <li><strong>Memory:</strong> Combines shared and distributed memory</li>
+                                                    <li><strong>Fault Tolerance:</strong> Process-level isolation</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Interactive Visualization Section -->
+                    <div class="doc-section mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="fas fa-play-circle"></i> Interactive Parallel Processing Visualization</h4>
+                            </div>
+                            <div class="card-body">
+                                <p>Click on any version below to see how parallel processing works:</p>
+                                
+                                <div class="visualization-controls mb-3">
+                                    <button class="btn btn-outline-primary me-2" data-version="serial">
+                                        <i class="fas fa-microchip"></i> Serial Demo
+                                    </button>
+                                    <button class="btn btn-outline-success me-2" data-version="openmp">
+                                        <i class="fas fa-sitemap"></i> OpenMP Demo
+                                    </button>
+                                    <button class="btn btn-outline-warning me-2" data-version="mpi">
+                                        <i class="fas fa-network-wired"></i> MPI Demo
+                                    </button>
+                                    <button class="btn btn-outline-danger me-2" data-version="hybrid">
+                                        <i class="fas fa-project-diagram"></i> Hybrid Demo
+                                    </button>
+                                    <button class="btn btn-secondary" id="reset-demo">
+                                        <i class="fas fa-redo"></i> Reset
+                                    </button>
+                                </div>
+
+                                <div id="processing-visualization" class="processing-demo">
+                                    <div class="demo-grid" id="demo-grid">
+                                        <!-- This will be populated by JavaScript -->
+                                    </div>
+                                    <div class="demo-stats mt-3" id="demo-stats">
+                                        <div class="row">
+                                            <div class="col-md-3">
+                                                <div class="stat-box">
+                                                    <div class="stat-label">Processing Time</div>
+                                                    <div class="stat-value" id="demo-time">0ms</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="stat-box">
+                                                    <div class="stat-label">Documents Processed</div>
+                                                    <div class="stat-value" id="demo-docs">0</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="stat-box">
+                                                    <div class="stat-label">Parallel Units</div>
+                                                    <div class="stat-value" id="demo-units">1</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="stat-box">
+                                                    <div class="stat-label">Efficiency</div>
+                                                    <div class="stat-value" id="demo-efficiency">100%</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Version Comparison Section -->
+                    <div class="doc-section mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="fas fa-balance-scale"></i> Parallelization Approaches Comparison</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="version-comparison-grid">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <div class="version-card serial-version">
+                                                <h5><i class="fas fa-microchip serial-color"></i> Serial Version</h5>
+                                                <p><strong>Type:</strong> Sequential Processing</p>
+                                                <p><strong>Parallel Parts:</strong> None - Single-threaded execution</p>
+                                                <ul class="feature-list">
+                                                    <li>Single thread processes documents one by one</li>
+                                                    <li>Sequential indexing and searching</li>
+                                                    <li>Baseline for performance comparison</li>
+                                                    <li>Simple but slower for large datasets</li>
+                                                </ul>
+                                                <div class="performance-indicator">
+                                                    <span class="performance-bar serial-bar" style="width: 25%;">25% Performance</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="version-card openmp-version">
+                                                <h5><i class="fas fa-sitemap openmp-color"></i> OpenMP Version</h5>
+                                                <p><strong>Type:</strong> Shared Memory Parallel</p>
+                                                <p><strong>Parallel Parts:</strong> Multi-threaded on single machine</p>
+                                                <ul class="feature-list">
+                                                    <li>Parallel document processing with threads</li>
+                                                    <li>Shared memory for data access</li>
+                                                    <li>Thread-level parallelism</li>
+                                                    <li>Good for CPU-intensive tasks</li>
+                                                </ul>
+                                                <div class="performance-indicator">
+                                                    <span class="performance-bar openmp-bar" style="width: 60%;">60% Performance</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="version-card mpi-version">
+                                                <h5><i class="fas fa-network-wired mpi-color"></i> MPI Version</h5>
+                                                <p><strong>Type:</strong> Distributed Memory Parallel</p>
+                                                <p><strong>Parallel Parts:</strong> Multi-process across machines</p>
+                                                <ul class="feature-list">
+                                                    <li>Distributed processing across nodes</li>
+                                                    <li>Message passing for communication</li>
+                                                    <li>Process-level parallelism</li>
+                                                    <li>Scalable to multiple machines</li>
+                                                </ul>
+                                                <div class="performance-indicator">
+                                                    <span class="performance-bar mpi-bar" style="width: 75%;">75% Performance</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="version-card hybrid-version">
+                                                <h5><i class="fas fa-project-diagram hybrid-color"></i> Hybrid Version</h5>
+                                                <p><strong>Type:</strong> Combined Shared + Distributed Memory</p>
+                                                <p><strong>Parallel Parts:</strong> Both threads and processes</p>
+                                                <ul class="feature-list">
+                                                    <li>MPI processes + OpenMP threads</li>
+                                                    <li>Best of both worlds</li>
+                                                    <li>Hierarchical parallelism</li>
+                                                    <li>Maximum performance and scalability</li>
+                                                </ul>
+                                                <div class="performance-indicator">
+                                                    <span class="performance-bar hybrid-bar" style="width: 90%;">90% Performance</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Visual Demonstration Section -->
+                    <div class="doc-section mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="fas fa-eye"></i> Visual Parallel Processing Demonstration</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="demo-controls mb-3">
+                                    <button class="btn btn-primary" onclick="startDemo('serial')">
+                                        <i class="fas fa-play"></i> Demo Serial
+                                    </button>
+                                    <button class="btn btn-success" onclick="startDemo('openmp')">
+                                        <i class="fas fa-play"></i> Demo OpenMP
+                                    </button>
+                                    <button class="btn btn-info" onclick="startDemo('mpi')">
+                                        <i class="fas fa-play"></i> Demo MPI
+                                    </button>
+                                    <button class="btn btn-warning" onclick="startDemo('hybrid')">
+                                        <i class="fas fa-play"></i> Demo Hybrid
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="resetDemo()">
+                                        <i class="fas fa-stop"></i> Reset
+                                    </button>
+                                </div>
+                                
+                                <div class="demo-description mb-3">
+                                    <p id="demo-description">Click a demo button to see how each version processes documents in parallel. Each colored box represents a document being processed.</p>
+                                </div>
+                                
+                                <div class="processing-grid" id="processing-grid">
+                                    <!-- This will be populated by JavaScript -->
+                                </div>
+                                
+                                <div class="demo-stats mt-3">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="stat-item">
+                                                <span class="stat-label">Processing Time:</span>
+                                                <span class="stat-value" id="demo-time">0ms</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="stat-item">
+                                                <span class="stat-label">Documents Processed:</span>
+                                                <span class="stat-value" id="demo-docs">0</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="stat-item">
+                                                <span class="stat-label">Active Workers:</span>
+                                                <span class="stat-value" id="demo-workers">0</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="stat-item">
+                                                <span class="stat-label">Efficiency:</span>
+                                                <span class="stat-value" id="demo-efficiency">0%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Architecture Section -->
+                    <div class="doc-section mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="fas fa-cogs"></i> Architecture Details</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="architecture-tabs">
+                                    <ul class="nav nav-pills mb-3" id="architecture-tabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active" id="serial-arch-tab" data-bs-toggle="pill" data-bs-target="#serial-arch" type="button" role="tab">Serial</button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="openmp-arch-tab" data-bs-toggle="pill" data-bs-target="#openmp-arch" type="button" role="tab">OpenMP</button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="mpi-arch-tab" data-bs-toggle="pill" data-bs-target="#mpi-arch" type="button" role="tab">MPI</button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="hybrid-arch-tab" data-bs-toggle="pill" data-bs-target="#hybrid-arch" type="button" role="tab">Hybrid</button>
+                                        </li>
+                                    </ul>
+                                    <div class="tab-content" id="architecture-content">
+                                        <div class="tab-pane fade show active" id="serial-arch" role="tabpanel">
+                                            <h5>Serial Architecture</h5>
+                                            <div class="arch-diagram serial-arch-diagram">
+                                                <div class="process-box">
+                                                    <i class="fas fa-microchip"></i>
+                                                    <p>Single Process</p>
+                                                    <div class="thread-box">
+                                                        <i class="fas fa-arrow-right"></i>
+                                                        <span>Main Thread</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p><strong>Parallel Components:</strong></p>
+                                            <ul>
+                                                <li>❌ No parallel indexing</li>
+                                                <li>❌ No parallel query processing</li>
+                                                <li>❌ No concurrent document processing</li>
+                                                <li>✅ Simple, sequential execution</li>
+                                            </ul>
+                                        </div>
+                                        <div class="tab-pane fade" id="openmp-arch" role="tabpanel">
+                                            <h5>OpenMP Architecture</h5>
+                                            <div class="arch-diagram openmp-arch-diagram">
+                                                <div class="process-box">
+                                                    <i class="fas fa-sitemap"></i>
+                                                    <p>Single Process</p>
+                                                    <div class="thread-container">
+                                                        <div class="thread-box">
+                                                            <i class="fas fa-arrow-right"></i>
+                                                            <span>Thread 1</span>
+                                                        </div>
+                                                        <div class="thread-box">
+                                                            <i class="fas fa-arrow-right"></i>
+                                                            <span>Thread 2</span>
+                                                        </div>
+                                                        <div class="thread-box">
+                                                            <i class="fas fa-arrow-right"></i>
+                                                            <span>Thread 3</span>
+                                                        </div>
+                                                        <div class="thread-box">
+                                                            <i class="fas fa-arrow-right"></i>
+                                                            <span>Thread 4</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p><strong>Parallel Components:</strong></p>
+                                            <ul>
+                                                <li>✅ Parallel document indexing with #pragma omp parallel for</li>
+                                                <li>✅ Parallel query processing across threads</li>
+                                                <li>✅ Shared memory for fast data access</li>
+                                                <li>✅ Thread-level load balancing</li>
+                                            </ul>
+                                        </div>
+                                        <div class="tab-pane fade" id="mpi-arch" role="tabpanel">
+                                            <h5>MPI Architecture</h5>
+                                            <div class="arch-diagram mpi-arch-diagram">
+                                                <div class="process-container">
+                                                    <div class="process-box">
+                                                        <i class="fas fa-server"></i>
+                                                        <p>Process 0 (Master)</p>
+                                                    </div>
+                                                    <div class="process-box">
+                                                        <i class="fas fa-server"></i>
+                                                        <p>Process 1 (Worker)</p>
+                                                    </div>
+                                                    <div class="process-box">
+                                                        <i class="fas fa-server"></i>
+                                                        <p>Process 2 (Worker)</p>
+                                                    </div>
+                                                    <div class="process-box">
+                                                        <i class="fas fa-server"></i>
+                                                        <p>Process 3 (Worker)</p>
+                                                    </div>
+                                                </div>
+                                                <div class="communication-lines">
+                                                    <i class="fas fa-exchange-alt"></i>
+                                                    <span>MPI Messages</span>
+                                                </div>
+                                            </div>
+                                            <p><strong>Parallel Components:</strong></p>
+                                            <ul>
+                                                <li>✅ Distributed document processing across nodes</li>
+                                                <li>✅ Master-worker pattern for task distribution</li>
+                                                <li>✅ Message passing for coordination</li>
+                                                <li>✅ Scalable to multiple machines</li>
+                                            </ul>
+                                        </div>
+                                        <div class="tab-pane fade" id="hybrid-arch" role="tabpanel">
+                                            <h5>Hybrid (MPI + OpenMP) Architecture</h5>
+                                            <div class="arch-diagram hybrid-arch-diagram">
+                                                <div class="process-container">
+                                                    <div class="process-box">
+                                                        <i class="fas fa-server"></i>
+                                                        <p>MPI Process 0</p>
+                                                        <div class="thread-container">
+                                                            <div class="thread-box mini">T1</div>
+                                                            <div class="thread-box mini">T2</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="process-box">
+                                                        <i class="fas fa-server"></i>
+                                                        <p>MPI Process 1</p>
+                                                        <div class="thread-container">
+                                                            <div class="thread-box mini">T1</div>
+                                                            <div class="thread-box mini">T2</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="communication-lines">
+                                                    <i class="fas fa-exchange-alt"></i>
+                                                    <span>MPI + Shared Memory</span>
+                                                </div>
+                                            </div>
+                                            <p><strong>Parallel Components:</strong></p>
+                                            <ul>
+                                                <li>✅ MPI processes for distributed computing</li>
+                                                <li>✅ OpenMP threads within each process</li>
+                                                <li>✅ Hierarchical parallelism</li>
+                                                <li>✅ Maximum resource utilization</li>
+                                                <li>✅ Best performance for large-scale systems</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Performance Analysis Section -->
+                    <div class="doc-section mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="fas fa-chart-line"></i> Performance Analysis</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h5>Speedup Analysis</h5>
+                                        <canvas id="speedupChart" width="400" height="300"></canvas>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h5>Efficiency Analysis</h5>
+                                        <canvas id="efficiencyChart" width="400" height="300"></canvas>
+                                    </div>
+                                </div>
+                                <div class="row mt-4">
+                                    <div class="col-md-12">
+                                        <h5>Key Performance Insights</h5>
+                                        <div class="insight-grid">
+                                            <div class="insight-item">
+                                                <h6>Serial Baseline</h6>
+                                                <p>Reference point for all comparisons. Single-threaded execution provides predictable but slower performance.</p>
+                                            </div>
+                                            <div class="insight-item">
+                                                <h6>OpenMP Benefits</h6>
+                                                <p>2-4x speedup on multi-core systems. Ideal for CPU-intensive tasks with shared data structures.</p>
+                                            </div>
+                                            <div class="insight-item">
+                                                <h6>MPI Scalability</h6>
+                                                <p>Linear scalability across multiple machines. Best for large datasets that don't fit in single machine memory.</p>
+                                            </div>
+                                            <div class="insight-item">
+                                                <h6>Hybrid Optimization</h6>
+                                                <p>Combines benefits of both approaches. Achieves highest performance on HPC clusters and multi-node systems.</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -819,8 +1677,6 @@ node4 slots=4</textarea>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="js/bootstrap-tab-fix.js"></script>
-    <script src="js/search-utils.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

@@ -1,259 +1,248 @@
-// Function to run comparison between search engine versions
-function runComparison(querySet, comparisonType) {
-    // Get the comparison container
-    const performanceTab = document.getElementById('performanceComparison');
-    const scalingTab = document.getElementById('scalingComparison');
-    const memoryTab = document.getElementById('memoryComparison');
-    const accuracyTab = document.getElementById('accuracyComparison');
+/**
+ * Comparison utilities for the parallel search engine dashboard
+ * This file contains functions to handle version comparison functionality
+ */
+
+// Function to run a comparison between different search engine versions
+function runComparison() {
+    const query = document.getElementById('compare-query').value;
     
-    // Show loading
-    const loadingHTML = `
-        <div class="text-center my-5">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading...</span>
-            </div>
-            <p class="mt-3">Running comparison... This may take a few minutes.</p>
-        </div>
-    `;
+    if (!query) {
+        alert('Please enter a search query for comparison');
+        return;
+    }
     
-    performanceTab.innerHTML = loadingHTML;
-    scalingTab.innerHTML = loadingHTML;
-    memoryTab.innerHTML = loadingHTML;
-    accuracyTab.innerHTML = loadingHTML;
+    // Get selected versions
+    const versions = [];
+    if (document.getElementById('compare-serial').checked) versions.push('serial');
+    if (document.getElementById('compare-openmp').checked) versions.push('openmp');
+    if (document.getElementById('compare-mpi').checked) versions.push('mpi');
+    if (document.getElementById('compare-hybrid').checked) versions.push('hybrid');
     
-    // Make API call to the compare endpoint
+    if (versions.length === 0) {
+        alert('Please select at least one version to compare');
+        return;
+    }
+    
+    // Get configuration options
+    const threads = document.getElementById('compare-threads').value;
+    const processes = document.getElementById('compare-processes').value;
+    const datasetType = document.getElementById('compare-dataset').value;
+    
+    // Prepare options
+    const options = {
+        threads: parseInt(threads),
+        processes: parseInt(processes),
+        limit: 10  // Fixed limit for comparisons
+    };
+    
+    // Add website crawling option for comparison
+    const useWebsite = document.getElementById('compare-use-website');
+    if (useWebsite && useWebsite.checked) {
+        const websiteUrl = document.getElementById('compare-website-url').value || "https://medium.com/@lpramithamj";
+        options.crawlUrl = websiteUrl;
+        options.crawlDepth = parseInt(document.getElementById('compare-website-depth').value || "2");
+        options.crawlMaxPages = parseInt(document.getElementById('compare-website-max-pages').value || "10");
+        options.dataSource = 'crawl';
+    } else {
+        // Add dataset options
+        if (datasetType === 'custom') {
+            const customDataset = prompt('Enter the path to your custom dataset:');
+            if (customDataset) {
+                options.dataSource = 'custom';
+                options.dataPath = customDataset;
+            } else {
+                options.dataSource = 'dataset'; // Fall back to default
+            }
+        } else {
+            options.dataSource = 'dataset';
+        }
+    }
+    
+    // Show loading state
+    document.getElementById('run-comparison').innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Running Comparison...';
+    document.getElementById('run-comparison').disabled = true;
+    
+    // API call to compare
     fetch('/api/compare', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-            querySet: querySet,
-            comparisonType: comparisonType
+            query: query,
+            versions: versions,
+            options: options
         })
     })
-    .then(response => {
-        if (!response.ok) {
-            throw new Error('Network response was not ok ' + response.statusText);
-        }
-        return response.json();
-    })
+    .then(response => response.json())
     .then(data => {
-        // Update the comparison tabs with the real data
-        updateComparisonCharts(data, querySet, comparisonType);
+        // Reset button state
+        document.getElementById('run-comparison').innerHTML = 'Run Comparison';
+        document.getElementById('run-comparison').disabled = false;
         
-        // Create and display detailed results in tables
-        displayComparisonTables(data, querySet, comparisonType);
+        // Check for errors
+        if (data.status === 'error') {
+            alert(data.error || 'An error occurred during comparison.');
+            return;
+        }
+        
+        // Show comparison results
+        document.getElementById('comparison-results').style.display = 'block';
+        
+        // Update comparison charts
+        updateComparisonCharts(data.results);
+        
+        // Update comparison table
+        updateComparisonTable(data.results);
     })
     .catch(error => {
-        console.error('Error running comparison:', error);
-        const errorHTML = `
-            <div class="alert alert-danger my-4" role="alert">
-                <h4 class="alert-heading">Comparison Failed</h4>
-                <p>There was an error running the comparison: ${error.message}</p>
-                <hr>
-                <p class="mb-0">Please check that all search engine versions are properly built and available.</p>
-            </div>
-        `;
+        // Reset button state
+        document.getElementById('run-comparison').innerHTML = 'Run Comparison';
+        document.getElementById('run-comparison').disabled = false;
         
-        // Show error in all tabs
-        performanceTab.innerHTML = errorHTML;
-        scalingTab.innerHTML = errorHTML;
-        memoryTab.innerHTML = errorHTML;
-        accuracyTab.innerHTML = errorHTML;
+        // Show error
+        alert('Error connecting to the API: ' + error.message);
+        console.error('Error:', error);
     });
 }
 
-// Function to update the comparison charts with real data
-function updateComparisonCharts(data, querySet, comparisonType) {
-    // Get chart references
-    const perfCompChart = Chart.getChart('performanceComparisonChart');
-    const scalingChart = Chart.getChart('scalingComparisonChart');
-    const memoryCompChart = Chart.getChart('memoryComparisonChart');
+// Function to update comparison charts
+function updateComparisonCharts(results) {
+    // Extract data for charts
+    const labels = [];
+    const queryTimes = [];
+    const memoryUsages = [];
+    const indexingTimes = [];
     
-    // Extract metrics from the data
-    const serialMetrics = data.serial?.results?.map(r => r.metrics) || [];
-    const openmpMetrics = data.openmp?.results?.map(r => r.metrics) || [];
-    const mpiMetrics = data.mpi?.results?.map(r => r.metrics) || [];
+    // Process results in consistent order
+    const versionOrder = ['serial', 'openmp', 'mpi', 'hybrid'];
     
-    // Calculate averages
-    const calculateAvg = (metrics, key) => {
-        return metrics.reduce((sum, m) => sum + (m[key] || 0), 0) / (metrics.length || 1);
-    };
+    versionOrder.forEach(version => {
+        if (results[version]) {
+            labels.push(version.charAt(0).toUpperCase() + version.slice(1));
+            queryTimes.push(results[version].metrics?.query_time_ms || 0);
+            memoryUsages.push(results[version].metrics?.memory_usage_mb || 0);
+            indexingTimes.push(results[version].metrics?.indexing_time_ms || 0);
+        }
+    });
     
-    // Performance chart data
-    if (perfCompChart) {
-        perfCompChart.data.datasets[0].data = [
-            calculateAvg(serialMetrics, 'indexing_time_ms'),
-            calculateAvg(serialMetrics, 'query_time_ms'),
-            data.serial?.avg_time || 0
-        ];
-        
-        perfCompChart.data.datasets[1].data = [
-            calculateAvg(openmpMetrics, 'indexing_time_ms'),
-            calculateAvg(openmpMetrics, 'query_time_ms'),
-            data.openmp?.avg_time || 0
-        ];
-        
-        perfCompChart.data.datasets[2].data = [
-            calculateAvg(mpiMetrics, 'indexing_time_ms'),
-            calculateAvg(mpiMetrics, 'query_time_ms'),
-            data.mpi?.avg_time || 0
-        ];
-        
-        perfCompChart.update();
+    // Update Query Time chart
+    const queryTimeChart = Chart.getChart('compareQueryTimeChart');
+    if (queryTimeChart) {
+        queryTimeChart.data.labels = labels;
+        queryTimeChart.data.datasets[0].data = queryTimes;
+        queryTimeChart.update();
     }
     
-    // Scaling chart data - Use actual speedups from the API response
-    if (scalingChart && data.openmp?.speedup && data.mpi?.speedup) {
-        // Update with real speedup data if available
-        scalingChart.data.datasets[0].data[1] = data.openmp.speedup;
-        scalingChart.data.datasets[1].data[1] = data.mpi.speedup;
-        scalingChart.update();
+    // Update Memory chart
+    const memoryChart = Chart.getChart('compareMemoryChart');
+    if (memoryChart) {
+        memoryChart.data.labels = labels;
+        memoryChart.data.datasets[0].data = memoryUsages;
+        memoryChart.update();
     }
     
-    // Memory chart data
-    if (memoryCompChart) {
-        memoryCompChart.data.datasets[0].data = [
-            calculateAvg(serialMetrics, 'memory_usage_mb'),
-            calculateAvg(openmpMetrics, 'memory_usage_mb'),
-            calculateAvg(mpiMetrics, 'memory_usage_mb')
-        ];
-        memoryCompChart.update();
+    // Update Indexing chart
+    const indexingChart = Chart.getChart('compareIndexingChart');
+    if (indexingChart) {
+        indexingChart.data.labels = labels;
+        indexingChart.data.datasets[0].data = indexingTimes;
+        indexingChart.update();
     }
 }
 
-// Function to display detailed comparison tables
-function displayComparisonTables(data, querySet, comparisonType) {
-    // Get containers for tables
-    const performanceTab = document.getElementById('performanceComparison');
+// Function to update comparison table
+function updateComparisonTable(results) {
+    const table = document.getElementById('comparison-table');
+    if (!table) return;
     
-    // Generate HTML for the performance table
-    let tableHTML = `
-        <div class="table-responsive mt-4">
-            <h5>Comparison Results - ${querySet.charAt(0).toUpperCase() + querySet.slice(1)} Queries</h5>
-            <table class="table table-striped">
-                <thead>
-                    <tr>
-                        <th>Query</th>
-                        <th>Serial Time (ms)</th>
-                        <th>OpenMP Time (ms)</th>
-                        <th>MPI Time (ms)</th>
-                        <th>OpenMP Speedup</th>
-                        <th>MPI Speedup</th>
-                    </tr>
-                </thead>
-                <tbody>
-    `;
+    // Clear existing rows
+    table.innerHTML = '';
     
-    // Add rows for each query if available
-    const serialResults = data.serial?.results || [];
-    const openmpResults = data.openmp?.results || [];
-    const mpiResults = data.mpi?.results || [];
+    // Process results in consistent order
+    const versionOrder = ['serial', 'openmp', 'mpi', 'hybrid'];
     
-    // Combine results - assume they're in the same order
-    const maxLen = Math.max(serialResults.length, openmpResults.length, mpiResults.length);
-    
-    for (let i = 0; i < maxLen; i++) {
-        const serial = serialResults[i] || { query: 'N/A', time_ms: 0 };
-        const openmp = openmpResults[i] || { time_ms: 0 };
-        const mpi = mpiResults[i] || { time_ms: 0 };
-        
-        // Calculate speedups for this query
-        const openmpSpeedup = serial.time_ms > 0 ? (serial.time_ms / openmp.time_ms).toFixed(2) : 'N/A';
-        const mpiSpeedup = serial.time_ms > 0 ? (serial.time_ms / mpi.time_ms).toFixed(2) : 'N/A';
-        
-        tableHTML += `
-            <tr>
-                <td>${serial.query || 'Unknown'}</td>
-                <td>${serial.time_ms.toFixed(2)}</td>
-                <td>${openmp.time_ms.toFixed(2)}</td>
-                <td>${mpi.time_ms.toFixed(2)}</td>
-                <td>${openmpSpeedup}x</td>
-                <td>${mpiSpeedup}x</td>
-            </tr>
-        `;
-    }
-    
-    // Add summary row
-    tableHTML += `
-                <tr class="table-primary">
-                    <th>Average</th>
-                    <td>${data.serial?.avg_time?.toFixed(2) || 'N/A'}</td>
-                    <td>${data.openmp?.avg_time?.toFixed(2) || 'N/A'}</td>
-                    <td>${data.mpi?.avg_time?.toFixed(2) || 'N/A'}</td>
-                    <td>${data.openmp?.speedup?.toFixed(2) || 'N/A'}x</td>
-                    <td>${data.mpi?.speedup?.toFixed(2) || 'N/A'}x</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-    `;
-    
-    // Add the chart
-    tableHTML += '<div class="chart-container mt-4" style="position: relative; height:400px;"><canvas id="detailedComparisonChart"></canvas></div>';
-    
-    // Set the content
-    performanceTab.innerHTML = tableHTML;
-    
-    // Create a new chart for the detailed comparison
-    const ctx = document.getElementById('detailedComparisonChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: serialResults.map(r => r.query || 'Unknown'),
-            datasets: [
-                {
-                    label: 'Serial Version',
-                    data: serialResults.map(r => r.time_ms),
-                    backgroundColor: 'rgba(54, 185, 204, 0.7)',
-                    borderColor: '#36b9cc',
-                    borderWidth: 1
-                },
-                {
-                    label: 'OpenMP Version',
-                    data: openmpResults.map(r => r.time_ms),
-                    backgroundColor: 'rgba(28, 200, 138, 0.7)',
-                    borderColor: '#1cc88a',
-                    borderWidth: 1
-                },
-                {
-                    label: 'MPI Version',
-                    data: mpiResults.map(r => r.time_ms),
-                    backgroundColor: 'rgba(246, 194, 62, 0.7)',
-                    borderColor: '#f6c23e',
-                    borderWidth: 1
+    versionOrder.forEach(version => {
+        if (results[version]) {
+            const result = results[version];
+            const row = document.createElement('tr');
+            
+            // Version name
+            const versionCell = document.createElement('td');
+            versionCell.textContent = version.charAt(0).toUpperCase() + version.slice(1);
+            row.appendChild(versionCell);
+            
+            // Query time
+            const queryTimeCell = document.createElement('td');
+            queryTimeCell.textContent = (result.metrics?.query_time_ms || 0).toFixed(1) + ' ms';
+            row.appendChild(queryTimeCell);
+            
+            // Indexing time
+            const indexingTimeCell = document.createElement('td');
+            indexingTimeCell.textContent = (result.metrics?.indexing_time_ms || 0).toFixed(1) + ' ms';
+            row.appendChild(indexingTimeCell);
+            
+            // Memory usage
+            const memoryUsageCell = document.createElement('td');
+            memoryUsageCell.textContent = (result.metrics?.memory_usage_mb || 0).toFixed(1) + ' MB';
+            row.appendChild(memoryUsageCell);
+            
+            // Result count
+            const resultCountCell = document.createElement('td');
+            resultCountCell.textContent = result.result_count || 0;
+            row.appendChild(resultCountCell);
+            
+            // Top result
+            const topResultCell = document.createElement('td');
+            if (result.results && result.results.length > 0) {
+                const maxDisplayLength = 50;
+                let title = result.results[0].title;
+                if (title.length > maxDisplayLength) {
+                    title = title.substring(0, maxDisplayLength) + '...';
                 }
-            ]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: {
-                legend: {
-                    position: 'top',
-                },
-                title: {
-                    display: true,
-                    text: 'Query Processing Time by Version (ms)'
-                }
-            },
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Time (ms)'
-                    },
-                    type: 'logarithmic'
-                },
-                x: {
-                    title: {
-                        display: true,
-                        text: 'Query'
-                    }
-                }
+                topResultCell.textContent = title;
+                topResultCell.setAttribute('title', result.results[0].title); // Full title on hover
+            } else {
+                topResultCell.textContent = 'No results';
             }
+            row.appendChild(topResultCell);
+            
+            table.appendChild(row);
         }
     });
 }
+
+// Function to calculate speedup ratio
+function calculateSpeedup(serialTime, parallelTime) {
+    if (!serialTime || !parallelTime) return 1;
+    return serialTime / parallelTime;
+}
+
+// Function to calculate efficiency
+function calculateEfficiency(speedup, numProcessors) {
+    if (!speedup || !numProcessors) return 0;
+    return (speedup / numProcessors) * 100;
+}
+
+// Function to calculate overhead
+function calculateOverhead(serialTime, parallelTime, numProcessors) {
+    if (!serialTime || !parallelTime || !numProcessors) return 0;
+    return (numProcessors * parallelTime - serialTime) / serialTime;
+}
+
+// Setup website crawling toggle for comparison
+document.addEventListener('DOMContentLoaded', function() {
+    const websiteToggle = document.getElementById('compare-use-website');
+    const websiteOptions = document.getElementById('website-crawl-options');
+    
+    if (websiteToggle && websiteOptions) {
+        websiteToggle.addEventListener('change', function() {
+            if (this.checked) {
+                websiteOptions.style.display = 'block';
+            } else {
+                websiteOptions.style.display = 'none';
+            }
+        });
+    }
+});

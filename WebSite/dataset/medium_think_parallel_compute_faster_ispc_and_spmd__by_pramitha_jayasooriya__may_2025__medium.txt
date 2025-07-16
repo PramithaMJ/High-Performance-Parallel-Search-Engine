@@ -1,0 +1,247 @@
+Source URL: https://medium.com/@lpramithamj/think-parallel-compute-faster-a-deep-dive-into-ispc-and-spmd-bd4be83190c2
+
+
+
+# Think Parallel, Compute Faster: ISPC and SPMD
+
+Pramitha Jayasooriya5 min read·May 21, 2025--ListenShare
+
+# Understanding ISPC and SPMD Programming
+
+
+
+# Introduction to ISPC
+
+ISPC (Intel SPMD Program Compiler) is a compiler that enables high-performance parallel programming using the Single Program Multiple Data (SPMD) model. It is designed to take advantage of modern SIMD (Single Instruction Multiple Data) hardware, allowing developers to write parallel programs that efficiently utilize vectorized CPU instructions.A great resource for learning about ISPC is Matt Pharr’s blog post: The Story of ISPC.
+
+# Key Features of ISPC:
+
+
+
+Uses SPMD programming for efficient parallel execution.
+
+Enables better utilization of CPU vector units.
+
+Provides a C-like syntax, making it easy for C/C++ programmers to adopt.
+
+Works well for tasks like graphics, physics simulations, and high-performance computing.
+
+# Taylor Series Approximation for sin(x)
+
+One of the fundamental applications of ISPC is performing mathematical computations in parallel. Let’s consider the computation of the sine function using the Taylor Series Expansion:Taylor Series for Sin(x)
+
+# C++ Implementation of sin(x)
+
+A naive implementation in C++ for computing sin(x) using the Taylor series for an array of numbers is as follows:void sinx(int N, int terms, float* x, float* result) {
+
+ for (int i = 0; i < N; i++) {
+
+ float value = x[i];
+
+ float numer = x[i] * x[i] * x[i];
+
+ int denom = 6; // 3!
+
+ int sign = -1;
+
+ 
+
+ for (int j = 1; j <= terms; j++) {
+
+ value += sign * numer / denom;
+
+ numer *= x[i] * x[i];
+
+ denom *= (2*j+2) * (2*j+3);
+
+ sign *= -1;
+
+ }
+
+ result[i] = value;
+
+ }
+
+}
+
+# Explanation:
+
+
+
+Loops over an array of N elements.
+
+Uses a nested loop to calculate the Taylor series approximation.
+
+Computes sine values sequentially, one element at a time.
+
+# Invoking sinx() in C++
+
+#include "sinx.h"
+
+int main() {
+
+ int N = 1024;
+
+ int terms = 5;
+
+ float* x = new float[N];
+
+ float* result = new float[N];
+
+ 
+
+ // Initialize x with some values
+
+ sinx(N, terms, x, result);
+
+ 
+
+ delete[] x;
+
+ delete[] result;
+
+ return 0;
+
+}This works, but it’s not optimized for parallel execution. We can improve this using ISPC.
+
+# ISPC Implementation of sin(x)
+
+Using ISPC, we can parallelize the sine computation by leveraging the SPMD programming model.export void ispc_sinx(
+
+ uniform int N,
+
+ uniform int terms,
+
+ uniform float* x,
+
+ uniform float* result) {
+
+ 
+
+ for (uniform int i = 0; i < N; i += programCount) {
+
+ int idx = i + programIndex;
+
+ float value = x[idx];
+
+ float numer = x[idx] * x[idx] * x[idx];
+
+ uniform int denom = 6; // 3!
+
+ uniform int sign = -1;
+
+ 
+
+ for (uniform int j = 1; j <= terms; j++) {
+
+ value += sign * numer / denom;
+
+ numer *= x[idx] * x[idx];
+
+ denom *= (2*j+2) * (2*j+3);
+
+ sign *= -1;
+
+ }
+
+ result[idx] = value;
+
+ }
+
+}
+
+# Key ISPC Features Used:
+
+
+
+programCount: Represents the number of parallel program instances.
+
+programIndex: Represents the unique index of each instance in the gang.
+
+uniform: Indicates that all instances share the same value for a variable (optimization for efficiency).
+
+# Explanation:
+
+
+
+The loop runs with interleaved execution, where multiple instances of the function execute concurrently.
+
+Instead of sequential execution, ISPC assigns different parts of the array to different program instances.
+
+Each instance computes sin(x) in parallel, utilizing SIMD instructions for higher efficiency.
+
+# Invoking ispc_sinx() in C++
+
+To call the ISPC function from C++, we use:#include "sinx_ispc.h"
+
+int main() {
+
+ int N = 1024;
+
+ int terms = 5;
+
+ float* x = new float[N];
+
+ float* result = new float[N];
+
+ 
+
+ // Initialize x with some values
+
+ ispc_sinx(N, terms, x, result);
+
+ 
+
+ delete[] x;
+
+ delete[] result;
+
+ return 0;
+
+}This spawns multiple ISPC program instances, running the function in parallel and improving performance significantly compared to the standard C++ implementation.
+
+# Understanding SPMD Execution in ISPC
+
+
+
+# How SPMD Works in ISPC:
+
+
+
+A gang of ISPC program instances is created.
+
+Each instance runs the same program but operates on different elements of the input array.
+
+Execution is interleaved, meaning different instances work on separate elements in parallel.
+
+Each instance has its own local variables but shares uniform values where necessary.
+
+# Example: Interleaved Execution
+
+If programCount = 8, the array elements are assigned as follows:This maximizes CPU vectorization and speeds up execution dramatically compared to a sequential approach.
+
+# Conclusion
+
+ISPC enables efficient parallel programming using the SPMD model, allowing developers to optimize computations for SIMD architectures. By replacing sequential loops with parallel ISPC implementations, we can achieve significant performance improvements in applications like scientific computing, graphics, and simulations.If you’re interested in learning more, check out The Story of ISPC and try ISPC in your own projects!ReferenceStanford CS149 Parallel Computingcodes: https://github.com/PramithaMJ/ispc-sinx-optimizer.git~ By Pramitha Jayasooriya
+
+# Contact Details
+
+For further information or to discuss potential opportunities, please feel free to connect with me on my professional and social platforms:
+
+LinkedIn: Pramitha-Jayasooriya
+
+Stackoverflow: https://stackoverflow.com/users/21953303/pramitha-jayasooriya
+
+GitHub: PramithaMJ
+
+Personal Website: PramithaMJ.live
+
+Email : lpramithamj@gmail.comLooking forward to connecting with you!Parallel ComputingIspcSpmd----
+
+## Written by Pramitha Jayasooriya
+
+36 followers·47 followingAspiring Computer Engineer with a specialized focus on backend technologies. BSc. Eng . (Hons.) Degree in Computer Engineering (UG).
+
+## No responses yet
+
+HelpStatusAboutCareersPressBlogPrivacyRulesTermsText to speech 

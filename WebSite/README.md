@@ -1,10 +1,10 @@
 # High-Performance Parallel Search Engine Dashboard
 
-This dashboard provides a modern web-based interface to demonstrate, compare, and control the three versions of the search engine (Serial, OpenMP, and MPI).
+This dashboard provides a modern web-based interface to demonstrate, compare, and control the three versions of the search engine (Serial, OpenMP, MPI, and Hybrid).
 
 ## Features
 
-- **Interactive Dashboard**: Visualize performance comparisons between all three search engine versions
+- **Interactive Dashboard**: Visualize performance comparisons between all search engine versions
 - **Live Search**: Execute searches in real-time and compare results
 - **Build Integration**: Build any version directly from the dashboard
 - **Performance Metrics**: Track and visualize detailed performance metrics
@@ -16,15 +16,16 @@ This dashboard provides a modern web-based interface to demonstrate, compare, an
 - Python 3.6 or higher
 - Flask and Flask-CORS packages
 - Modern web browser (Chrome, Firefox, Safari, or Edge)
-- Compiled binaries for all three search engine versions
+- Compiled binaries for all search engine versions
 
 ## Getting Started
 
-1. Make sure all three versions of the search engine are built:
+1. Make sure all versions of the search engine are built:
    ```
    cd "../Serial Version" && make
    cd "../OpenMP Version" && make
    cd "../MPI Version" && make
+   cd "../Hybrid Version" && make
    ```
 
 2. Install Python requirements:
@@ -38,7 +39,7 @@ This dashboard provides a modern web-based interface to demonstrate, compare, an
    ./start_dashboard.sh
    ```
 
-4. Open your browser and navigate to `http://localhost:5001` if not automatically opened
+4. Open your browser and navigate to `http://localhost:5000` (or your specified port) if not automatically opened
 
 ## Dashboard Sections
 
@@ -99,13 +100,33 @@ The dashboard consists of:
 2. **Backend**: Python Flask API that interfaces with the search engine executables
 3. **Bridge**: API layer that translates web requests into command-line operations
 
-## Troubleshooting
+## Documentation
 
-- If the search engine binaries are not found, you'll be prompted to build them
-- Check the console logs for any API errors
-- Ensure all required Python packages are installed
-- For MPI execution issues, verify your MPI installation (OpenMPI or MPICH)
+Comprehensive documentation is available in the `docs` directory:
 
-## License
+- [User Guide](docs/user_guide.md): Instructions for using the dashboard interface
+- [API Documentation](docs/api.md): Details on the REST API endpoints
+- [WebSocket API](docs/websocket_api.md): Real-time communication interface
 
-This dashboard is released under the same license as the search engine project.
+## JavaScript Utilities
+
+The dashboard includes several JavaScript modules that power the interface:
+
+- `main.js`: Core application logic and initialization
+- `search-utils.js`: Search functionality and result processing
+- `performance-utils.js`: Performance metric tracking and visualization
+- `comparison-utils.js`: Version comparison and analysis tools
+- `tab-utils.js`: Tab navigation and content management
+- `error-monitor.js`: Error tracking and reporting
+- `tab-navigator.js`: Advanced tab navigation features
+- `tab-debug.js`: Debugging utilities for development
+
+## Configuration
+
+The dashboard can be configured by editing the `config.ini` file, which includes:
+
+- Server settings (port, host, debug mode)
+- Paths to search engine executables
+- Default search parameters
+- UI preferences
+- Performance monitoring settings
