@@ -230,3 +230,19 @@ function calculateOverhead(serialTime, parallelTime, numProcessors) {
     if (!serialTime || !parallelTime || !numProcessors) return 0;
     return (numProcessors * parallelTime - serialTime) / serialTime;
 }
+
+// Setup website crawling toggle for comparison
+document.addEventListener('DOMContentLoaded', function() {
+    const websiteToggle = document.getElementById('compare-use-website');
+    const websiteOptions = document.getElementById('website-crawl-options');
+    
+    if (websiteToggle && websiteOptions) {
+        websiteToggle.addEventListener('change', function() {
+            if (this.checked) {
+                websiteOptions.style.display = 'block';
+            } else {
+                websiteOptions.style.display = 'none';
+            }
+        });
+    }
+});

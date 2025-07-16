@@ -1,0 +1,189 @@
+Source URL: https://medium.com/@lpramithamj/trace-the-path-distributed-tracing-with-zipkin-in-microservices-1-5096aaade124
+
+
+
+# Trace the Path: Distributed Tracing with Zipkin in Microservices-1
+
+Pramitha Jayasooriya3 min read·May 31, 2024--ListenShareMicroservices architectures, with their numerous interacting services, can be complex to manage and debug. Distributed tracing is a technique used to monitor and troubleshoot microservices applications by providing end-to-end visibility into service calls. This article will guide you through setting up distributed tracing using Zipkin, a popular open-source tracing system.
+
+# What is Distributed Tracing?
+
+Distributed tracing tracks requests as they flow through the various services in a microservice architecture. It helps in:
+
+Identifying performance bottlenecks
+
+Diagnosing issues
+
+Monitoring latency
+
+Visualizing service dependencies
+
+# Introducing Zipkin
+
+Zipkin is an open-source distributed tracing system. It helps gather timing data needed to troubleshoot latency problems in service architectures. It provides powerful visualizations to trace and debug microservice interactions.
+
+# Setting Up Distributed Tracing
+
+
+
+## Step 1: Set Up Zipkin
+
+Zipkin can be deployed in various ways, including Docker, Kubernetes, or as a standalone jar. For simplicity, we’ll use Docker.
+
+Install Docker: Ensure Docker is installed on your system. (zipkin.io)
+
+Run Zipkin:docker run -d -p 9411:9411 openzipkin/zipkinZipkin will now be available at http://localhost:9411
+
+## Step 2: Instrument Your Microservices
+
+We’ll use a simple example with two microservices: Service A and Service B.Example: Service A and Service B
+
+Service A calls Service B and returns a combined response.
+
+Service B performs a simple task and returns a result.We’ll use Spring Boot for this example and OpenTracing with the Brave tracer (used by Zipkin).Service A@SpringBootApplication
+
+@RestController
+
+public class ServiceAApplication {
+
+
+
+ @Autowired
+
+ private RestTemplate restTemplate;
+
+
+
+ @Autowired
+
+ private Tracer tracer;
+
+
+
+ public static void main(String[] args) {
+
+ SpringApplication.run(ServiceAApplication.class, args);
+
+ }
+
+
+
+ @Bean
+
+ public RestTemplate restTemplate() {
+
+ return new RestTemplate();
+
+ }
+
+
+
+ @GetMapping("/serviceA")
+
+ public String serviceA() {
+
+ Span span = tracer.nextSpan().name("calling-serviceB").start();
+
+ try (Tracer.SpanInScope ws = tracer.withSpanInScope(span)) {
+
+ String response = restTemplate.getForObject("http://localhost:8081/serviceB", String.class);
+
+ return "Response from Service B: " + response;
+
+ } finally {
+
+ span.finish();
+
+ }
+
+ }
+
+}Service B@SpringBootApplication
+
+@RestController
+
+public class ServiceBApplication {
+
+
+
+ public static void main(String[] args) {
+
+ SpringApplication.run(ServiceBApplication.class, args);
+
+ }
+
+
+
+ @GetMapping("/serviceB")
+
+ public String serviceB() {
+
+ return "Hello from Service B";
+
+ }
+
+}In both Service A and Service B, add the following dependencies to pom.xml:<dependency>
+
+ <groupId>io.zipkin.brave</groupId>
+
+ <artifactId>brave-instrumentation-http</artifactId>
+
+ <version>5.13.2</version>
+
+</dependency>
+
+<dependency>
+
+ <groupId>io.zipkin.reporter2</groupId>
+
+ <artifactId>zipkin-reporter-brave</artifactId>
+
+ <version>2.16.3</version>
+
+</dependency>
+
+<dependency>
+
+ <groupId>org.springframework.cloud</groupId>
+
+ <artifactId>spring-cloud-starter-zipkin</artifactId>
+
+ <version>2.2.7.RELEASE</version>
+
+</dependency>Configuring TracingIn application.properties for both services:spring.zipkin.baseUrl=http://localhost:9411
+
+spring.sleuth.sampler.probability=1.0
+
+## Step 3: Run and Test the Services
+
+
+
+Start Service B:mvn spring-boot:run2. Start Service A:mvn spring-boot:run3. Call Service A:curl http://localhost:8080/serviceA
+
+## Step 4: View Traces in Zipkin
+
+Navigate to http://localhost:9411 and you should see the traces for the requests made to Service A and Service B.
+
+# Conclusion
+
+With Zipkin and distributed tracing, you can effectively monitor, trace, and debug your microservices architecture. This setup allows you to gain insights into service dependencies and performance bottlenecks, facilitating quicker diagnosis and resolution of issues.By following this guide, you have set up a basic distributed tracing system using Zipkin, instrumented your microservices, and visualized the traces. This powerful tool will significantly enhance your ability to manage and optimize a microservices environment.~ By Pramitha Jayasooriya
+
+# Contact Details
+
+For further information or to discuss potential opportunities, please feel free to connect with me on my professional and social platforms:
+
+LinkedIn: https://www.linkedin.com/in/pramitha-jayasooriya/
+
+GitHub: https://github.com/PramithaMJ
+
+Personal Website: https://pramithamj.me
+
+Email: lpramithamj@gmail.comLooking forward to connecting with you!If you like what I do, may be consider buy me a coffeeDistribute TracerZipkinMicroservicesSpring BootJava----
+
+## Written by Pramitha Jayasooriya
+
+36 followers·47 followingAspiring Computer Engineer with a specialized focus on backend technologies. BSc. Eng . (Hons.) Degree in Computer Engineering (UG).
+
+## No responses yet
+
+HelpStatusAboutCareersPressBlogPrivacyRulesTermsText to speech 

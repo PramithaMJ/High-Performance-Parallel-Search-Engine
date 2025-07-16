@@ -15,6 +15,7 @@
     <script src="js/tab-navigator.js"></script>
     <script src="js/error-monitor.js"></script>
     <script src="js/bootstrap-tab-fix.js"></script>
+    <script src="js/documentation-utils.js"></script>
 </head>
 <body>
     <div class="wrapper">
@@ -41,6 +42,9 @@
                 </li>
                 <li>
                     <a href="#settings" data-bs-toggle="tab"><i class="fas fa-wrench"></i> Settings</a>
+                </li>
+                <li>
+                    <a href="#documentation" data-bs-toggle="tab"><i class="fas fa-book"></i> Documentation</a>
                 </li>
             </ul>
             <ul class="list-unstyled components version-info">
@@ -969,6 +973,384 @@
                                         </div>
                                         <button type="button" class="btn btn-primary" id="save-mpi-settings">Save MPI Settings</button>
                                     </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Documentation Tab -->
+                <div class="tab-pane" id="documentation">
+                    <h2><i class="fas fa-book"></i> Parallel Processing Documentation</h2>
+                    
+                    <!-- Overview Section -->
+                    <div class="doc-section mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="fas fa-info-circle"></i> What is Parallel Processing?</h4>
+                            </div>
+                            <div class="card-body">
+                                <p class="lead">Parallel processing is a method of computation where multiple tasks are executed simultaneously, breaking down large problems into smaller, manageable parts that can be processed concurrently.</p>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h5>Why Use Parallel Processing?</h5>
+                                        <ul>
+                                            <li><strong>Speed:</strong> Faster execution by utilizing multiple processors</li>
+                                            <li><strong>Efficiency:</strong> Better resource utilization</li>
+                                            <li><strong>Scalability:</strong> Handle larger datasets and complex problems</li>
+                                            <li><strong>Performance:</strong> Improved response times for search operations</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h5>Applications in Search Engines</h5>
+                                        <ul>
+                                            <li>Concurrent indexing of multiple documents</li>
+                                            <li>Parallel query processing</li>
+                                            <li>Distributed search across multiple nodes</li>
+                                            <li>Real-time result ranking and filtering</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Version Comparison Section -->
+                    <div class="doc-section mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="fas fa-balance-scale"></i> Parallelization Approaches Comparison</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="version-comparison-grid">
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <div class="version-card serial-version">
+                                                <h5><i class="fas fa-microchip serial-color"></i> Serial Version</h5>
+                                                <p><strong>Type:</strong> Sequential Processing</p>
+                                                <p><strong>Parallel Parts:</strong> None - Single-threaded execution</p>
+                                                <ul class="feature-list">
+                                                    <li>Single thread processes documents one by one</li>
+                                                    <li>Sequential indexing and searching</li>
+                                                    <li>Baseline for performance comparison</li>
+                                                    <li>Simple but slower for large datasets</li>
+                                                </ul>
+                                                <div class="performance-indicator">
+                                                    <span class="performance-bar serial-bar" style="width: 25%;">25% Performance</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="version-card openmp-version">
+                                                <h5><i class="fas fa-sitemap openmp-color"></i> OpenMP Version</h5>
+                                                <p><strong>Type:</strong> Shared Memory Parallel</p>
+                                                <p><strong>Parallel Parts:</strong> Multi-threaded on single machine</p>
+                                                <ul class="feature-list">
+                                                    <li>Parallel document processing with threads</li>
+                                                    <li>Shared memory for data access</li>
+                                                    <li>Thread-level parallelism</li>
+                                                    <li>Good for CPU-intensive tasks</li>
+                                                </ul>
+                                                <div class="performance-indicator">
+                                                    <span class="performance-bar openmp-bar" style="width: 60%;">60% Performance</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="version-card mpi-version">
+                                                <h5><i class="fas fa-network-wired mpi-color"></i> MPI Version</h5>
+                                                <p><strong>Type:</strong> Distributed Memory Parallel</p>
+                                                <p><strong>Parallel Parts:</strong> Multi-process across machines</p>
+                                                <ul class="feature-list">
+                                                    <li>Distributed processing across nodes</li>
+                                                    <li>Message passing for communication</li>
+                                                    <li>Process-level parallelism</li>
+                                                    <li>Scalable to multiple machines</li>
+                                                </ul>
+                                                <div class="performance-indicator">
+                                                    <span class="performance-bar mpi-bar" style="width: 75%;">75% Performance</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="version-card hybrid-version">
+                                                <h5><i class="fas fa-project-diagram hybrid-color"></i> Hybrid Version</h5>
+                                                <p><strong>Type:</strong> Combined Shared + Distributed Memory</p>
+                                                <p><strong>Parallel Parts:</strong> Both threads and processes</p>
+                                                <ul class="feature-list">
+                                                    <li>MPI processes + OpenMP threads</li>
+                                                    <li>Best of both worlds</li>
+                                                    <li>Hierarchical parallelism</li>
+                                                    <li>Maximum performance and scalability</li>
+                                                </ul>
+                                                <div class="performance-indicator">
+                                                    <span class="performance-bar hybrid-bar" style="width: 90%;">90% Performance</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Visual Demonstration Section -->
+                    <div class="doc-section mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="fas fa-eye"></i> Visual Parallel Processing Demonstration</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="demo-controls mb-3">
+                                    <button class="btn btn-primary" onclick="startDemo('serial')">
+                                        <i class="fas fa-play"></i> Demo Serial
+                                    </button>
+                                    <button class="btn btn-success" onclick="startDemo('openmp')">
+                                        <i class="fas fa-play"></i> Demo OpenMP
+                                    </button>
+                                    <button class="btn btn-info" onclick="startDemo('mpi')">
+                                        <i class="fas fa-play"></i> Demo MPI
+                                    </button>
+                                    <button class="btn btn-warning" onclick="startDemo('hybrid')">
+                                        <i class="fas fa-play"></i> Demo Hybrid
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="resetDemo()">
+                                        <i class="fas fa-stop"></i> Reset
+                                    </button>
+                                </div>
+                                
+                                <div class="demo-description mb-3">
+                                    <p id="demo-description">Click a demo button to see how each version processes documents in parallel. Each colored box represents a document being processed.</p>
+                                </div>
+                                
+                                <div class="processing-grid" id="processing-grid">
+                                    <!-- This will be populated by JavaScript -->
+                                </div>
+                                
+                                <div class="demo-stats mt-3">
+                                    <div class="row">
+                                        <div class="col-md-3">
+                                            <div class="stat-item">
+                                                <span class="stat-label">Processing Time:</span>
+                                                <span class="stat-value" id="demo-time">0ms</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="stat-item">
+                                                <span class="stat-label">Documents Processed:</span>
+                                                <span class="stat-value" id="demo-docs">0</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="stat-item">
+                                                <span class="stat-label">Active Workers:</span>
+                                                <span class="stat-value" id="demo-workers">0</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="stat-item">
+                                                <span class="stat-label">Efficiency:</span>
+                                                <span class="stat-value" id="demo-efficiency">0%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Architecture Section -->
+                    <div class="doc-section mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="fas fa-cogs"></i> Architecture Details</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="architecture-tabs">
+                                    <ul class="nav nav-pills mb-3" id="architecture-tabs" role="tablist">
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link active" id="serial-arch-tab" data-bs-toggle="pill" data-bs-target="#serial-arch" type="button" role="tab">Serial</button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="openmp-arch-tab" data-bs-toggle="pill" data-bs-target="#openmp-arch" type="button" role="tab">OpenMP</button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="mpi-arch-tab" data-bs-toggle="pill" data-bs-target="#mpi-arch" type="button" role="tab">MPI</button>
+                                        </li>
+                                        <li class="nav-item" role="presentation">
+                                            <button class="nav-link" id="hybrid-arch-tab" data-bs-toggle="pill" data-bs-target="#hybrid-arch" type="button" role="tab">Hybrid</button>
+                                        </li>
+                                    </ul>
+                                    <div class="tab-content" id="architecture-content">
+                                        <div class="tab-pane fade show active" id="serial-arch" role="tabpanel">
+                                            <h5>Serial Architecture</h5>
+                                            <div class="arch-diagram serial-arch-diagram">
+                                                <div class="process-box">
+                                                    <i class="fas fa-microchip"></i>
+                                                    <p>Single Process</p>
+                                                    <div class="thread-box">
+                                                        <i class="fas fa-arrow-right"></i>
+                                                        <span>Main Thread</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p><strong>Parallel Components:</strong></p>
+                                            <ul>
+                                                <li>❌ No parallel indexing</li>
+                                                <li>❌ No parallel query processing</li>
+                                                <li>❌ No concurrent document processing</li>
+                                                <li>✅ Simple, sequential execution</li>
+                                            </ul>
+                                        </div>
+                                        <div class="tab-pane fade" id="openmp-arch" role="tabpanel">
+                                            <h5>OpenMP Architecture</h5>
+                                            <div class="arch-diagram openmp-arch-diagram">
+                                                <div class="process-box">
+                                                    <i class="fas fa-sitemap"></i>
+                                                    <p>Single Process</p>
+                                                    <div class="thread-container">
+                                                        <div class="thread-box">
+                                                            <i class="fas fa-arrow-right"></i>
+                                                            <span>Thread 1</span>
+                                                        </div>
+                                                        <div class="thread-box">
+                                                            <i class="fas fa-arrow-right"></i>
+                                                            <span>Thread 2</span>
+                                                        </div>
+                                                        <div class="thread-box">
+                                                            <i class="fas fa-arrow-right"></i>
+                                                            <span>Thread 3</span>
+                                                        </div>
+                                                        <div class="thread-box">
+                                                            <i class="fas fa-arrow-right"></i>
+                                                            <span>Thread 4</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <p><strong>Parallel Components:</strong></p>
+                                            <ul>
+                                                <li>✅ Parallel document indexing with #pragma omp parallel for</li>
+                                                <li>✅ Parallel query processing across threads</li>
+                                                <li>✅ Shared memory for fast data access</li>
+                                                <li>✅ Thread-level load balancing</li>
+                                            </ul>
+                                        </div>
+                                        <div class="tab-pane fade" id="mpi-arch" role="tabpanel">
+                                            <h5>MPI Architecture</h5>
+                                            <div class="arch-diagram mpi-arch-diagram">
+                                                <div class="process-container">
+                                                    <div class="process-box">
+                                                        <i class="fas fa-server"></i>
+                                                        <p>Process 0 (Master)</p>
+                                                    </div>
+                                                    <div class="process-box">
+                                                        <i class="fas fa-server"></i>
+                                                        <p>Process 1 (Worker)</p>
+                                                    </div>
+                                                    <div class="process-box">
+                                                        <i class="fas fa-server"></i>
+                                                        <p>Process 2 (Worker)</p>
+                                                    </div>
+                                                    <div class="process-box">
+                                                        <i class="fas fa-server"></i>
+                                                        <p>Process 3 (Worker)</p>
+                                                    </div>
+                                                </div>
+                                                <div class="communication-lines">
+                                                    <i class="fas fa-exchange-alt"></i>
+                                                    <span>MPI Messages</span>
+                                                </div>
+                                            </div>
+                                            <p><strong>Parallel Components:</strong></p>
+                                            <ul>
+                                                <li>✅ Distributed document processing across nodes</li>
+                                                <li>✅ Master-worker pattern for task distribution</li>
+                                                <li>✅ Message passing for coordination</li>
+                                                <li>✅ Scalable to multiple machines</li>
+                                            </ul>
+                                        </div>
+                                        <div class="tab-pane fade" id="hybrid-arch" role="tabpanel">
+                                            <h5>Hybrid (MPI + OpenMP) Architecture</h5>
+                                            <div class="arch-diagram hybrid-arch-diagram">
+                                                <div class="process-container">
+                                                    <div class="process-box">
+                                                        <i class="fas fa-server"></i>
+                                                        <p>MPI Process 0</p>
+                                                        <div class="thread-container">
+                                                            <div class="thread-box mini">T1</div>
+                                                            <div class="thread-box mini">T2</div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="process-box">
+                                                        <i class="fas fa-server"></i>
+                                                        <p>MPI Process 1</p>
+                                                        <div class="thread-container">
+                                                            <div class="thread-box mini">T1</div>
+                                                            <div class="thread-box mini">T2</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="communication-lines">
+                                                    <i class="fas fa-exchange-alt"></i>
+                                                    <span>MPI + Shared Memory</span>
+                                                </div>
+                                            </div>
+                                            <p><strong>Parallel Components:</strong></p>
+                                            <ul>
+                                                <li>✅ MPI processes for distributed computing</li>
+                                                <li>✅ OpenMP threads within each process</li>
+                                                <li>✅ Hierarchical parallelism</li>
+                                                <li>✅ Maximum resource utilization</li>
+                                                <li>✅ Best performance for large-scale systems</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Performance Analysis Section -->
+                    <div class="doc-section mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h4><i class="fas fa-chart-line"></i> Performance Analysis</h4>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h5>Speedup Analysis</h5>
+                                        <canvas id="speedupChart" width="400" height="300"></canvas>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h5>Efficiency Analysis</h5>
+                                        <canvas id="efficiencyChart" width="400" height="300"></canvas>
+                                    </div>
+                                </div>
+                                <div class="row mt-4">
+                                    <div class="col-md-12">
+                                        <h5>Key Performance Insights</h5>
+                                        <div class="insight-grid">
+                                            <div class="insight-item">
+                                                <h6>Serial Baseline</h6>
+                                                <p>Reference point for all comparisons. Single-threaded execution provides predictable but slower performance.</p>
+                                            </div>
+                                            <div class="insight-item">
+                                                <h6>OpenMP Benefits</h6>
+                                                <p>2-4x speedup on multi-core systems. Ideal for CPU-intensive tasks with shared data structures.</p>
+                                            </div>
+                                            <div class="insight-item">
+                                                <h6>MPI Scalability</h6>
+                                                <p>Linear scalability across multiple machines. Best for large datasets that don't fit in single machine memory.</p>
+                                            </div>
+                                            <div class="insight-item">
+                                                <h6>Hybrid Optimization</h6>
+                                                <p>Combines benefits of both approaches. Achieves highest performance on HPC clusters and multi-node systems.</p>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

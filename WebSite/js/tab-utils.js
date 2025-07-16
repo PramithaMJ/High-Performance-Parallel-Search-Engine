@@ -77,6 +77,11 @@ function handleTabChange(tabId) {
             setupComparisonInterface();
             break;
             
+        case '#documentation':
+            // Initialize documentation demos and charts
+            initializeDocumentation();
+            break;
+            
         case '#build':
             // Check system status for build interface
             refreshBuildStatus();
