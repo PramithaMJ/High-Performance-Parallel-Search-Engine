@@ -22,14 +22,11 @@ extern char* download_url(const char *url);
 // Print usage instructions
 void print_usage(const char* program_name) {
     printf("MPI-Based Parallel Search Engine\n");
-    printf("Usage: mpirun -np <NUM_PROCESSES> %s [OPTIONS]\n");
-    printf("   OR: %s -np <NUM_PROCESSES> [OPTIONS]\n\n", program_name);
+    printf("Usage: mpirun -np <NUM_PROCESSES> %s [OPTIONS]\n\n", program_name);
     printf("Options:\n");
-    printf("  -np NUM    Number of MPI processes to use\n");
     printf("  -u URL     Download and index content from URL\n");
     printf("  -c URL     Crawl website starting from URL (follows links)\n");
     printf("  -m USER    Crawl Medium profile for user (e.g., -m @username)\n");
-    printf("  @username  Shortcut for Medium profile (e.g., @lpramithamj)\n");
     printf("  -d NUM     Maximum crawl depth (default: 2)\n");
     printf("  -p NUM     Maximum pages to crawl (default: 10)\n");
     printf("  -i         Print MPI process information\n");
@@ -37,10 +34,11 @@ void print_usage(const char* program_name) {
     printf("\n");
     printf("Examples:\n");
     printf("  mpirun -np 4 %s -c https://medium.com/@lpramithamj\n", program_name);
-    printf("  %s -np 8 -m @lpramithamj -d 3 -p 25\n", program_name);
-    printf("  %s -np 6 @lpramithamj -d 2 -p 10\n", program_name);
+    printf("  mpirun -np 8 %s -m @lpramithamj -d 3 -p 25\n", program_name);
+    printf("  mpirun -np 2 %s -c https://example.com -d 3 -p 20\n", program_name);
     printf("\n");
-    printf("Note: When using -np within the program, it will suggest the proper mpirun command.\n");
+    printf("Note: Use mpirun -np <NUM> to specify the number of MPI processes.\n");
+    printf("      The -np flag is handled by mpirun, not by this program.\n");
 }
 
 // Forward declaration for crawling function
@@ -129,18 +127,9 @@ int main(int argc, char* argv[])
             if (size == 1 && requested_processes > 1) {
                 if (rank == 0) {
                     printf("Notice: Requested %d processes but running with only 1 process.\n", requested_processes);
-                    printf("To run with %d processes, use: mpirun -np %d %s", 
+                    printf("To run with %d processes, use: mpirun -np %d %s [other options]\n", 
                            requested_processes, requested_processes, argv[0]);
-                    // Add remaining arguments to the suggested command
-                    for (int j = 1; j < argc; j++) {
-                        if (strcmp(argv[j], "-np") == 0) {
-                            j++; // Skip the -np and its value
-                            continue;
-                        }
-                        printf(" %s", argv[j]);
-                    }
-                    printf("\n");
-                    printf("Current execution will proceed with 1 process.\n\n");
+                    printf("Current execution will proceed with 1 process.\n");
                 }
             }
             i++;
