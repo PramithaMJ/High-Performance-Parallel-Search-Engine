@@ -1,21 +1,19 @@
 #include "../include/crawler.h"
-#include "../include/metrics.h"   // For performance metrics
+#include "../include/metrics.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <strings.h>  // For strcasecmp
+#include <strings.h>
 #include <curl/curl.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <dirent.h>    // For directory operations
-#include <mpi.h>       // MPI for parallel processing
+#include <dirent.h>
+#include <mpi.h>
 
-// Define constants - these are moved to the top for global reference
 #define MAX_URLS 1000
 #define MAX_URL_LENGTH 512
 
-// Forward declarations
 static char* normalize_url(const char* url);
 static char* extract_base_domain(const char* url);
 static int has_visited(const char* url);
@@ -90,7 +88,6 @@ static char* get_url_filename(const char* url) {
     return filename;
 }
 
-// Function to ensure the dataset directory exists
 static void ensure_dataset_directory() {
     struct stat st = {0};
     if (stat("dataset", &st) == -1) {
@@ -246,7 +243,7 @@ static void html_to_text(const char *html, FILE *output) {
             if ((i + 3 < html_len) && starts_with(&html[i], "<h1")) {
                 in_heading = 1;
                 buffer_pos = 0;
-                i += 2;  // Skip past <h1
+                i += 2;  // Skip past <h1/>
                 in_tag = 1;
                 continue;
             }
@@ -827,7 +824,6 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
                             }
                         }
                     }
-                    
                     // Move past this URL for next iteration
                     search_ptr = url_start + 1;
                 }

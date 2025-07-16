@@ -8,6 +8,10 @@
 #include "../include/crawler.h"
 #include "../include/metrics.h"
 #include "../include/benchmark.h"
+#include "../include/load_balancer.h"
+#include "../include/mpi_comm.h"
+#include "../include/dist_index.h"
+#include "../include/parallel_processor.h"
 
 // Initialize stopwords
 extern int is_stopword(const char *word); // Forward declaration
@@ -17,8 +21,8 @@ extern char* download_url(const char *url);
 
 // Print usage instructions
 void print_usage(const char* program_name) {
-    printf("Usage: mpirun -np <NUM_PROCESSES> %s [options]\n", program_name);
     printf("Options:\n");
+    printf("  -np NUM    Number of MPI processes to use (for information only - use mpirun -np)\n");
     printf("  -u URL     Download and index content from URL\n");
     printf("  -c URL     Crawl website starting from URL (follows links)\n");
     printf("  -m USER    Crawl Medium profile for user (e.g., -m @username)\n");
@@ -28,9 +32,10 @@ void print_usage(const char* program_name) {
     printf("  -h         Show this help message\n");
     printf("\n");
     printf("Examples:\n");
-    printf("  %s -c https://medium.com/@lpramithamj\n", program_name);
-    printf("  %s -m @lpramithamj\n", program_name);
-    printf("  %s -c https://example.com -d 3 -p 20\n", program_name);
+    printf(" -np 4 %s -c https://medium.com/@lpramithamj\n", program_name);
+    printf(" -np 8 %s -m @lpramithamj -d 3 -p 25\n", program_name);
+    printf(" -np 2 %s -c https://example.com -d 3 -p 20\n", program_name);
+    printf("\n");
 }
 
 // Forward declaration for crawling function
@@ -45,18 +50,31 @@ int main(int argc, char* argv[])
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     
+    // Initialize the new components
+    init_mpi_comm();
+    init_load_balancer(size);
+    
+    // Set up global distributed index and parallel processor
+    extern DistributedIndex* dist_index;
+    extern ParallelProcessor* processor;
+    dist_index = create_distributed_index(rank, size);
+    processor = create_parallel_processor(rank, size);
+    
     // Initialize metrics (only on master process)
     if (rank == 0) {
         init_metrics();
         
         // Start timing total execution
         start_timer();
+        
+        printf("MPI Search Engine started with %d processes\n", size);
     }
     
     // Process command line arguments
     int url_processed = 0;
     int max_depth = 2;  // Default crawl depth
     int max_pages = 10; // Default max pages to crawl
+    int requested_num_processes = -1; // Number of processes requested with -np flag
     
     // First clear any existing index to make sure we rebuild it from scratch
     extern void clear_index(); // Forward declaration for the function we'll add
@@ -162,6 +180,23 @@ int main(int argc, char* argv[])
             // Print MPI information
             extern void print_thread_info();
             print_thread_info();
+        } else if (strcmp(argv[i], "-np") == 0 && i + 1 < argc) {
+            // Set the number of MPI processes
+            requested_num_processes = atoi(argv[i+1]);
+            if (requested_num_processes < 1) {
+                if (rank == 0) {
+                    printf("Warning: Invalid number of processes. Using available MPI processes (%d).\n", size);
+                }
+            } else if (requested_num_processes != size) {
+                if (rank == 0) {
+                    printf("WARNING: Requested %d processes but running with %d processes.\n", 
+                           requested_num_processes, size);
+                    printf("To run with %d processes, use: mpirun -np %d %s [other options]\n", 
+                           requested_num_processes, requested_num_processes, argv[0]);
+                    printf("Current execution will proceed with %d process(es).\n", size);
+                }
+            }
+            i++;
         } else if (strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
             return 0;
@@ -173,35 +208,60 @@ int main(int argc, char* argv[])
         printf("\nURL content has been downloaded and will be included in the search index.\n");
         printf("Continuing with search engine startup...\n\n");
     }
-
-    printf("Initializing stopwords...\n");
+    
+    // Print information about the number of processes being used
+    if (rank == 0) {
+        printf("Running with %d MPI processes\n", size);
+        printf("Initializing stopwords...\n");
+    }
+    
     is_stopword("test");
-    printf("Stopwords loaded.\n");
+    
+    if (rank == 0) {
+        printf("Stopwords loaded.\n");
+    }
     
     // Clear any existing index
     clear_index();
     
-    printf("Building index from dataset directory...\n");
-    int total_docs = build_index("dataset");
-    printf("Indexed %d documents.\n", total_docs);
-    
-    // If we made it here, we can search
-    printf("Search engine ready for queries.\n");
-    
-    // Read user input for search
-    char user_query[256];
-    printf("Enter your search query: ");
-    fgets(user_query, sizeof(user_query), stdin);
-    
-    // Remove newline character if present
-    int len = strlen(user_query);
-    if (len > 0 && user_query[len-1] == '\n') {
-        user_query[len-1] = '\0';
+    if (rank == 0) {
+        printf("Building index from dataset directory...\n");
     }
     
-    printf("\nSearching for: %s\n", user_query);
-    printf("\nTop results (BM25):\n");
-    rank_bm25(user_query, total_docs, 10); // Top 10 results
+    int total_docs = build_index("dataset");
+    
+    // Synchronize all processes before continuing
+    MPI_Barrier(MPI_COMM_WORLD);
+    
+    if (rank == 0) {
+        printf("Indexed %d documents.\n", total_docs);
+        printf("Search engine ready for queries.\n");
+        printf("Enter your search query: ");
+        fflush(stdout);
+    }
+    
+    // Only rank 0 handles user input
+    char user_query[256];
+    if (rank == 0) {
+        if (fgets(user_query, sizeof(user_query), stdin) == NULL) {
+            strcpy(user_query, "default");
+        }
+        
+        // Remove newline character if present
+        int len = strlen(user_query);
+        if (len > 0 && user_query[len-1] == '\n') {
+            user_query[len-1] = '\0';
+        }
+        
+        printf("\nSearching for: %s\n", user_query);
+        printf("\nTop results (BM25):\n");
+    }
+    
+    // Broadcast the query to all processes
+    MPI_Bcast(user_query, 256, MPI_CHAR, 0, MPI_COMM_WORLD);
+    
+    // All processes participate in search, but only rank 0 shows results
+    rank_bm25(user_query, total_docs, 10);
     
     // Synchronize all processes before calculating metrics
     MPI_Barrier(MPI_COMM_WORLD);
@@ -216,18 +276,29 @@ int main(int argc, char* argv[])
         print_metrics();
         
         // Load baseline metrics and calculate speedup
-        init_baseline_metrics("data/serial_metrics.csv");
+        init_baseline_metrics("../Serial Version/data/serial_metrics.csv");
         extern SpeedupMetrics speedup_metrics;  // Declare the external variable
         calculate_speedup(&speedup_metrics);
         
         // Option to save current metrics as new baseline
         char save_option;
         printf("\nSave current performance as new baseline? (y/n): ");
-        scanf("%c", &save_option);
-        if (save_option == 'y' || save_option == 'Y') {
-            save_as_baseline("data/serial_metrics.csv");
+        fflush(stdout);
+        if (scanf(" %c", &save_option) == 1) {
+            if (save_option == 'y' || save_option == 'Y') {
+                save_as_baseline("data/mpi_metrics.csv");
+            }
         }
     }
+    
+    // Wait for all processes to complete before cleanup
+    MPI_Barrier(MPI_COMM_WORLD);
+    
+    // Clean up the new components
+    free_parallel_processor(processor);
+    free_distributed_index(dist_index);
+    free_mpi_comm();
+    free_load_balancer();
     
     // Finalize MPI
     MPI_Finalize();

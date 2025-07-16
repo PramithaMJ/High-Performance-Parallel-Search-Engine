@@ -1,12 +1,22 @@
 #include "../include/index.h"
 #include "../include/parser.h"
 #include "../include/metrics.h"
+#include "../include/dist_index.h"  // Include the distributed index header
+#include "../include/parallel_processor.h" // Include the parallel processor header
+#include "../include/mpi_comm.h" // Include MPI communications header
+#include "../include/load_balancer.h" // Include load balancer header
 #include <dirent.h>
 #include <stdio.h>
 #include <stdlib.h> // For free function
 #include <string.h>
 #include <libgen.h> // For basename function
 #include <mpi.h>    // MPI header
+
+// Forward declaration for helper function
+char* get_node_name(void);
+
+// Forward declaration for process_document function
+void process_document(const char* file_path, int file_index, ParallelProcessor* proc);
 
 InvertedIndex index_data[10000];
 int index_size = 0;
@@ -16,6 +26,12 @@ Document documents[1000]; // Array to store document filenames
 // MPI process info
 int mpi_rank = 0;
 int mpi_size = 1;
+
+// Distributed index instance
+DistributedIndex* dist_index = NULL;
+
+// Parallel processor instance
+ParallelProcessor* processor = NULL;
 
 // Initialize MPI info
 void init_mpi_info() 
@@ -74,37 +90,39 @@ int build_index(const char *folder_path)
     // Broadcast all file paths to all processes
     MPI_Bcast(file_paths, file_count * 256, MPI_CHAR, 0, MPI_COMM_WORLD);
     
-    // Calculate work distribution for each process
+    // Calculate work distribution for each process (simple static distribution)
     int files_per_process = file_count / mpi_size;
     int remaining_files = file_count % mpi_size;
     int start_idx = mpi_rank * files_per_process + (mpi_rank < remaining_files ? mpi_rank : remaining_files);
     int end_idx = start_idx + files_per_process + (mpi_rank < remaining_files ? 1 : 0);
     
+    // Each process reports its workload
+    printf("Process %d: handling files %d to %d (total: %d files)\n", 
+           mpi_rank, start_idx, end_idx - 1, end_idx - start_idx);
+    
+    // Synchronize all processes before starting work
+    MPI_Barrier(MPI_COMM_WORLD);
+    
     // Parallel file processing with MPI
     int successful_docs = 0;
     int local_successful = 0;
 
-    for (int i = start_idx; i < end_idx; i++)
-    {
+    // Process each file in our assigned range
+    for (int i = start_idx; i < end_idx; i++) {
         printf("Process %d processing file: %s\n", mpi_rank, file_paths[i]);
-
-        if (parse_file_parallel(file_paths[i], i))
-        {
+        if (parse_file_parallel(file_paths[i], i)) {
             // Store the filename (basename) for this document
             char *path_copy = strdup(file_paths[i]);
             char *filename = basename(path_copy);
-
-            // No need for critical section in MPI - processes have separate memory
+            
             strncpy(documents[i].filename, filename, MAX_FILENAME_LEN - 1);
             documents[i].filename[MAX_FILENAME_LEN - 1] = '\0';
-
+            
             free(path_copy);
             printf("Process %d successfully parsed file: %s (doc_id: %d)\n",
                    mpi_rank, file_paths[i], i);
             local_successful++;
-        }
-        else
-        {
+        } else {
             printf("Process %d failed to parse file: %s\n", mpi_rank, file_paths[i]);
         }
     }
@@ -112,11 +130,16 @@ int build_index(const char *folder_path)
     // Sum up successful documents across all processes
     MPI_Reduce(&local_successful, &successful_docs, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
-    // Record indexing time
-    metrics.indexing_time = stop_timer();
-    printf("Indexing completed for %d documents in %.2f ms using %d MPI processes\n",
-           successful_docs, metrics.indexing_time, mpi_size);
+    // Record indexing time (only on rank 0)
+    if (mpi_rank == 0) {
+        metrics.indexing_time = stop_timer();
+        printf("Indexing completed for %d documents in %.2f ms using %d MPI processes\n",
+               successful_docs, metrics.indexing_time, mpi_size);
+    }
 
+    // Synchronize all processes
+    MPI_Barrier(MPI_COMM_WORLD);
+    
     // Update index statistics
     update_index_stats(successful_docs, metrics.total_tokens, index_size);
 
@@ -124,6 +147,30 @@ int build_index(const char *folder_path)
     destroy_locks();
 
     return successful_docs;
+}
+
+// Define a callback function for processing documents
+void process_document(const char* file_path, int file_index, ParallelProcessor* proc) {
+    printf("Process %d processing file: %s\n", mpi_rank, file_path);
+    
+    if (parse_file_parallel(file_path, file_index))
+    {
+        // Store the filename (basename) for this document
+        char *path_copy = strdup(file_path);
+        char *filename = basename(path_copy);
+
+        // No need for critical section in MPI - processes have separate memory
+        strncpy(documents[file_index].filename, filename, MAX_FILENAME_LEN - 1);
+        documents[file_index].filename[MAX_FILENAME_LEN - 1] = '\0';
+
+        free(path_copy);
+        printf("Process %d successfully parsed file: %s (doc_id: %d)\n",
+               mpi_rank, file_path, file_index);
+    }
+    else
+    {
+        printf("Process %d failed to parse file: %s\n", mpi_rank, file_path);
+    }
 }
 
 // MPI-compatible version of add_token
@@ -420,7 +467,7 @@ void distribute_files_across_nodes(const char* folder_path,
 }
 
 // Helper function to get node name
-char* get_node_name() {
+char* get_node_name(void) {
     static char hostname[MPI_MAX_PROCESSOR_NAME];
     int name_len;
     MPI_Get_processor_name(hostname, &name_len);

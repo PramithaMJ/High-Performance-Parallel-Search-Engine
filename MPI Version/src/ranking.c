@@ -3,6 +3,7 @@
 #include "../include/utils.h"
 #include "../include/index.h"
 #include "../include/metrics.h"
+#include <mpi.h>
 
 // Forward declaration of get_doc_filename
 extern const char* get_doc_filename(int doc_id);
@@ -81,11 +82,18 @@ void rank_bm25(const char *query, int total_docs, int top_k)
     // Record query latency for statistical purposes
     record_query_latency(query_time);
     
-    printf("Query processed in %.2f ms\n", query_time);
+    // Get MPI rank to control output
+    int mpi_rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     
-    for (int i = 0; i < top_k && i < result_count; ++i)
-    {
-        if (results[i].score > 0)
-            printf("File: %s - Score: %.4f\n", get_doc_filename(results[i].doc_id), results[i].score);
+    // Only rank 0 prints the results
+    if (mpi_rank == 0) {
+        printf("Query processed in %.2f ms\n", query_time);
+        
+        for (int i = 0; i < top_k && i < result_count; ++i)
+        {
+            if (results[i].score > 0)
+                printf("File: %s - Score: %.4f\n", get_doc_filename(results[i].doc_id), results[i].score);
+        }
     }
 }
