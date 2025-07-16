@@ -10,9 +10,12 @@ OBJ_DIR=obj
 BIN_DIR=bin
 TEST_DIR=tests
 
-# Source files
+# Source files - explicitly list to ensure all components are included
 SRC_FILES=$(wildcard $(SRC_DIR)/*.c)
 OBJ_FILES=$(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC_FILES))
+
+# Ensure all new optimization components are included
+SRCS = main.c index.c parser.c crawler.c ranking.c metrics.c load_balancer.c mpi_comm.c dist_index.c parallel_processor.c mpi_helpers.c utils.c evaluate.c benchmark.c
 
 # Header files
 INC_FLAGS=-I$(INC_DIR)
