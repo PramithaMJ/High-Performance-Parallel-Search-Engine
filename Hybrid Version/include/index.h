@@ -15,6 +15,8 @@ int get_doc_count();
 const char* get_doc_filename(int doc_id);
 void print_index();
 void clear_index();
+void synchronize_document_filenames();
+void print_all_index_terms();
 
 typedef struct
 {

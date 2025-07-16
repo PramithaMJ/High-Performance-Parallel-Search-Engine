@@ -7,6 +7,7 @@
 #include <string.h>
 #include <libgen.h> // For basename function
 #include <omp.h>    // OpenMP header
+#include <mpi.h>    // MPI header
 
 InvertedIndex index_data[10000];
 int index_size = 0;
@@ -90,8 +91,8 @@ int build_index(const char *folder_path)
             }
 
             free(path_copy);
-            printf("Thread %d successfully parsed file: %s (doc_id: %d)\n",
-                   thread_id, file_paths[i], i);
+            printf("Thread %d successfully parsed file: %s (doc_id: %d, filename: '%s')\n",
+                   thread_id, file_paths[i], i, documents[i].filename);
             successful_docs++;
         }
         else
@@ -104,6 +105,9 @@ int build_index(const char *folder_path)
     metrics.indexing_time = stop_timer();
     printf("Indexing completed for %d documents in %.2f ms using %d threads\n",
            successful_docs, metrics.indexing_time, omp_get_max_threads());
+
+    // Synchronize document filenames across MPI processes
+    synchronize_document_filenames();
 
     // Update index statistics
     update_index_stats(successful_docs, metrics.total_tokens, index_size);
@@ -209,19 +213,23 @@ int get_doc_count()
     return count;
 }
 
-// Function to get the filename for a document ID (thread-safe)
-const char *get_doc_filename(int doc_id)
-{
-    if (doc_id >= 0 && doc_id < 1000)
-    {
-        return documents[doc_id].filename;
-    }
-    return "Unknown Document";
-}
-
 // Function to clear the index for rebuilding
 void clear_index()
 {
+    // Get MPI info
+    int rank, size;
+    int initialized;
+    MPI_Initialized(&initialized);
+    
+    if (initialized) {
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+        MPI_Comm_size(MPI_COMM_WORLD, &size);
+        
+        if (rank == 0) {
+            printf("Clearing index data across %d MPI processes...\n", size);
+        }
+    }
+    
     #pragma omp parallel sections
     {
         #pragma omp section
@@ -241,6 +249,11 @@ void clear_index()
             // Reset documents array
             memset(documents, 0, sizeof(documents));
         }
+    }
+    
+    // Synchronize all processes if using MPI
+    if (initialized && size > 1) {
+        MPI_Barrier(MPI_COMM_WORLD);
     }
 }
 
@@ -321,6 +334,16 @@ void set_thread_count(int num_threads)
     printf("Set OpenMP thread count to: %d\n", num_threads);
 }
 
+// Function to get the filename for a document ID (thread-safe)
+const char* get_doc_filename(int doc_id)
+{
+    if (doc_id >= 0 && doc_id < 1000 && documents[doc_id].filename[0] != '\0')
+    {
+        return documents[doc_id].filename;
+    }
+    return "Unknown Document";
+}
+
 // Function to get current thread information
 void print_thread_info()
 {
@@ -334,5 +357,99 @@ void print_thread_info()
         {
             printf("  Current number of threads in parallel region: %d\n", omp_get_num_threads());
         }
+    }
+}
+
+// Function to synchronize document filenames across MPI processes
+void synchronize_document_filenames()
+{
+    int mpi_rank, mpi_size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+    
+    if (mpi_size <= 1) {
+        return; // No synchronization needed for single process
+    }
+    
+    // Create MPI datatype for Document struct
+    MPI_Datatype MPI_DOCUMENT_TYPE;
+    MPI_Type_contiguous(MAX_FILENAME_LEN, MPI_CHAR, &MPI_DOCUMENT_TYPE);
+    MPI_Type_commit(&MPI_DOCUMENT_TYPE);
+    
+    // Synchronize all document filenames
+    if (mpi_rank == 0) {
+        printf("Synchronizing document filenames across %d MPI processes...\n", mpi_size);
+    }
+    
+    // Gather all document filenames to process 0
+    Document *all_docs = NULL;
+    if (mpi_rank == 0) {
+        all_docs = (Document *)malloc(1000 * mpi_size * sizeof(Document));
+    }
+    
+    // Gather documents from all processes
+    MPI_Gather(documents, 1000, MPI_DOCUMENT_TYPE, 
+              all_docs, 1000, MPI_DOCUMENT_TYPE, 0, MPI_COMM_WORLD);
+    
+    // Process 0 merges document names
+    if (mpi_rank == 0 && all_docs) {
+        // For each document ID, use the first non-empty filename found
+        for (int doc_id = 0; doc_id < 1000; doc_id++) {
+            if (documents[doc_id].filename[0] == '\0') {
+                // Look for a non-empty filename in gathered data
+                for (int p = 0; p < mpi_size; p++) {
+                    if (all_docs[p * 1000 + doc_id].filename[0] != '\0') {
+                        strncpy(documents[doc_id].filename, 
+                                all_docs[p * 1000 + doc_id].filename, 
+                                MAX_FILENAME_LEN - 1);
+                        documents[doc_id].filename[MAX_FILENAME_LEN - 1] = '\0';
+                        break;
+                    }
+                }
+            }
+        }
+        
+        // Free the temporary storage
+        free(all_docs);
+    }
+    
+    // Broadcast the merged document filenames from process 0 to all processes
+    MPI_Bcast(documents, 1000, MPI_DOCUMENT_TYPE, 0, MPI_COMM_WORLD);
+    
+    // Free the MPI datatype
+    MPI_Type_free(&MPI_DOCUMENT_TYPE);
+    
+    if (mpi_rank == 0) {
+        printf("Document filenames synchronized across all processes.\n");
+    }
+}
+
+// Debug function to print all terms in the index
+void print_all_index_terms()
+{
+    int mpi_rank = 0;
+    int initialized;
+    MPI_Initialized(&initialized);
+    
+    if (initialized) {
+        MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
+    }
+    
+    if (mpi_rank == 0) {
+        printf("\n--- DEBUG: All Terms in Index (%d total) ---\n", index_size);
+        
+        // Print all terms in batches to avoid flooding output
+        int batch_size = 10;
+        for (int i = 0; i < index_size; i += batch_size) {
+            printf("Batch %d: ", i/batch_size + 1);
+            for (int j = i; j < i + batch_size && j < index_size; j++) {
+                printf("'%s'", index_data[j].term);
+                if (j < i + batch_size - 1 && j < index_size - 1) {
+                    printf(", ");
+                }
+            }
+            printf("\n");
+        }
+        printf("--- End of Index Terms ---\n\n");
     }
 }

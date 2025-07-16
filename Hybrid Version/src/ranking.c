@@ -76,6 +76,14 @@ void rank_bm25(const char *query, int total_docs, int top_k)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     
+    // Debug information - check document filenames
+    if (rank == 0) {
+        printf("Debug: Verifying document filenames before search\n");
+        for (int i = 0; i < total_docs && i < 5; i++) {
+            printf("Debug: Doc %d filename: '%s'\n", i, get_doc_filename(i));
+        }
+    }
+    
     // Start timing for query processing (only on rank 0)
     if (rank == 0) {
         start_timer();
@@ -148,11 +156,29 @@ void rank_bm25(const char *query, int total_docs, int top_k)
             for (int term_idx = 0; term_idx < num_terms; term_idx++) {
                 char *term = query_terms[term_idx];
                 
+                // Debug information for the search term
+                #pragma omp critical
+                {
+                    if (rank == 0) {
+                        printf("Debug: Looking for term '%s' in index of size %d\n", term, index_size);
+                    }
+                }
+                
                 // Find the term in the index
+                int term_found = 0;
                 for (int i = 0; i < index_size; ++i) {
                     if (strcmp(index_data[i].term, term) == 0) {
+                        term_found = 1;
                         int df = index_data[i].posting_count;
                         double idf = log((total_docs - df + 0.5) / (df + 0.5) + 1.0);
+                        
+                        // Debug information for the found term
+                        #pragma omp critical
+                        {
+                            if (rank == 0) {
+                                printf("Debug: Found term '%s' with %d document matches\n", term, df);
+                            }
+                        }
                         
                         // Process postings for this term
                         for (int j = 0; j < df; ++j) {
@@ -167,6 +193,13 @@ void rank_bm25(const char *query, int total_docs, int top_k)
                             }
                         }
                         break;
+                    }
+                }
+                
+                if (!term_found && rank == 0) {
+                    #pragma omp critical
+                    {
+                        printf("Debug: Term '%s' not found in index\n", term);
                     }
                 }
             }
@@ -216,12 +249,25 @@ void rank_bm25(const char *query, int total_docs, int top_k)
         printf("Query processed in %.2f ms\n", query_time);
         
         // Display top-k results
+        int found_results = 0;
         for (int i = 0; i < top_k && i < size * top_k; ++i) {
             if (all_results[i].score > 0) {
-                printf("File: %s - Score: %.4f\n", 
-                       get_doc_filename(all_results[i].doc_id), 
-                       all_results[i].score);
+                const char* filename = get_doc_filename(all_results[i].doc_id);
+                if (filename && filename[0] != '\0') {
+                    printf("File: %s - Score: %.4f\n", 
+                           filename, 
+                           all_results[i].score);
+                } else {
+                    printf("File: doc_id %d - Score: %.4f (Filename not available)\n", 
+                           all_results[i].doc_id,
+                           all_results[i].score);
+                }
+                found_results++;
             }
+        }
+        
+        if (found_results == 0) {
+            printf("No results found for the query.\n");
         }
         
         free(all_results);
