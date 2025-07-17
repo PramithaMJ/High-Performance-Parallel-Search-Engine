@@ -54,7 +54,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 
 # Main executable
 $(BIN_DIR)/search_engine: $(OBJ_FILES)
-	@echo "🔗 Linking search engine for AWS cluster..."
+	@echo " Linking search engine for AWS cluster..."
 	$(CC) -o $@ $(filter-out $(OBJ_DIR)/evaluate.o $(OBJ_DIR)/test_%.o, $(OBJ_FILES)) $(LDFLAGS)
 	@echo " AWS-optimized search engine built successfully!"
 

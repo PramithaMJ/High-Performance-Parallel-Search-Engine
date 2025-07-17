@@ -188,7 +188,7 @@ ansible-playbook -i inventory.yml site.yml
 
 echo " AWS HPC Cluster is ready!"
 echo "🌐 Dashboard: http://$LB_DNS"
-echo "🔗 SSH to master: ssh -i ~/.ssh/your-key.pem ubuntu@$MASTER_IP"
+echo " SSH to master: ssh -i ~/.ssh/your-key.pem ubuntu@$MASTER_IP"
 ````
 
 ### 5. Create AWS-Optimized Run Script

@@ -8,7 +8,7 @@ echo "════════════════════════�
 
 # Check if MPI is available
 if ! command -v mpirun &> /dev/null; then
-    echo "❌ Error: mpirun not found. Please install MPI (Open MPI or MPICH)"
+    echo " Error: mpirun not found. Please install MPI (Open MPI or MPICH)"
     exit 1
 fi
 
@@ -47,7 +47,7 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         *)
-            echo "❌ Unknown option: $1"
+            echo " Unknown option: $1"
             echo "Use -h or --help for usage information"
             exit 1
             ;;
@@ -56,21 +56,21 @@ done
 
 # Validate number of processes
 if ! [[ "$NUM_PROCESSES" =~ ^[0-9]+$ ]] || [ "$NUM_PROCESSES" -lt 1 ]; then
-    echo "❌ Error: Number of processes must be a positive integer"
+    echo " Error: Number of processes must be a positive integer"
     exit 1
 fi
 
 # Check if hostfile exists (if specified)
 if [[ -n "$HOSTFILE" && ! -f "$HOSTFILE" ]]; then
-    echo "❌ Error: Hostfile '$HOSTFILE' not found"
+    echo " Error: Hostfile '$HOSTFILE' not found"
     exit 1
 fi
 
 # Check if the search engine binary exists
 if [[ ! -f "bin/search_engine" ]]; then
-    echo "⚠️  Binary not found. Building the search engine..."
+    echo "  Binary not found. Building the search engine..."
     if ! make; then
-        echo "❌ Error: Failed to build the search engine"
+        echo " Error: Failed to build the search engine"
         exit 1
     fi
 fi
@@ -127,7 +127,7 @@ echo "════════════════════════�
 if [ $EXIT_CODE -eq 0 ]; then
     echo " Distributed execution completed successfully!"
 else
-    echo "❌ Distributed execution failed with exit code: $EXIT_CODE"
+    echo " Distributed execution failed with exit code: $EXIT_CODE"
 fi
 
 echo "🏁 Monitoring session ended"

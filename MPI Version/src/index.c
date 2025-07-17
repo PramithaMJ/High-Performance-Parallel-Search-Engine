@@ -114,14 +114,14 @@ void monitor_distributed_status() {
             float load_balance_terms = min_terms > 0 ? (float)min_terms / max_terms * 100 : 0;
             float load_balance_docs = min_docs > 0 ? (float)min_docs / max_docs * 100 : 0;
             
-            printf("\n⚖️  Load Balance Analysis:\n");
+            printf("\n  Load Balance Analysis:\n");
             printf("   ├─ Terms distribution: %.1f%% balanced (min:%d, max:%d)\n", 
                    load_balance_terms, min_terms, max_terms);
             printf("   └─ Docs distribution: %.1f%% balanced (min:%d, max:%d)\n", 
                    load_balance_docs, min_docs, max_docs);
             
             if (load_balance_terms < 70 || load_balance_docs < 70) {
-                printf("   ⚠️  WARNING: Load imbalance detected. Consider redistribution.\n");
+                printf("     WARNING: Load imbalance detected. Consider redistribution.\n");
             } else {
                 printf("    Good load distribution across processes.\n");
             }
@@ -211,7 +211,7 @@ int build_index(const char *folder_path)
                    mpi_rank, hostname, file_paths[i], i, documents[i].filename);
             local_successful++;
         } else {
-            printf("❌ Process %d [%s] failed to parse: %s\n", mpi_rank, hostname, file_paths[i]);
+            printf(" Process %d [%s] failed to parse: %s\n", mpi_rank, hostname, file_paths[i]);
         }
     }
     
@@ -824,7 +824,7 @@ void merge_mpi_index() {
     // Synchronize all processes after merging
     MPI_Barrier(MPI_COMM_WORLD);
       if (mpi_rank == 0) {
-        printf("🔗 Distributed index synchronized: %d total entries across %d processes\n", 
+        printf(" Distributed index synchronized: %d total entries across %d processes\n", 
                index_size, mpi_size);
         printf("   └─ All machines are now synchronized with the global index\n");
     }
