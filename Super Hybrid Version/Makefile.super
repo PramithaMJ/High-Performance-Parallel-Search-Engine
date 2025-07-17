@@ -1,0 +1,311 @@
+# Super Hybrid Search Engine Makefile
+# Supports CUDA + OpenMP + MPI compilation
+
+# Compiler settings
+CC = mpicc
+NVCC = nvcc
+CXX = mpicxx
+
+# Project directories
+SRC_DIR = src
+INC_DIR = include
+OBJ_DIR = obj
+BIN_DIR = bin
+DATA_DIR = data
+TEST_DIR = tests
+SCRIPTS_DIR = scripts
+
+# Ensure directories exist
+$(shell mkdir -p $(OBJ_DIR) $(BIN_DIR))
+
+# Feature flags
+USE_CUDA ?= 1
+USE_OPENMP ?= 1
+USE_MPI ?= 1
+
+# Compiler flags
+CFLAGS = -Wall -Wextra -O3 -std=c99
+CXXFLAGS = -Wall -Wextra -O3 -std=c++11
+NVCCFLAGS = -O3 -arch=sm_35 --ptxas-options=-v
+
+# Include directories
+INC_FLAGS = -I$(INC_DIR)
+
+# Preprocessor definitions
+CPPFLAGS = -DNDEBUG
+
+# Conditional compilation flags
+ifeq ($(USE_CUDA),1)
+    CPPFLAGS += -DUSE_CUDA
+    CUDA_LIBS = -lcuda -lcudart -lcublas -lcurand
+    CUDA_INC = -I/usr/local/cuda/include
+    CUDA_LIB_DIR = -L/usr/local/cuda/lib64
+endif
+
+ifeq ($(USE_OPENMP),1)
+    CPPFLAGS += -DUSE_OPENMP
+    OPENMP_FLAGS = -fopenmp
+    OPENMP_LIBS = -lgomp
+endif
+
+ifeq ($(USE_MPI),1)
+    CPPFLAGS += -DUSE_MPI
+endif
+
+# Combine all flags
+CFLAGS += $(OPENMP_FLAGS) $(INC_FLAGS) $(CUDA_INC)
+CXXFLAGS += $(OPENMP_FLAGS) $(INC_FLAGS) $(CUDA_INC)
+NVCCFLAGS += $(INC_FLAGS)
+
+# Libraries
+LIBS = -lm -lcurl $(OPENMP_LIBS)
+ifeq ($(USE_CUDA),1)
+    LIBS += $(CUDA_LIB_DIR) $(CUDA_LIBS)
+endif
+
+# Source files
+C_SOURCES = $(wildcard $(SRC_DIR)/*.c)
+CU_SOURCES = $(wildcard $(SRC_DIR)/*.cu)
+
+# Object files
+C_OBJECTS = $(C_SOURCES:$(SRC_DIR)/%.c=$(OBJ_DIR)/%.o)
+CU_OBJECTS = $(CU_SOURCES:$(SRC_DIR)/%.cu=$(OBJ_DIR)/%.o)
+
+# Exclude specific main files from object list for executables
+MAIN_OBJECTS = $(OBJ_DIR)/main.o $(OBJ_DIR)/super_hybrid_main.o $(OBJ_DIR)/evaluate.o
+COMMON_OBJECTS = $(filter-out $(MAIN_OBJECTS), $(C_OBJECTS) $(CU_OBJECTS))
+
+# Default target configuration
+MPI_PROCS ?= 4
+OMP_THREADS ?= 8
+CUDA_DEVICES ?= 1
+
+# Main targets
+.PHONY: all clean super hybrid cuda openmp mpi serial benchmark install help
+
+# Default target builds super hybrid version
+all: super
+
+# Super Hybrid version (CUDA + OpenMP + MPI)
+super: $(BIN_DIR)/super_hybrid_engine
+
+$(BIN_DIR)/super_hybrid_engine: $(COMMON_OBJECTS) $(OBJ_DIR)/super_hybrid_main.o
+	@echo "🔗 Linking Super Hybrid Engine (CUDA + OpenMP + MPI)..."
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+	@echo "✅ Super Hybrid Engine built successfully!"
+
+# Regular hybrid version (OpenMP + MPI, no CUDA)
+hybrid: USE_CUDA=0
+hybrid: $(BIN_DIR)/hybrid_engine
+
+$(BIN_DIR)/hybrid_engine: $(COMMON_OBJECTS) $(OBJ_DIR)/main.o
+	@echo "🔗 Linking Hybrid Engine (OpenMP + MPI)..."
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+	@echo "✅ Hybrid Engine built successfully!"
+
+# CUDA-only version
+cuda: USE_MPI=0
+cuda: $(BIN_DIR)/cuda_engine
+
+$(BIN_DIR)/cuda_engine: $(COMMON_OBJECTS) $(OBJ_DIR)/super_hybrid_main.o
+	@echo "🔗 Linking CUDA Engine..."
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+	@echo "✅ CUDA Engine built successfully!"
+
+# OpenMP-only version
+openmp: USE_CUDA=0
+openmp: USE_MPI=0
+openmp: $(BIN_DIR)/openmp_engine
+
+$(BIN_DIR)/openmp_engine: $(COMMON_OBJECTS) $(OBJ_DIR)/main.o
+	@echo "🔗 Linking OpenMP Engine..."
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+	@echo "✅ OpenMP Engine built successfully!"
+
+# MPI-only version
+mpi: USE_CUDA=0
+mpi: USE_OPENMP=0
+mpi: $(BIN_DIR)/mpi_engine
+
+$(BIN_DIR)/mpi_engine: $(COMMON_OBJECTS) $(OBJ_DIR)/main.o
+	@echo "🔗 Linking MPI Engine..."
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+	@echo "✅ MPI Engine built successfully!"
+
+# Serial version (no parallelization)
+serial: USE_CUDA=0
+serial: USE_OPENMP=0
+serial: USE_MPI=0
+serial: $(BIN_DIR)/serial_engine
+
+$(BIN_DIR)/serial_engine: $(COMMON_OBJECTS) $(OBJ_DIR)/main.o
+	@echo "🔗 Linking Serial Engine..."
+	gcc $(filter-out -fopenmp,$(CFLAGS)) -o $@ $^ $(filter-out $(OPENMP_LIBS),$(LIBS))
+	@echo "✅ Serial Engine built successfully!"
+
+# Test executables
+$(BIN_DIR)/evaluate: $(OBJ_DIR)/evaluate.o $(COMMON_OBJECTS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+
+$(BIN_DIR)/test_url_normalization: $(TEST_DIR)/test_url_normalization.c
+	$(CC) $(CFLAGS) $(INC_FLAGS) -o $@ $<
+
+$(BIN_DIR)/test_medium_urls: $(TEST_DIR)/test_medium_urls.c
+	$(CC) $(CFLAGS) $(INC_FLAGS) -o $@ $<
+
+# Compilation rules
+
+# C source files
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	@echo "🔧 Compiling $<..."
+	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
+
+# CUDA source files
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cu
+ifeq ($(USE_CUDA),1)
+	@echo "🔧 Compiling CUDA $<..."
+	$(NVCC) $(NVCCFLAGS) $(CPPFLAGS) -c $< -o $@
+else
+	@echo "⚠️  Skipping CUDA file $< (CUDA disabled)"
+	@touch $@
+endif
+
+# Run targets
+
+# Run super hybrid engine with optimal configuration
+run_super: $(BIN_DIR)/super_hybrid_engine
+	@echo "🚀 Running Super Hybrid Engine..."
+	@echo "   Configuration: $(MPI_PROCS) MPI × $(OMP_THREADS) OpenMP × $(CUDA_DEVICES) CUDA"
+	OMP_NUM_THREADS=$(OMP_THREADS) mpirun -np $(MPI_PROCS) \
+		$(BIN_DIR)/super_hybrid_engine -t $(OMP_THREADS) -g $(CUDA_DEVICES) \
+		-c https://medium.com/@lpramithamj -d 2 -p 10
+
+# Run with custom parameters
+# Usage: make run_custom MPI_PROCS=2 OMP_THREADS=4 ARGS="-q 'machine learning'"
+run_custom: $(BIN_DIR)/super_hybrid_engine
+	@echo "🚀 Running Super Hybrid Engine with custom parameters..."
+	OMP_NUM_THREADS=$(OMP_THREADS) mpirun -np $(MPI_PROCS) \
+		$(BIN_DIR)/super_hybrid_engine -t $(OMP_THREADS) -g $(CUDA_DEVICES) $(ARGS)
+
+# Interactive query mode
+query: $(BIN_DIR)/super_hybrid_engine
+	@echo "🔍 Running Super Hybrid Engine in query mode..."
+	OMP_NUM_THREADS=$(OMP_THREADS) mpirun -np $(MPI_PROCS) \
+		$(BIN_DIR)/super_hybrid_engine -t $(OMP_THREADS) -g $(CUDA_DEVICES) \
+		-q "$(QUERY)"
+
+# Benchmark all configurations
+benchmark: $(BIN_DIR)/super_hybrid_engine
+	@echo "📊 Running comprehensive benchmark suite..."
+	@bash $(SCRIPTS_DIR)/super_hybrid_benchmark.sh
+
+# Performance comparison
+compare: all
+	@echo "📈 Running performance comparison..."
+	@bash $(SCRIPTS_DIR)/performance_comparison.sh
+
+# System detection and optimization
+detect: $(BIN_DIR)/super_hybrid_engine
+	@echo "🔍 Detecting system capabilities..."
+	OMP_NUM_THREADS=$(OMP_THREADS) mpirun -np 1 \
+		$(BIN_DIR)/super_hybrid_engine -i
+
+# Test targets
+test: $(BIN_DIR)/test_url_normalization $(BIN_DIR)/test_medium_urls $(BIN_DIR)/evaluate
+	@echo "🧪 Running tests..."
+	./$(BIN_DIR)/test_url_normalization
+	./$(BIN_DIR)/test_medium_urls
+	./$(BIN_DIR)/evaluate
+
+# Installation
+install: all
+	@echo "📦 Installing Super Hybrid Search Engine..."
+	mkdir -p /usr/local/bin
+	cp $(BIN_DIR)/super_hybrid_engine /usr/local/bin/
+	mkdir -p /usr/local/share/super-hybrid-search
+	cp -r $(DATA_DIR)/* /usr/local/share/super-hybrid-search/
+	@echo "✅ Installation completed!"
+
+# Clean targets
+clean:
+	@echo "🧹 Cleaning build artifacts..."
+	rm -rf $(OBJ_DIR)/* $(BIN_DIR)/*
+	@echo "✅ Clean completed!"
+
+clean_all: clean
+	rm -rf $(OBJ_DIR) $(BIN_DIR)
+
+# Development helpers
+debug: CFLAGS += -g -DDEBUG -O0
+debug: NVCCFLAGS += -g -G -O0
+debug: super
+
+profile: CFLAGS += -pg
+profile: super
+
+# Documentation
+docs:
+	@echo "📚 Generating documentation..."
+	doxygen Doxyfile
+
+# Help
+help:
+	@echo "Super Hybrid Search Engine - Build System"
+	@echo "========================================"
+	@echo ""
+	@echo "Main Targets:"
+	@echo "  all/super    - Build super hybrid engine (CUDA + OpenMP + MPI)"
+	@echo "  hybrid       - Build hybrid engine (OpenMP + MPI)"
+	@echo "  cuda         - Build CUDA-only engine"
+	@echo "  openmp       - Build OpenMP-only engine"
+	@echo "  mpi          - Build MPI-only engine"
+	@echo "  serial       - Build serial engine (no parallelization)"
+	@echo ""
+	@echo "Run Targets:"
+	@echo "  run_super    - Run super hybrid with default settings"
+	@echo "  run_custom   - Run with custom parameters (see variables below)"
+	@echo "  query        - Run interactive query mode"
+	@echo "  benchmark    - Run comprehensive benchmark suite"
+	@echo "  compare      - Performance comparison across all versions"
+	@echo "  detect       - Detect and display system capabilities"
+	@echo ""
+	@echo "Configuration Variables:"
+	@echo "  MPI_PROCS    - Number of MPI processes (default: 4)"
+	@echo "  OMP_THREADS  - Number of OpenMP threads (default: 8)"
+	@echo "  CUDA_DEVICES - Number of CUDA devices (default: 1)"
+	@echo "  USE_CUDA     - Enable CUDA support (default: 1)"
+	@echo "  USE_OPENMP   - Enable OpenMP support (default: 1)"
+	@echo "  USE_MPI      - Enable MPI support (default: 1)"
+	@echo ""
+	@echo "Examples:"
+	@echo "  make super USE_CUDA=1 USE_OPENMP=1 USE_MPI=1"
+	@echo "  make run_custom MPI_PROCS=8 OMP_THREADS=4 ARGS='-q \"AI\"'"
+	@echo "  make query QUERY='machine learning' MPI_PROCS=2"
+	@echo "  make benchmark"
+	@echo ""
+	@echo "Other Targets:"
+	@echo "  test         - Run test suite"
+	@echo "  clean        - Clean build artifacts"
+	@echo "  install      - Install to system directories"
+	@echo "  debug        - Build with debug symbols"
+	@echo "  profile      - Build with profiling support"
+	@echo "  docs         - Generate documentation"
+	@echo "  help         - Show this help message"
+
+# Print configuration
+info:
+	@echo "🔧 Build Configuration:"
+	@echo "   CUDA Support: $(USE_CUDA)"
+	@echo "   OpenMP Support: $(USE_OPENMP)"
+	@echo "   MPI Support: $(USE_MPI)"
+	@echo "   Compiler: $(CC)"
+	@echo "   CUDA Compiler: $(NVCC)"
+	@echo "   C Flags: $(CFLAGS)"
+	@echo "   CUDA Flags: $(NVCCFLAGS)"
+	@echo "   Libraries: $(LIBS)"
+	@echo "   MPI Processes: $(MPI_PROCS)"
+	@echo "   OpenMP Threads: $(OMP_THREADS)"
+	@echo "   CUDA Devices: $(CUDA_DEVICES)"
+
+# Dependencies
+-include $(OBJ_DIR)/*.d

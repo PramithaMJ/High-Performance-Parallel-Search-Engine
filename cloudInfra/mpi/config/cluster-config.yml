@@ -1,0 +1,86 @@
+# Cluster Configuration
+cluster:
+  name: mpi-search-engine
+  environment: dev
+  
+  # Node configuration
+  nodes:
+    master:
+      instance_type: c5n.xlarge
+      count: 1
+      public_ip: true
+    
+    workers:
+      instance_type: c5n.large
+      count: 4
+      public_ip: false
+  
+  # MPI configuration
+  mpi:
+    version: "4.1.4"
+    slots_per_node: 4
+    implementation: openmpi
+    
+  # Network configuration
+  network:
+    vpc_cidr: "10.0.0.0/16"
+    enable_enhanced_networking: true
+    placement_group: true
+    
+  # Storage configuration
+  storage:
+    root_volume_size: 50
+    shared_storage: efs
+    enable_backup: true
+    
+  # Security configuration
+  security:
+    ssh_key_name: mpi-cluster-key
+    enable_vpc_flow_logs: true
+    enable_cloudtrail: false
+    
+  # Monitoring configuration
+  monitoring:
+    enable_cloudwatch: true
+    enable_custom_metrics: true
+    log_retention_days: 14
+    
+  # Cost optimization
+  cost_optimization:
+    use_spot_instances: true
+    auto_shutdown: true
+    idle_timeout_minutes: 60
+    
+  # Application configuration
+  application:
+    name: search-engine
+    version: latest
+    web_interface:
+      enabled: true
+      port: 8080
+      
+# Performance tuning
+performance:
+  # CPU settings
+  cpu:
+    governor: performance
+    disable_hyperthreading: false
+    
+  # Memory settings
+  memory:
+    overcommit_handling: 0
+    swappiness: 1
+    
+  # Network settings
+  network:
+    tcp_congestion_control: bbr
+    receive_buffer_size: 16777216
+    send_buffer_size: 16777216
+    
+  # MPI tuning
+  mpi:
+    btl: "^openib"
+    mca_params:
+      - "btl_tcp_if_include=eth0"
+      - "oob_tcp_if_include=eth0"
+      - "btl_base_warn_component_unused=0"

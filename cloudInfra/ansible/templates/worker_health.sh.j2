@@ -1,0 +1,116 @@
+#!/bin/bash
+# Worker node health check script
+
+echo "🔍 Worker Node Health Check - $(hostname)"
+echo "========================================"
+
+# Initialize counters
+CHECKS_PASSED=0
+CHECKS_TOTAL=0
+
+# Function to run a check
+check_status() {
+    local service=$1
+    local check_command=$2
+    local description=$3
+    
+    CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
+    
+    if eval $check_command > /dev/null 2>&1; then
+        echo "✅ $service: OK - $description"
+        CHECKS_PASSED=$((CHECKS_PASSED + 1))
+        return 0
+    else
+        echo "❌ $service: FAILED - $description"
+        return 1
+    fi
+}
+
+# System resource checks
+echo ""
+echo "System Resources:"
+echo "=================="
+check_status "CPU Load" "[ \$(cat /proc/loadavg | awk '{print \$1}' | cut -d. -f1) -lt 2 ]" "Load average under 2.0"
+check_status "Memory Usage" "[ \$(free | grep Mem | awk '{print int(\$3/\$2*100)}') -lt 90 ]" "Memory usage under 90%"
+check_status "Disk Space" "[ \$(df / | tail -1 | awk '{print int(\$5)}' | sed 's/%//') -lt 90 ]" "Root disk usage under 90%"
+check_status "Swap Usage" "[ \$(free | grep Swap | awk '{if(\$2>0) print int(\$3/\$2*100); else print 0}') -lt 50 ]" "Swap usage under 50%"
+
+# Network connectivity checks
+echo ""
+echo "Network Connectivity:"
+echo "===================="
+check_status "Master Node Ping" "ping -c 1 -W 3 hpc-master" "Can reach master node"
+check_status "Internet Access" "ping -c 1 -W 3 8.8.8.8" "Internet connectivity"
+check_status "DNS Resolution" "nslookup google.com" "DNS resolution working"
+
+# Service checks
+echo ""
+echo "System Services:"
+echo "================"
+check_status "SSH Service" "systemctl is-active ssh" "SSH daemon is running"
+check_status "Network Service" "systemctl is-active systemd-networkd" "Network service active"
+
+# Storage checks
+echo ""
+echo "Storage Systems:"
+echo "================"
+check_status "NFS Mount" "mountpoint -q {{ shared_dir }}" "Shared directory mounted"
+check_status "NFS Connectivity" "ls {{ shared_dir }} >/dev/null" "Can access shared directory"
+check_status "Shared Write Access" "touch {{ shared_dir }}/test_worker_{{ worker_index }}_\$(date +%s) && find {{ shared_dir }} -name 'test_worker_{{ worker_index }}_*' -mmin -1 -delete" "Can write to shared directory"
+
+# MPI and development environment checks
+echo ""
+echo "HPC Environment:"
+echo "================"
+check_status "MPI Installation" "which mpirun" "MPI runtime available"
+check_status "OpenMP Support" "echo | gcc -fopenmp -E -dM - | grep -q _OPENMP" "OpenMP support compiled"
+check_status "Build Tools" "which gcc && which make" "Build tools available"
+check_status "Search Engine Binary" "[ -f {{ shared_dir }}/High-Performance-Parallel-Search-Engine/Hybrid\\ Version/bin/search_engine ]" "Search engine binary exists"
+
+# Performance checks
+echo ""
+echo "Performance Metrics:"
+echo "==================="
+CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
+MEMORY_USAGE=$(free | grep Mem | awk '{printf "%.1f", $3/$2 * 100.0}')
+LOAD_AVG=$(uptime | awk -F'load average:' '{print $2}' | awk '{print $1}' | sed 's/,//')
+
+echo "📊 Current Metrics:"
+echo "   - CPU Usage: ${CPU_USAGE}%"
+echo "   - Memory Usage: ${MEMORY_USAGE}%"
+echo "   - Load Average: ${LOAD_AVG}"
+echo "   - Uptime: $(uptime -p)"
+
+# Host connectivity check
+echo ""
+echo "Cluster Connectivity:"
+echo "===================="
+if [ -f {{ shared_dir }}/hostfile ]; then
+    while read -r line; do
+        if [ -n "$line" ]; then
+            host=$(echo $line | awk '{print $1}')
+            if [ "$host" != "$(hostname)" ]; then
+                check_status "Host $host" "ping -c 1 -W 2 $host" "Can reach cluster node"
+            fi
+        fi
+    done < {{ shared_dir }}/hostfile
+fi
+
+# Summary
+echo ""
+echo "Health Check Summary:"
+echo "===================="
+echo "✅ Checks Passed: $CHECKS_PASSED"
+echo "❌ Checks Failed: $((CHECKS_TOTAL - CHECKS_PASSED))"
+echo "📊 Success Rate: $(echo "scale=1; $CHECKS_PASSED * 100 / $CHECKS_TOTAL" | bc)%"
+
+if [ $CHECKS_PASSED -eq $CHECKS_TOTAL ]; then
+    echo "🎉 All checks passed! Node is healthy."
+    exit 0
+elif [ $CHECKS_PASSED -gt $((CHECKS_TOTAL / 2)) ]; then
+    echo "⚠️  Some issues detected, but node is functional."
+    exit 1
+else
+    echo "🚨 Critical issues detected! Node may not function properly."
+    exit 2
+fi

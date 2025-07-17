@@ -1,0 +1,347 @@
+---
+# Main playbook for HPC Search Engine Cluster setup
+- name: Setup HPC Search Engine Cluster
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  vars:
+    project_repo: "https://github.com/PramithaMJ/High-Performance-Parallel-Search-Engine.git"
+    shared_directory: "/shared"
+    mpi_hostfile: "{{ shared_directory }}/hostfile"
+    
+  tasks:
+    - name: Update system packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+        cache_valid_time: 3600
+      
+    - name: Install essential packages
+      apt:
+        name:
+          - build-essential
+          - cmake
+          - git
+          - openmpi-bin
+          - openmpi-common
+          - libopenmpi-dev
+          - libcurl4-openssl-dev
+          - htop
+          - python3
+          - python3-pip
+          - awscli
+          - vim
+          - tmux
+        state: present
+        
+    - name: Create shared directory
+      file:
+        path: "{{ shared_directory }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+
+# Master node specific tasks
+- name: Configure Master Node
+  hosts: master
+  become: yes
+  gather_facts: yes
+  
+  tasks:
+    - name: Install NFS server
+      apt:
+        name: nfs-kernel-server
+        state: present
+        
+    - name: Configure NFS exports
+      lineinfile:
+        path: /etc/exports
+        line: "{{ shared_directory }} *(rw,sync,no_subtree_check,no_root_squash)"
+        create: yes
+      notify: restart nfs-server
+      
+    - name: Start and enable NFS server
+      systemd:
+        name: nfs-kernel-server
+        state: started
+        enabled: yes
+        
+    - name: Generate SSH key for ubuntu user
+      user:
+        name: ubuntu
+        generate_ssh_key: yes
+        ssh_key_type: rsa
+        ssh_key_bits: 2048
+        ssh_key_file: .ssh/id_rsa
+      become_user: ubuntu
+      
+    - name: Copy public key to authorized_keys
+      copy:
+        src: /home/ubuntu/.ssh/id_rsa.pub
+        dest: /home/ubuntu/.ssh/authorized_keys
+        remote_src: yes
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+        
+    - name: Copy SSH keys to shared directory
+      synchronize:
+        src: /home/ubuntu/.ssh/
+        dest: "{{ shared_directory }}/.ssh/"
+        rsync_opts:
+          - "--chown=ubuntu:ubuntu"
+      delegate_to: "{{ inventory_hostname }}"
+      
+    - name: Configure SSH client
+      blockinfile:
+        path: /home/ubuntu/.ssh/config
+        block: |
+          Host *
+              StrictHostKeyChecking no
+              UserKnownHostsFile=/dev/null
+              LogLevel=quiet
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+        create: yes
+        
+    - name: Clone project repository
+      git:
+        repo: "{{ project_repo }}"
+        dest: "{{ shared_directory }}/High-Performance-Parallel-Search-Engine"
+        clone: yes
+        update: yes
+      become_user: ubuntu
+      
+    - name: Create optimized Makefile for t2.medium
+      copy:
+        dest: "{{ shared_directory }}/High-Performance-Parallel-Search-Engine/Hybrid Version/Makefile"
+        content: |
+          CC = mpicc
+          CXX = mpicxx
+          CFLAGS = -O2 -fopenmp -march=native -mtune=native -pipe
+          CXXFLAGS = -O2 -fopenmp -march=native -mtune=native -std=c++11 -pipe
+          LDFLAGS = -fopenmp -lcurl -lm
+
+          SRCDIR = src
+          OBJDIR = obj
+          BINDIR = bin
+          INCDIR = include
+
+          SOURCES = $(wildcard $(SRCDIR)/*.c $(SRCDIR)/*.cpp)
+          OBJECTS = $(SOURCES:$(SRCDIR)/%=$(OBJDIR)/%.o)
+          TARGET = $(BINDIR)/search_engine
+
+          $(shell mkdir -p $(OBJDIR) $(BINDIR))
+
+          $(TARGET): $(OBJECTS)
+          	$(CXX) $(OBJECTS) -o $@ $(LDFLAGS)
+
+          $(OBJDIR)/%.c.o: $(SRCDIR)/%.c
+          	$(CC) $(CFLAGS) -I$(INCDIR) -c $< -o $@
+
+          $(OBJDIR)/%.cpp.o: $(SRCDIR)/%.cpp
+          	$(CXX) $(CXXFLAGS) -I$(INCDIR) -c $< -o $@
+
+          clean:
+          	rm -rf $(OBJDIR) $(BINDIR)
+
+          install: $(TARGET)
+          	mkdir -p /usr/local/bin
+          	cp $(TARGET) /usr/local/bin/
+
+          .PHONY: clean install
+        owner: ubuntu
+        group: ubuntu
+        
+    - name: Build the search engine
+      make:
+        chdir: "{{ shared_directory }}/High-Performance-Parallel-Search-Engine/Hybrid Version"
+        jobs: 2
+      become_user: ubuntu
+      
+    - name: Create cluster run script
+      template:
+        src: run_cluster.sh.j2
+        dest: "{{ shared_directory }}/run_cluster.sh"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+        
+    - name: Create monitoring script
+      template:
+        src: monitor_cluster.sh.j2
+        dest: "{{ shared_directory }}/monitor_cluster.sh"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+        
+    - name: Initialize hostfile with master
+      copy:
+        content: "hpc-master slots=1\n"
+        dest: "{{ mpi_hostfile }}"
+        owner: ubuntu
+        group: ubuntu
+        
+    - name: Create dashboard directory
+      file:
+        path: "{{ shared_directory }}/dashboard"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        
+    - name: Create web dashboard
+      template:
+        src: dashboard.py.j2
+        dest: "{{ shared_directory }}/dashboard/server.py"
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+        
+    - name: Create dashboard service
+      template:
+        src: hpc-dashboard.service.j2
+        dest: /etc/systemd/system/hpc-dashboard.service
+      notify: 
+        - reload systemd
+        - start dashboard
+
+# Worker nodes specific tasks
+- name: Configure Worker Nodes
+  hosts: workers
+  become: yes
+  gather_facts: yes
+  
+  tasks:
+    - name: Install NFS client
+      apt:
+        name: nfs-common
+        state: present
+        
+    - name: Wait for master NFS to be ready
+      wait_for:
+        host: "{{ hostvars[groups['master'][0]]['ansible_host'] }}"
+        port: 2049
+        delay: 30
+        timeout: 300
+        
+    - name: Mount shared directory from master
+      mount:
+        path: "{{ shared_directory }}"
+        src: "{{ hostvars[groups['master'][0]]['ansible_default_ipv4']['address'] }}:{{ shared_directory }}"
+        fstype: nfs
+        state: mounted
+        opts: defaults,_netdev
+        
+    - name: Wait for SSH keys to be available
+      wait_for:
+        path: "{{ shared_directory }}/.ssh/id_rsa"
+        timeout: 300
+        
+    - name: Copy SSH keys from shared directory
+      synchronize:
+        src: "{{ shared_directory }}/.ssh/"
+        dest: /home/ubuntu/.ssh/
+        rsync_opts:
+          - "--chown=ubuntu:ubuntu"
+      delegate_to: "{{ inventory_hostname }}"
+      
+    - name: Set SSH directory permissions
+      file:
+        path: /home/ubuntu/.ssh
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+        mode: '0700'
+        recurse: yes
+        
+    - name: Configure SSH client for workers
+      blockinfile:
+        path: /home/ubuntu/.ssh/config
+        block: |
+          Host *
+              StrictHostKeyChecking no
+              UserKnownHostsFile=/dev/null
+              LogLevel=quiet
+        owner: ubuntu
+        group: ubuntu
+        mode: '0600'
+        create: yes
+        
+    - name: Add worker to hostfile
+      lineinfile:
+        path: "{{ mpi_hostfile }}"
+        line: "hpc-worker-{{ worker_index }} slots=1"
+        
+    - name: Create worker health check script
+      template:
+        src: worker_health.sh.j2
+        dest: /home/ubuntu/health_check.sh
+        owner: ubuntu
+        group: ubuntu
+        mode: '0755'
+        
+    - name: Setup health check cron job
+      cron:
+        name: "Worker health check"
+        minute: "*/5"
+        job: "/home/ubuntu/health_check.sh >> /var/log/worker_health.log 2>&1"
+        user: ubuntu
+
+# Post-setup tasks for all nodes
+- name: Final Configuration
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  tasks:
+    - name: Configure MPI environment
+      blockinfile:
+        path: /home/ubuntu/.bashrc
+        block: |
+          export PATH=$PATH:/usr/bin
+          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/x86_64-linux-gnu/openmpi/lib
+          export OMPI_MCA_btl_vader_single_copy_mechanism=none
+          export OMPI_MCA_btl_tcp_if_include=eth0
+          export OMPI_MCA_oob_tcp_if_include=eth0
+          export OMP_NUM_THREADS=2
+          export OMP_PROC_BIND=true
+          export OMP_PLACES=cores
+        marker: "# {mark} ANSIBLE MANAGED BLOCK - MPI Environment"
+        
+    - name: Update /etc/hosts with cluster nodes
+      lineinfile:
+        path: /etc/hosts
+        line: "{{ hostvars[item]['ansible_default_ipv4']['address'] }} {{ item }}"
+      loop: "{{ groups['all'] }}"
+      when: hostvars[item]['ansible_default_ipv4']['address'] is defined
+      
+    - name: Enable automatic security updates
+      apt:
+        name: unattended-upgrades
+        state: present
+        
+    - name: Configure unattended upgrades
+      debconf:
+        name: unattended-upgrades
+        question: unattended-upgrades/enable_auto_updates
+        value: 'true'
+        vtype: boolean
+
+  handlers:
+    - name: restart nfs-server
+      systemd:
+        name: nfs-kernel-server
+        state: restarted
+        
+    - name: reload systemd
+      systemd:
+        daemon_reload: yes
+        
+    - name: start dashboard
+      systemd:
+        name: hpc-dashboard
+        state: started
+        enabled: yes
