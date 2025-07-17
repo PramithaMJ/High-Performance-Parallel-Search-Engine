@@ -334,7 +334,7 @@ sudo rm /usr/share/keyrings/microsoft.gpgThis removes any old or incorrect repos
 
 echo "deb [signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microsoft.com/repos/code stable main" | sudo tee /etc/apt/sources.list.d/vscode.list
 
-3. Update Againsudo apt updateNow, the error should be resolved! 🎉
+3. Update Againsudo apt updateNow, the error should be resolved! 
 
 
 

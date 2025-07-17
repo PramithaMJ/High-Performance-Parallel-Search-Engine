@@ -1,10 +1,10 @@
 # AWS MPI Infrastructure Summary
 
-## 🚀 Complete AWS Infrastructure for MPI Parallel Search Engine
+## Complete AWS Infrastructure for MPI Parallel Search Engine
 
 You now have a complete, production-ready AWS infrastructure setup for deploying and running your MPI-based parallel search engine across multiple EC2 instances. Here's what has been created:
 
-## 📁 Directory Structure
+## Directory Structure
 
 ```
 cloudInfra/mpi/
@@ -34,46 +34,51 @@ cloudInfra/mpi/
     └── inventory.ini           # Ansible inventory
 ```
 
-## 🎯 Key Features
+## Key Features
 
 ### Infrastructure Features
-✅ **Auto-scaling EC2 cluster** with network-optimized instances (c5n family)
-✅ **Spot instance support** for 50-70% cost savings
-✅ **Multi-AZ deployment** for high availability
-✅ **Enhanced networking** for low-latency MPI communication
-✅ **Shared EFS storage** for distributed file access
-✅ **Application Load Balancer** with web interface
-✅ **Auto-shutdown** for cost optimization
-✅ **CloudWatch monitoring** and logging
-✅ **S3 integration** for data and artifacts
-✅ **VPC with public/private subnets** for security
+
+**Auto-scaling EC2 cluster** with network-optimized instances (c5n family)
+**Spot instance support** for 50-70% cost savings
+**Multi-AZ deployment** for high availability
+**Enhanced networking** for low-latency MPI communication
+**Shared EFS storage** for distributed file access
+**Application Load Balancer** with web interface
+**Auto-shutdown** for cost optimization
+**CloudWatch monitoring** and logging
+**S3 integration** for data and artifacts
+**VPC with public/private subnets** for security
 
 ### MPI Features
-✅ **OpenMPI 4.1.4** optimized for AWS
-✅ **Passwordless SSH** between nodes
-✅ **Dynamic hostfile** generation
-✅ **Load balancing** across nodes
-✅ **Performance monitoring** and metrics
-✅ **Web interface** for search queries
-✅ **Automated builds** and deployment
+
+**OpenMPI 4.1.4** optimized for AWS
+**Passwordless SSH** between nodes
+**Dynamic hostfile** generation
+**Load balancing** across nodes
+**Performance monitoring** and metrics
+**Web interface** for search queries
+**Automated builds** and deployment
 
 ### Security Features
-✅ **VPC isolation** with private worker nodes
-✅ **Security groups** with minimal required access
-✅ **Encrypted storage** (EBS and EFS)
-✅ **IAM roles** instead of access keys
-✅ **VPC flow logs** for network monitoring
-✅ **WAF protection** for web interface
 
-## 🚀 Quick Start (5 Minutes)
+**VPC isolation** with private worker nodes
+**Security groups** with minimal required access
+**Encrypted storage** (EBS and EFS)
+**IAM roles** instead of access keys
+**VPC flow logs** for network monitoring
+**WAF protection** for web interface
+
+## Quick Start (5 Minutes)
 
 ### 1. Initial Setup
+
 ```bash
 cd cloudInfra/mpi
 ./scripts/setup.sh
 ```
 
 ### 2. Deploy Infrastructure
+
 ```bash
 # Basic deployment (4 workers, spot instances)
 ./scripts/deploy.sh
@@ -83,6 +88,7 @@ cd cloudInfra/mpi
 ```
 
 ### 3. Run Distributed Search
+
 ```bash
 # Run a search across the cluster
 ./scripts/run-mpi.sh search "machine learning algorithms"
@@ -95,34 +101,32 @@ cd cloudInfra/mpi
 ```
 
 ### 4. Access Web Interface
+
 The deployment provides a load balancer URL for web access where you can:
+
 - Submit search queries through a modern web UI
 - Monitor real-time cluster status and performance
 - View search results and execution metrics
 
 ### 5. Cleanup Resources
+
 ```bash
 ./scripts/cleanup.sh
 ```
 
-## 💰 Cost Optimization
-
-### Instance Recommendations
-| Workload | Master | Workers | Nodes | Est. Cost/Hour | Monthly |
-|----------|--------|---------|-------|----------------|---------|
-| Development | c5n.large | c5n.large | 1+2 | $0.20 | $144 |
-| Testing | c5n.xlarge | c5n.large | 1+4 | $0.60 | $432 |
-| Production | c5n.2xlarge | c5n.xlarge | 1+8 | $2.40 | $1,728 |
+## Cost Optimization
 
 ### Cost Savings Features
+
 - **Spot Instances**: Enabled by default (50-70% savings)
 - **Auto-shutdown**: Stops idle instances after 60 minutes
 - **Right-sizing**: Configurable instance types per workload
 - **Regional pricing**: Deploy in cost-effective regions
 
-## 🔧 Advanced Configuration
+## Advanced Configuration
 
 ### Scaling Options
+
 ```bash
 # Scale worker count
 terraform apply -var="worker_count=16"
@@ -135,58 +139,67 @@ terraform apply -var="worker_instance_type=c5n.2xlarge"
 ```
 
 ### Performance Tuning
+
 - **Network optimization**: Enhanced networking with SR-IOV
 - **CPU optimization**: Performance governor settings
 - **Memory optimization**: Reduced swappiness for HPC workloads
 - **MPI tuning**: Optimized OpenMPI configuration
 
 ### Monitoring & Observability
+
 - **CloudWatch Metrics**: CPU, memory, network, custom MPI metrics
 - **CloudWatch Logs**: Centralized logging with retention policies
 - **Performance Dashboards**: Real-time cluster monitoring
 - **Cost Tracking**: Resource tagging and cost allocation
 
-## 🔐 Security Best Practices
+## Security Best Practices
 
 ### Network Security
+
 - Workers in private subnets (no direct internet access)
 - Security groups with minimal required ports
 - VPC flow logs for network monitoring
 - NAT gateways for secure outbound access
 
 ### Data Security
+
 - EBS volumes encrypted at rest
 - EFS encrypted in transit and at rest
 - S3 buckets with server-side encryption
 - IAM roles with least privilege access
 
 ### Access Control
+
 - SSH key-based authentication
 - Configurable CIDR restrictions
 - Web interface with optional authentication
 - CloudTrail for audit logging
 
-## 📊 Performance Characteristics
+## Performance Characteristics
 
 ### Network Performance
+
 - **c5n instances**: Up to 100 Gbps network performance
 - **Enhanced networking**: Single root I/O virtualization (SR-IOV)
 - **Placement groups**: Cluster placement for low latency
 - **Optimized routing**: Direct instance-to-instance communication
 
 ### Storage Performance
+
 - **EFS**: Shared storage with burst performance
 - **EBS GP3**: High-performance local storage
 - **Instance storage**: For temporary high-speed data
 
 ### MPI Optimization
+
 - **Process binding**: Optimal CPU core assignment
 - **NUMA awareness**: Memory locality optimization
 - **Network fabric**: Low-latency interconnect utilization
 
-## 🛠️ Management Operations
+##  Management Operations
 
 ### Deployment Management
+
 ```bash
 # Deploy with custom configuration
 ./scripts/deploy.sh -n cluster-name -w 8 -t c5n.2xlarge -r us-west-2
@@ -199,6 +212,7 @@ terraform apply -var="worker_instance_type=c5n.2xlarge"
 ```
 
 ### Cluster Operations
+
 ```bash
 # Check cluster status
 ./scripts/run-mpi.sh status
@@ -212,6 +226,7 @@ terraform apply -var="worker_instance_type=c5n.2xlarge"
 ```
 
 ### Maintenance Operations
+
 ```bash
 # Backup cluster data
 ./scripts/cleanup.sh --show-info
@@ -223,49 +238,34 @@ terraform apply -var="worker_instance_type=c5n.2xlarge"
 ./scripts/cleanup.sh --force --no-backup
 ```
 
-## 🎯 Use Cases
+## Use Cases
 
 ### Research & Development
+
 - **Academic research**: Large-scale text analysis and information retrieval
 - **Algorithm development**: Testing parallel search algorithms
 - **Performance benchmarking**: Comparing different approaches
 
 ### Production Workloads
+
 - **Enterprise search**: Internal document search across large corpora
 - **Content analysis**: Social media and news analysis
 - **Scientific computing**: Parallel text processing for research
 
 ### Education & Training
+
 - **HPC education**: Teaching parallel programming concepts
 - **Cloud computing**: Demonstrating AWS infrastructure patterns
 - **DevOps training**: Infrastructure as Code practices
 
-## 📚 Documentation & Support
+## Documentation
 
 ### Documentation Files
+
 - `README.md`: Complete infrastructure overview
 - `QUICKSTART.md`: 5-minute deployment guide
 - `terraform/`: Detailed infrastructure code
 - `scripts/`: Commented deployment scripts
-
-### Getting Help
-1. **Issues**: Report bugs or request features
-2. **Documentation**: Comprehensive guides and examples
-3. **Community**: Discussions and best practices
-4. **Professional**: Enterprise support options
-
-## 🎉 What's Next?
-
-With this infrastructure, you can:
-
-1. **Deploy immediately** with the provided scripts
-2. **Customize configuration** for your specific needs
-3. **Scale horizontally** by adding more worker nodes
-4. **Integrate** with your existing CI/CD pipelines
-5. **Monitor performance** with built-in observability
-6. **Optimize costs** with spot instances and auto-scaling
-
-The infrastructure is production-ready and follows AWS best practices for security, scalability, and cost optimization. You can start with a small development cluster and scale up to handle production workloads as needed.
 
 ---
 

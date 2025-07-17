@@ -2,7 +2,7 @@
 
 This directory contains Terraform and Ansible configurations to deploy your HPC Search Engine on AWS using t2.medium instances.
 
-## 🚀 Quick Start
+##  Quick Start
 
 1. **Prerequisites:**
    ```bash
@@ -31,7 +31,7 @@ This directory contains Terraform and Ansible configurations to deploy your HPC 
    ./deploy.sh deploy
    ```
 
-## 📁 Directory Structure
+##  Directory Structure
 
 ```
 cloudInfra/
@@ -54,7 +54,7 @@ cloudInfra/
 └── README.md              # This file
 ```
 
-## 🏗️ Infrastructure Components
+##  Infrastructure Components
 
 ### AWS Resources Created:
 - **VPC** with public subnet
@@ -70,7 +70,7 @@ cloudInfra/
 - **Network:** Enhanced networking enabled
 - **Cost:** ~$0.14/hour for 3 nodes
 
-## 🎯 Optimal Configuration
+##  Optimal Configuration
 
 For t2.medium instances:
 - **MPI Processes:** 3 (one per node)
@@ -78,7 +78,7 @@ For t2.medium instances:
 - **Total Cores:** 6
 - **Total Memory:** 12GB
 
-## 📊 Monitoring
+##  Monitoring
 
 ### Web Dashboard
 Access the cluster dashboard at: `http://<load-balancer-dns>`
@@ -101,7 +101,7 @@ ssh -i your-key.pem ubuntu@<master-ip>
 /shared/worker_health.sh
 ```
 
-## 🏃‍♂️ Running the Search Engine
+##  Running the Search Engine
 
 ```bash
 # Connect to master node
@@ -114,7 +114,7 @@ ssh -i your-key.pem ubuntu@<master-ip>
 /shared/run_cluster.sh -i input.txt -o results.txt
 ```
 
-## 🔧 Configuration Files
+##  Configuration Files
 
 ### terraform.tfvars
 ```hcl
@@ -128,7 +128,7 @@ project_name  = "hpc-search-engine"
 ### config.ini
 Global configuration for deployment and runtime settings.
 
-## 🛠️ Customization
+##  Customization
 
 ### Scaling the Cluster
 ```bash
@@ -153,7 +153,7 @@ instance_type = "c5.xlarge" # 4 vCPUs, 8GB RAM
 aws_region = "us-west-2"  # Change region
 ```
 
-## 💰 Cost Optimization
+##  Cost Optimization
 
 ### Current Cost (t2.medium)
 - **3 nodes:** ~$0.14/hour
@@ -173,7 +173,7 @@ use_spot_instances = true
 spot_price = "0.02"  # ~50% savings
 ```
 
-## 🔍 Troubleshooting
+##  Troubleshooting
 
 ### Common Issues
 
@@ -211,7 +211,7 @@ tail -f /var/log/hpc-setup.log
 ansible-playbook -i inventory.yml site.yml -v
 ```
 
-## 🧹 Cleanup
+##  Cleanup
 
 ```bash
 # Destroy all resources
@@ -241,7 +241,7 @@ ansible-playbook -i inventory.yml site.yml -v
 - **NUMA Awareness:** Configured
 - **Thread Affinity:** Optimized
 
-## 🔒 Security
+##  Security
 
 ### Features Enabled
 - **Encryption:** EBS volumes encrypted
@@ -256,7 +256,7 @@ ansible-playbook -i inventory.yml site.yml -v
 - Monitor resource usage
 - Enable CloudTrail for auditing
 
-## 📚 Additional Resources
+##  Additional Resources
 
 - [AWS HPC Guide](https://aws.amazon.com/hpc/)
 - [MPI Best Practices](https://www.open-mpi.org/faq/)

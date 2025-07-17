@@ -9,24 +9,24 @@ A revolutionary search engine implementation that combines **CUDA GPU accelerati
 
 ---
 
-## 🚀 **Features**
+##  **Features**
 
 ### **Multi-Level Parallelization**
 - **🔥 CUDA GPU Acceleration**: Harnesses thousands of CUDA cores for massive parallel processing
-- **🔄 OpenMP Threading**: Optimizes CPU utilization with efficient multi-threading
+- ** OpenMP Threading**: Optimizes CPU utilization with efficient multi-threading
 - **🌐 MPI Distribution**: Scales across multiple nodes and clusters
 - **⚡ Adaptive Load Balancing**: Intelligent work distribution across all compute resources
 
 ### **Advanced Capabilities**
 - **🧠 Smart Resource Detection**: Automatically detects and optimizes for available hardware
-- **📊 Real-time Performance Monitoring**: Comprehensive metrics and profiling
-- **🎯 Dynamic Configuration**: Runtime optimization of GPU/CPU work ratios
+- ** Real-time Performance Monitoring**: Comprehensive metrics and profiling
+- ** Dynamic Configuration**: Runtime optimization of GPU/CPU work ratios
 - **🛡️ Fault Tolerance**: Graceful degradation when technologies are unavailable
 - **📈 Comprehensive Benchmarking**: Extensive performance testing and analysis tools
 
 ---
 
-## 🏗️ **Architecture Overview**
+##  **Architecture Overview**
 
 ### **Three-Level Parallelism Hierarchy**
 
@@ -56,7 +56,7 @@ A revolutionary search engine implementation that combines **CUDA GPU accelerati
 
 ---
 
-## 📊 **Performance Highlights**
+##  **Performance Highlights**
 
 ### **Theoretical Speedup**
 - **Serial Baseline**: 1x
@@ -73,7 +73,7 @@ A revolutionary search engine implementation that combines **CUDA GPU accelerati
 
 ---
 
-## 🛠️ **Installation & Setup**
+##  **Installation & Setup**
 
 ### **Prerequisites**
 
@@ -137,7 +137,7 @@ make -f Makefile.super info
 
 ---
 
-## 🚀 **Usage Guide**
+##  **Usage Guide**
 
 ### **Quick Start**
 
@@ -325,7 +325,7 @@ MPI_Gather(local_results, local_count, MPI_RESULT_TYPE,
 
 ---
 
-## 📊 **Configuration Optimization**
+##  **Configuration Optimization**
 
 ### **Automatic Tuning**
 
@@ -432,7 +432,7 @@ valgrind --tool=massif ./bin/super_hybrid_engine -q "test"
 
 ---
 
-## 📚 **API Reference**
+##  **API Reference**
 
 ### **Core Functions**
 
@@ -542,7 +542,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-**🚀 Experience the future of high-performance search with Super Hybrid Engine! 🚀**
+** Experience the future of high-performance search with Super Hybrid Engine! **
 
 [![Performance](https://img.shields.io/badge/Performance-Ultra%20High-brightgreen)](https://github.com/yourusername/super-hybrid-search)
 [![Star](https://img.shields.io/github/stars/yourusername/super-hybrid-search?style=social)](https://github.com/yourusername/super-hybrid-search)

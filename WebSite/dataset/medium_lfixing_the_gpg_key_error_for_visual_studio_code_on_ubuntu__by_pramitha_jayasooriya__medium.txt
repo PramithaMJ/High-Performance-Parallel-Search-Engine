@@ -86,7 +86,7 @@ echo "deb [signed-by=/usr/share/keyrings/microsoft.gpg] https://packages.microso
 
 # 3. Update Again
 
-sudo apt updateNow, the error should be resolved! 🎉
+sudo apt updateNow, the error should be resolved! 
 
 # Why This Fix Works
 

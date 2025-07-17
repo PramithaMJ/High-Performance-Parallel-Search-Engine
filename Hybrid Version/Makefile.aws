@@ -41,7 +41,7 @@ production: aws-optimize $(BIN_DIR)/search_engine
 
 # AWS-specific optimizations
 aws-optimize:
-	@echo "🔧 Applying AWS optimizations for t2.medium instances..."
+	@echo " Applying AWS optimizations for t2.medium instances..."
 	@echo "   - Setting MAX_URLS=1000"
 	@echo "   - Setting MAX_PAGES=100" 
 	@echo "   - Setting MAX_THREADS=2"
@@ -56,7 +56,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
 $(BIN_DIR)/search_engine: $(OBJ_FILES)
 	@echo "🔗 Linking search engine for AWS cluster..."
 	$(CC) -o $@ $(filter-out $(OBJ_DIR)/evaluate.o $(OBJ_DIR)/test_%.o, $(OBJ_FILES)) $(LDFLAGS)
-	@echo "✅ AWS-optimized search engine built successfully!"
+	@echo " AWS-optimized search engine built successfully!"
 
 # Test targets (if needed)
 $(BIN_DIR)/test_url_normalization: $(SRC_DIR)/test_url_normalization.c $(filter-out $(OBJ_DIR)/main.o $(OBJ_DIR)/evaluate.o, $(OBJ_FILES))
@@ -77,16 +77,16 @@ install: $(BIN_DIR)/search_engine
 
 # Clean build artifacts
 clean:
-	@echo "🧹 Cleaning build artifacts..."
+	@echo " Cleaning build artifacts..."
 	rm -rf $(OBJ_DIR) $(BIN_DIR)
 
 # Full clean including AWS optimizations
 clean-all: clean
-	@echo "🧹 Full clean complete"
+	@echo " Full clean complete"
 
 # Display AWS configuration
 info:
-	@echo "📊 AWS Cluster Configuration:"
+	@echo " AWS Cluster Configuration:"
 	@echo "   - Target: t2.medium instances"
 	@echo "   - Cores per node: 2"
 	@echo "   - Memory per node: 4GB"

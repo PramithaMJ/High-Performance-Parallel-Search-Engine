@@ -45,7 +45,7 @@ print_banner() {
     echo -e "${BLUE}"
     echo "╔══════════════════════════════════════════════════════════╗"
     echo "║                                                          ║"
-    echo "║        🚀 AWS HPC Search Engine Cluster 🚀               ║"
+    echo "║         AWS HPC Search Engine Cluster                ║"
     echo "║                                                          ║"
     echo "║  Hybrid MPI+OpenMP Parallel Processing                  ║"
     echo "║                                                          ║"
@@ -55,7 +55,7 @@ print_banner() {
 
 # Display cluster configuration
 show_config() {
-    echo -e "${BLUE}📊 AWS Cluster Configuration:${NC}"
+    echo -e "${BLUE} AWS Cluster Configuration:${NC}"
     echo "   • Instance Type: t2.medium"
     echo "   • Nodes: $AWS_NODES"
     echo "   • Cores per Node: $CORES_PER_NODE"
@@ -69,23 +69,23 @@ show_config() {
 
 # Check cluster health
 check_cluster() {
-    echo -e "${BLUE}🔍 Checking cluster health...${NC}"
+    echo -e "${BLUE} Checking cluster health...${NC}"
     
     # Check if hostfile exists
     if [ ! -f "/shared/hostfile" ]; then
-        echo -e "${RED}❌ Hostfile not found!${NC}"
+        echo -e "${RED} Hostfile not found!${NC}"
         exit 1
     fi
     
     # Check if search engine binary exists
     if [ ! -f "/shared/bin/search_engine" ]; then
-        echo -e "${RED}❌ Search engine binary not found!${NC}"
+        echo -e "${RED} Search engine binary not found!${NC}"
         exit 1
     fi
     
     # Check MPI installation
     if ! command -v mpirun &> /dev/null; then
-        echo -e "${RED}❌ MPI not found!${NC}"
+        echo -e "${RED} MPI not found!${NC}"
         exit 1
     fi
     
@@ -95,15 +95,15 @@ check_cluster() {
         if [ -n "$line" ]; then
             node=$(echo $line | awk '{print $1}')
             if ping -c 1 -W 2 "$node" > /dev/null 2>&1; then
-                echo "     ✅ $node: Online"
+                echo "      $node: Online"
             else
-                echo -e "     ${RED}❌ $node: Offline${NC}"
+                echo -e "     ${RED} $node: Offline${NC}"
                 exit 1
             fi
         fi
     done < /shared/hostfile
     
-    echo -e "${GREEN}✅ Cluster health check passed!${NC}"
+    echo -e "${GREEN} Cluster health check passed!${NC}"
     echo ""
 }
 
@@ -155,7 +155,7 @@ parse_args() {
     # Override threads if specified
     if [ -n "$CUSTOM_THREADS" ]; then
         export OMP_NUM_THREADS="$CUSTOM_THREADS"
-        echo -e "${YELLOW}⚠️ Overriding OpenMP threads to $CUSTOM_THREADS${NC}"
+        echo -e "${YELLOW}️ Overriding OpenMP threads to $CUSTOM_THREADS${NC}"
     fi
 }
 
@@ -229,7 +229,7 @@ run_search_engine() {
     
     if [ $exit_code -eq 0 ]; then
         echo ""
-        echo -e "${GREEN}✅ Execution completed successfully!${NC}"
+        echo -e "${GREEN} Execution completed successfully!${NC}"
         
         # Show results if available
         if [ -f "aws_hybrid_metrics.csv" ]; then
@@ -240,13 +240,13 @@ run_search_engine() {
         
         if [ -d "output" ] && [ "$(ls -A output)" ]; then
             echo ""
-            echo -e "${BLUE}📁 Output files:${NC}"
+            echo -e "${BLUE} Output files:${NC}"
             ls -la output/
         fi
         
     else
         echo ""
-        echo -e "${RED}❌ Execution failed with exit code $exit_code${NC}"
+        echo -e "${RED} Execution failed with exit code $exit_code${NC}"
         if [ "$VERBOSE" = true ]; then
             echo "Check log file: $log_file"
         fi
@@ -256,7 +256,7 @@ run_search_engine() {
 
 # Performance monitoring
 show_performance() {
-    echo -e "${BLUE}📊 Real-time Performance Monitor${NC}"
+    echo -e "${BLUE} Real-time Performance Monitor${NC}"
     echo "Press Ctrl+C to stop..."
     echo ""
     

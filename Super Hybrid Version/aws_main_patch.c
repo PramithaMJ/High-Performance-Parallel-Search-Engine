@@ -17,7 +17,7 @@
         printf("\n");
         printf("╔══════════════════════════════════════════════════════════╗\n");
         printf("║                                                          ║\n");
-        printf("║        🚀 AWS HPC Search Engine Cluster 🚀               ║\n");
+        printf("║         AWS HPC Search Engine Cluster                ║\n");
         printf("║                                                          ║\n");
         printf("║  Instance Type: t2.medium                                ║\n");
         printf("║  MPI Processes: %-3d                                     ║\n", mpi_size);
@@ -50,7 +50,7 @@
     if (thread_count > aws_max_threads) {
         thread_count = aws_max_threads;
         if (mpi_rank == 0) {
-            printf("⚠️  Thread count limited to %d for t2.medium optimization\n", aws_max_threads);
+            printf("️  Thread count limited to %d for t2.medium optimization\n", aws_max_threads);
         }
     }
     
@@ -59,7 +59,7 @@
     
     // Display AWS-specific configuration
     if (mpi_rank == 0) {
-        printf("📊 AWS Configuration Applied:\n");
+        printf(" AWS Configuration Applied:\n");
         printf("   • Max Pages: %d (memory-optimized)\n", max_pages);
         printf("   • Max Depth: %d (network-optimized)\n", max_depth);
         printf("   • Threads: %d (CPU-optimized)\n", thread_count);
@@ -80,7 +80,7 @@ void aws_signal_handler(int sig) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     
     if (rank == 0) {
-        printf("\n🚨 AWS Cluster: Received signal %d, cleaning up...\n", sig);
+        printf("\n AWS Cluster: Received signal %d, cleaning up...\n", sig);
     }
     
     MPI_Finalize();

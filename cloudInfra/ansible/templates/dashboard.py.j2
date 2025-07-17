@@ -161,7 +161,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
 </head>
 <body>
     <div class="header">
-        <h1>🚀 HPC Search Engine Cluster Dashboard</h1>
+        <h1> HPC Search Engine Cluster Dashboard</h1>
         <p>t2.medium Cluster - Last Updated: {timestamp}</p>
     </div>
     
@@ -191,9 +191,9 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
     
     <div class="actions">
         <h2>Quick Actions</h2>
-        <a href="/api/cluster" class="btn">📊 API Data</a>
-        <a href="/health" class="btn">🔍 Health Check</a>
-        <a href="javascript:location.reload()" class="btn">🔄 Refresh</a>
+        <a href="/api/cluster" class="btn"> API Data</a>
+        <a href="/health" class="btn"> Health Check</a>
+        <a href="javascript:location.reload()" class="btn"> Refresh</a>
     </div>
     
     <div class="footer">
@@ -332,7 +332,7 @@ def main():
     PORT = 8080
     
     print(f"🌐 Starting HPC Cluster Dashboard on port {PORT}")
-    print(f"📊 Dashboard URL: http://localhost:{PORT}")
+    print(f" Dashboard URL: http://localhost:{PORT}")
     
     with socketserver.TCPServer(("", PORT), DashboardHandler) as httpd:
         try:

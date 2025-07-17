@@ -99,7 +99,7 @@ echo "$WORKER_IP hpc-worker-${worker_index}" >> /etc/hosts
 cat > /home/ubuntu/monitor_worker.sh << 'EOF'
 #!/bin/bash
 
-echo "📊 Worker Node Monitor"
+echo " Worker Node Monitor"
 echo "===================="
 
 while true; do
@@ -120,8 +120,8 @@ while true; do
     
     echo ""
     echo "Network:"
-    echo "  Master connection: $(ping -c 1 -W 1 hpc-master > /dev/null 2>&1 && echo "✅ OK" || echo "❌ FAILED")"
-    echo "  NFS mount: $(mountpoint -q /shared && echo "✅ Mounted" || echo "❌ Not mounted")"
+    echo "  Master connection: $(ping -c 1 -W 1 hpc-master > /dev/null 2>&1 && echo " OK" || echo " FAILED")"
+    echo "  NFS mount: $(mountpoint -q /shared && echo " Mounted" || echo " Not mounted")"
     
     echo ""
     echo "MPI Status:"
@@ -145,15 +145,15 @@ check_status() {
     local check_command=$2
     
     if eval $check_command > /dev/null 2>&1; then
-        echo "✅ $service: OK"
+        echo " $service: OK"
         return 0
     else
-        echo "❌ $service: FAILED"
+        echo " $service: FAILED"
         return 1
     fi
 }
 
-echo "🔍 Worker Node Health Check"
+echo " Worker Node Health Check"
 echo "=========================="
 
 # Check system resources
@@ -194,7 +194,7 @@ apt-get install -y unattended-upgrades
 cat > /home/ubuntu/worker_startup.sh << 'EOF'
 #!/bin/bash
 
-echo "🚀 Starting HPC Worker Node"
+echo " Starting HPC Worker Node"
 echo "=========================="
 
 # Wait for shared directory to be available
@@ -211,7 +211,7 @@ chmod 600 /home/ubuntu/.ssh/*
 # Run health check
 /home/ubuntu/health_check.sh
 
-echo "✅ Worker node ready for MPI jobs"
+echo " Worker node ready for MPI jobs"
 EOF
 
 chmod +x /home/ubuntu/worker_startup.sh

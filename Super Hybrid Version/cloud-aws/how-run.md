@@ -1,6 +1,6 @@
 Based on your existing Hybrid Version code, here's a complete guide to deploy and run your search engine on AWS with multiple nodes in parallel:
 
-## 🚀 Complete AWS Deployment Guide
+##  Complete AWS Deployment Guide
 
 ### 1. Update Your Configuration Files
 
@@ -134,7 +134,7 @@ int main(int argc, char* argv[]) {
 ````bash
 #!/bin/bash
 
-echo "🚀 Setting up HPC Search Engine on AWS..."
+echo " Setting up HPC Search Engine on AWS..."
 
 # Step 1: Create infrastructure with Terraform
 cd terraform
@@ -148,7 +148,7 @@ MASTER_IP=$(terraform output -raw master_public_ip)
 WORKER_IPS=$(terraform output -json worker_public_ips | jq -r '.[]')
 LB_DNS=$(terraform output -raw load_balancer_dns)
 
-echo "✅ Infrastructure created!"
+echo " Infrastructure created!"
 echo "Master IP: $MASTER_IP"
 echo "Load Balancer: $LB_DNS"
 
@@ -186,7 +186,7 @@ done
 echo "⚙️ Configuring cluster with Ansible..."
 ansible-playbook -i inventory.yml site.yml
 
-echo "🎉 AWS HPC Cluster is ready!"
+echo " AWS HPC Cluster is ready!"
 echo "🌐 Dashboard: http://$LB_DNS"
 echo "🔗 SSH to master: ssh -i ~/.ssh/your-key.pem ubuntu@$MASTER_IP"
 ````
@@ -197,7 +197,7 @@ echo "🔗 SSH to master: ssh -i ~/.ssh/your-key.pem ubuntu@$MASTER_IP"
 #!/bin/bash
 
 # AWS-optimized run script for t2.medium cluster
-echo "🚀 Running HPC Search Engine on AWS Cluster..."
+echo " Running HPC Search Engine on AWS Cluster..."
 
 # AWS cluster configuration
 AWS_NODES=3
@@ -205,7 +205,7 @@ CORES_PER_NODE=2
 MPI_PROCESSES=$AWS_NODES
 OMP_THREADS=$CORES_PER_NODE
 
-echo "📊 AWS Cluster Configuration:"
+echo " AWS Cluster Configuration:"
 echo "  - Instance Type: t2.medium"
 echo "  - Nodes: $AWS_NODES"
 echo "  - Cores per Node: $CORES_PER_NODE"
@@ -249,7 +249,7 @@ mpirun -np $MPI_PROCESSES \
        -x OMP_STACKSIZE \
        ./bin/search_engine "$@"
 
-echo "✅ Search completed!"
+echo " Search completed!"
 
 # Display performance metrics
 if [ -f "hybrid_metrics.csv" ]; then
