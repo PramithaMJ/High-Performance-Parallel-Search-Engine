@@ -224,7 +224,7 @@ ansible-playbook -i inventory.yml site.yml -v
 # - Clean up all AWS resources
 ```
 
-## 📈 Performance Tuning
+##  Performance Tuning
 
 ### Network Optimization
 - **Placement Groups:** Enabled for low latency

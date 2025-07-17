@@ -421,7 +421,7 @@ echo " RESULTS SUMMARY:"
 echo "   Detailed CSV: $RESULTS_FILE"
 echo "   Summary Report: $SUMMARY_FILE"
 echo ""
-echo "📈 Quick Statistics:"
+echo " Quick Statistics:"
 if [ -f "$RESULTS_FILE" ]; then
     total_tests=$(tail -n +2 "$RESULTS_FILE" | wc -l)
     successful_tests=$(grep -c "Success" "$RESULTS_FILE" 2>/dev/null || echo "0")

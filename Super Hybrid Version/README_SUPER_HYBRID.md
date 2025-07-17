@@ -22,7 +22,7 @@ A revolutionary search engine implementation that combines **CUDA GPU accelerati
 - ** Real-time Performance Monitoring**: Comprehensive metrics and profiling
 - ** Dynamic Configuration**: Runtime optimization of GPU/CPU work ratios
 - **🛡️ Fault Tolerance**: Graceful degradation when technologies are unavailable
-- **📈 Comprehensive Benchmarking**: Extensive performance testing and analysis tools
+- ** Comprehensive Benchmarking**: Extensive performance testing and analysis tools
 
 ---
 
@@ -215,7 +215,7 @@ mpirun -np 2 ./bin/super_hybrid_engine -t 2 -g 4 --gpu-ratio 0.9 \
 
 ---
 
-## 📈 **Benchmarking & Performance Analysis**
+##  **Benchmarking & Performance Analysis**
 
 ### **Comprehensive Benchmark Suite**
 
