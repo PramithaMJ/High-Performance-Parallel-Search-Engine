@@ -1,4 +1,4 @@
-# 🚀 Complete AWS Deployment Guide for HPC Search Engine
+#  Complete AWS Deployment Guide for HPC Search Engine
 
 ## Overview
 Deploy your Hybrid MPI+OpenMP search engine on AWS using 3 t2.medium instances for parallel processing.
@@ -75,7 +75,7 @@ chmod 400 ~/.ssh/hpc-search-key.pem
 
 ---
 
-## 🛠️ Step-by-Step Deployment
+##  Step-by-Step Deployment
 
 ### Step 1: Prepare Your Code
 
@@ -111,11 +111,11 @@ cd "../../Hybrid Version"
 ```
 
 This will:
-1. ✅ Build AWS-optimized search engine
-2. ✅ Create AWS infrastructure (VPC, instances, security groups)
-3. ✅ Configure cluster with Ansible
-4. ✅ Deploy your application
-5. ✅ Set up monitoring dashboard
+1.  Build AWS-optimized search engine
+2.  Create AWS infrastructure (VPC, instances, security groups)
+3.  Configure cluster with Ansible
+4.  Deploy your application
+5.  Set up monitoring dashboard
 
 ### Step 3: Connect to Your Cluster
 
@@ -129,7 +129,7 @@ ssh -i ~/.ssh/hpc-search-key.pem ubuntu@<MASTER_IP>
 
 ---
 
-## 🏃‍♂️ Running Your Search Engine
+##  Running Your Search Engine
 
 ### Basic Commands (on master node)
 
@@ -162,7 +162,7 @@ ssh -i ~/.ssh/hpc-search-key.pem ubuntu@<MASTER_IP>
 /shared/run_aws_cluster.sh -q "data science python"
 ```
 
-**📊 Website Analysis:**
+** Website Analysis:**
 ```bash
 # Crawl company website
 /shared/run_aws_cluster.sh -c "https://company.com" -d 2 -p 50
@@ -171,7 +171,7 @@ ssh -i ~/.ssh/hpc-search-key.pem ubuntu@<MASTER_IP>
 /shared/run_aws_cluster.sh -q "products services solutions"
 ```
 
-**🔍 Research and Discovery:**
+** Research and Discovery:**
 ```bash
 # Multi-step analysis
 /shared/run_aws_cluster.sh -c "https://research-site.com" -d 3 -p 100
@@ -180,7 +180,7 @@ ssh -i ~/.ssh/hpc-search-key.pem ubuntu@<MASTER_IP>
 
 ---
 
-## 📊 Monitoring and Performance
+##  Monitoring and Performance
 
 ### Web Dashboard
 Access the cluster dashboard:
@@ -224,7 +224,7 @@ htop  # On master node
 
 ---
 
-## 💰 Cost Management
+##  Cost Management
 
 ### Current Costs
 - **3 x t2.medium:** $0.0464/hour each = $0.139/hour total
@@ -255,7 +255,7 @@ htop  # On master node
 
 ---
 
-## 🔧 Troubleshooting
+##  Troubleshooting
 
 ### Common Issues
 
@@ -342,7 +342,7 @@ ls -la /shared/
 
 ---
 
-## 🧹 Cleanup
+##  Cleanup
 
 ### Temporary Cleanup
 ```bash
@@ -366,7 +366,7 @@ sudo systemctl stop hpc-dashboard
 
 ---
 
-## 🎯 Advanced Usage
+##  Advanced Usage
 
 ### Custom Configurations
 
@@ -409,7 +409,7 @@ aws_region = "us-west-2"
 
 ---
 
-## 📚 Additional Resources
+##  Additional Resources
 
 - **AWS HPC Guide:** https://aws.amazon.com/hpc/
 - **MPI Tutorial:** https://mpitutorial.com/

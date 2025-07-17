@@ -27,7 +27,7 @@ CRAWL_DEPTH=2
 CRAWL_PAGES=5
 
 # System detection
-echo "🔍 DETECTING SYSTEM CAPABILITIES..."
+echo " DETECTING SYSTEM CAPABILITIES..."
 echo "════════════════════════════════════════════════════════════════════════════════"
 
 # Detect CPU cores
@@ -73,7 +73,7 @@ fi
 echo ""
 
 # Build the project
-echo "🔧 BUILDING SUPER HYBRID ENGINE..."
+echo " BUILDING SUPER HYBRID ENGINE..."
 echo "════════════════════════════════════════════════════════════════════════════════"
 
 cd "$PROJECT_DIR"
@@ -81,16 +81,16 @@ cd "$PROJECT_DIR"
 # Clean and build
 make -f Makefile.super clean
 if ! make -f Makefile.super super USE_CUDA=1 USE_OPENMP=1 USE_MPI=1; then
-    echo "❌ Build failed! Please check compilation errors."
+    echo " Build failed! Please check compilation errors."
     exit 1
 fi
 
 if [ ! -f "$BINARY" ]; then
-    echo "❌ Binary not found at $BINARY"
+    echo " Binary not found at $BINARY"
     exit 1
 fi
 
-echo "✅ Super Hybrid Engine built successfully!"
+echo " Super Hybrid Engine built successfully!"
 echo ""
 
 # Initialize results file
@@ -105,7 +105,7 @@ run_benchmark() {
     local extra_args="$5"
     local test_phase="$6"
     
-    echo "🚀 Testing: $config_name"
+    echo " Testing: $config_name"
     echo "   MPI Processes: $mpi_procs"
     echo "   OpenMP Threads: $omp_threads"
     echo "   CUDA Devices: $cuda_devices"
@@ -152,7 +152,7 @@ run_benchmark() {
         # Record results
         echo "$TIMESTAMP,$config_name,$mpi_procs,$omp_threads,$cuda_devices,$total_parallel_units,$test_phase,Complete,$duration,$docs_processed,$throughput,$memory_usage,Success" >> "$RESULTS_FILE"
         
-        echo "   ✅ Success: ${duration}s, $docs_processed docs, ${throughput} docs/s"
+        echo "    Success: ${duration}s, $docs_processed docs, ${throughput} docs/s"
         
         # Extract specific timing information from output
         if grep -q "CUDA.*seconds" "$output_file"; then
@@ -171,7 +171,7 @@ run_benchmark() {
         fi
         
     else
-        echo "   ❌ Failed or timed out"
+        echo "   Failed or timed out"
         echo "$TIMESTAMP,$config_name,$mpi_procs,$omp_threads,$cuda_devices,$total_parallel_units,$test_phase,Complete,300,0,0,0,Timeout_or_Error" >> "$RESULTS_FILE"
     fi
     
@@ -180,7 +180,7 @@ run_benchmark() {
 }
 
 # Test configurations
-echo "📊 STARTING COMPREHENSIVE BENCHMARK TESTS..."
+echo " STARTING COMPREHENSIVE BENCHMARK TESTS..."
 echo "════════════════════════════════════════════════════════════════════════════════"
 echo ""
 
@@ -270,7 +270,7 @@ if [ $CUDA_DEVICES -gt 0 ] && [ $OPENMP_AVAILABLE -eq 1 ] && [ $MPI_AVAILABLE -e
     local max_threads=$([ $CPU_CORES -gt 8 ] && echo 8 || echo $CPU_CORES)
     run_benchmark "Super_Hybrid_Maximum" $max_procs $max_threads $CUDA_DEVICES "-c $TEST_URL -d $CRAWL_DEPTH -p $CRAWL_PAGES" "Super_Hybrid"
 else
-    echo "⚠️  Super Hybrid testing skipped (missing CUDA, OpenMP, or MPI support)"
+    echo "️  Super Hybrid testing skipped (missing CUDA, OpenMP, or MPI support)"
 fi
 
 echo ""
@@ -280,7 +280,7 @@ echo "🔬 PHASE 4: QUERY PERFORMANCE TESTS"
 echo "────────────────────────────────────────────────────────────────────────────────"
 
 # Build index first (using optimal configuration)
-echo "📁 Building index for query tests..."
+echo " Building index for query tests..."
 if [ $CUDA_DEVICES -gt 0 ] && [ $OPENMP_AVAILABLE -eq 1 ] && [ $MPI_AVAILABLE -eq 1 ]; then
     # Use super hybrid for index building
     run_benchmark "Index_Building_Super_Hybrid" 2 4 1 "-c $TEST_URL -d $CRAWL_DEPTH -p 10" "Index_Building"
@@ -406,7 +406,7 @@ if [ -f "$RESULTS_FILE" ]; then
     echo "Configuration,MPI,OMP,CUDA,Duration,Docs,Throughput,Status" >> "$SUMMARY_FILE"
     
     tail -n +2 "$RESULTS_FILE" | grep "Complete" | while IFS=',' read -r timestamp config mpi omp cuda total phase op duration docs throughput mem notes; do
-        status=$(echo "$notes" | grep -q "Success" && echo "✅" || echo "❌")
+        status=$(echo "$notes" | grep -q "Success" && echo "" || echo "")
         printf "%-25s %3s %3s %4s %8.3f %4s %9.2f %s\n" "$config" "$mpi" "$omp" "$cuda" "$duration" "$docs" "$throughput" "$status" >> "$SUMMARY_FILE"
     done
 fi
@@ -415,9 +415,9 @@ echo "" >> "$SUMMARY_FILE"
 echo "Raw data available in: $RESULTS_FILE" >> "$SUMMARY_FILE"
 echo "════════════════════════════════════════════════════════════════════════════════" >> "$SUMMARY_FILE"
 
-echo "✅ Benchmark completed successfully!"
+echo " Benchmark completed successfully!"
 echo ""
-echo "📊 RESULTS SUMMARY:"
+echo " RESULTS SUMMARY:"
 echo "   Detailed CSV: $RESULTS_FILE"
 echo "   Summary Report: $SUMMARY_FILE"
 echo ""
@@ -431,10 +431,10 @@ if [ -f "$RESULTS_FILE" ]; then
 fi
 
 echo ""
-echo "🎯 To view the complete report:"
+echo " To view the complete report:"
 echo "   cat $SUMMARY_FILE"
 echo ""
-echo "📊 To analyze CSV data:"
+echo " To analyze CSV data:"
 echo "   python3 scripts/analyze_benchmark.py $RESULTS_FILE"
 echo ""
 

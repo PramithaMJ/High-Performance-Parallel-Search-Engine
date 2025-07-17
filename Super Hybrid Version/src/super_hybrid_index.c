@@ -72,7 +72,7 @@ void destroy_locks() { /* No-op when OpenMP disabled */ }
 
 // Super hybrid indexing function that uses all available technologies
 int build_super_hybrid_index(const char *folder_path) {
-    printf("🚀 Starting Super Hybrid Index Building...\n");
+    printf(" Starting Super Hybrid Index Building...\n");
     printf("   Technologies: ");
 #ifdef USE_CUDA
     printf("CUDA ");
@@ -101,13 +101,13 @@ int build_super_hybrid_index(const char *folder_path) {
     double total_start_time = get_current_time();
 
     if (mpi_rank == 0) {
-        printf("📁 Opening directory: %s\n", folder_path);
+        printf(" Opening directory: %s\n", folder_path);
     }
 
     DIR *dir = opendir(folder_path);
     if (!dir) {
         if (mpi_rank == 0) {
-            printf("❌ Error: Could not open directory: %s\n", folder_path);
+            printf(" Error: Could not open directory: %s\n", folder_path);
         }
         destroy_locks();
         return 0;
@@ -179,7 +179,7 @@ int build_super_hybrid_index(const char *folder_path) {
         }
     }
     
-    printf("[MPI %d] 🔧 GPU preprocessing %d files...\n", mpi_rank, valid_files);
+    printf("[MPI %d]  GPU preprocessing %d files...\n", mpi_rank, valid_files);
     
     // GPU-accelerated tokenization (placeholder - would use actual CUDA kernels)
     if (valid_files > 0) {
@@ -203,7 +203,7 @@ int build_super_hybrid_index(const char *folder_path) {
     g_indexing_metrics.cuda_time += (cuda_end_time - cuda_start_time);
     g_indexing_metrics.docs_processed_cuda = valid_files;
     
-    printf("[MPI %d] ✅ GPU preprocessing completed in %.3f seconds\n", 
+    printf("[MPI %d]  GPU preprocessing completed in %.3f seconds\n", 
            mpi_rank, cuda_end_time - cuda_start_time);
 #endif
 
@@ -211,7 +211,7 @@ int build_super_hybrid_index(const char *folder_path) {
 #ifdef USE_OPENMP
     double openmp_start_time = get_current_time();
     
-    printf("[MPI %d] 🔄 Starting OpenMP parallel processing with %d threads...\n", 
+    printf("[MPI %d]  Starting OpenMP parallel processing with %d threads...\n", 
            mpi_rank, omp_get_max_threads());
     
     // Process files in parallel using OpenMP
@@ -273,7 +273,7 @@ int build_super_hybrid_index(const char *folder_path) {
     g_indexing_metrics.openmp_time += (openmp_end_time - openmp_start_time);
     g_indexing_metrics.docs_processed_openmp = (end_file - start_file);
     
-    printf("[MPI %d] ✅ OpenMP processing completed in %.3f seconds\n", 
+    printf("[MPI %d]  OpenMP processing completed in %.3f seconds\n", 
            mpi_rank, openmp_end_time - openmp_start_time);
 #else
     // Serial processing fallback
@@ -322,7 +322,7 @@ int build_super_hybrid_index(const char *folder_path) {
     g_indexing_metrics.serial_time += (serial_end_time - serial_start_time);
     g_indexing_metrics.docs_processed_serial = (end_file - start_file);
     
-    printf("[MPI %d] ✅ Serial processing completed in %.3f seconds\n", 
+    printf("[MPI %d]  Serial processing completed in %.3f seconds\n", 
            mpi_rank, serial_end_time - serial_start_time);
 #endif
 
@@ -353,7 +353,7 @@ int build_super_hybrid_index(const char *folder_path) {
             }
             total_global_docs += all_doc_counts[i];
         }
-        printf("📊 Global index statistics:\n");
+        printf(" Global index statistics:\n");
         printf("   Total documents: %d\n", total_global_docs);
         printf("   Total index terms: %d\n", index_size);
         free(all_doc_counts);
@@ -368,7 +368,7 @@ int build_super_hybrid_index(const char *folder_path) {
     double mpi_end_time = get_current_time();
     g_indexing_metrics.mpi_time += (mpi_end_time - mpi_start_time);
     
-    printf("[MPI %d] ✅ MPI synchronization completed in %.3f seconds\n", 
+    printf("[MPI %d]  MPI synchronization completed in %.3f seconds\n", 
            mpi_rank, mpi_end_time - mpi_start_time);
 #endif
 
@@ -557,7 +557,7 @@ int search_super_hybrid_index(const char *term, Posting **results, int *result_c
         double search_end_time = get_current_time();
         
         if (mpi_rank == 0) {
-            printf("🔍 Super hybrid search for '%s': %d results in %.3f seconds\n", 
+            printf(" Super hybrid search for '%s': %d results in %.3f seconds\n", 
                    term, *result_count, search_end_time - search_start_time);
         }
         
@@ -597,7 +597,7 @@ void print_super_hybrid_index_stats() {
     if (mpi_rank != 0) return;
 #endif
 
-    printf("\n📊 Super Hybrid Index Statistics:\n");
+    printf("\n Super Hybrid Index Statistics:\n");
     printf("────────────────────────────────────────────────────────────────\n");
     printf("Total Documents:       %d\n", get_total_docs());
     printf("Unique Terms:          %d\n", index_size);
@@ -614,7 +614,7 @@ void print_super_hybrid_index_stats() {
            index_size > 0 ? (double)total_postings / (index_size * get_total_docs()) * 100.0 : 0.0);
     
     // Technology-specific statistics
-    printf("\n🔧 Technology Performance:\n");
+    printf("\n Technology Performance:\n");
 #ifdef USE_CUDA
     printf("CUDA Processing:       %.3fs (%d docs)\n", 
            g_indexing_metrics.cuda_time, g_indexing_metrics.docs_processed_cuda);

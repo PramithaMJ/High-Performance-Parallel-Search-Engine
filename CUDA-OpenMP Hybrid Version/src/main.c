@@ -91,9 +91,9 @@ void print_banner(void) {
     printf("╔══════════════════════════════════════════════════════════╗\\n");
     printf("║         CUDA+OpenMP Hybrid Parallel Search Engine         ║\\n");
     printf("║                                                            ║\\n");
-    printf("║  🚀 GPU-Accelerated Document Search & Indexing            ║\\n");
+    printf("║   GPU-Accelerated Document Search & Indexing            ║\\n");
     printf("║  ⚡ Hybrid CPU+GPU Processing for Maximum Performance     ║\\n");
-    printf("║  🔧 Auto-tuning and Load Balancing                       ║\\n");
+    printf("║   Auto-tuning and Load Balancing                       ║\\n");
     printf("╚══════════════════════════════════════════════════════════╝\\n");
     printf("\\n");
 }

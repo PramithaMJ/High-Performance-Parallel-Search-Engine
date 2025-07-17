@@ -44,7 +44,7 @@ else
 fi
 
 # Print configuration
-echo "📊 Running hybrid MPI+OpenMP search engine with:"
+echo " Running hybrid MPI+OpenMP search engine with:"
 echo "   - MPI Processes: $MPI_PROCESSES (distributed memory parallelism)"
 echo "   - OpenMP Threads per process: $OMP_THREADS (shared memory parallelism)"
 echo "   - Total parallel units: $(($MPI_PROCESSES * $OMP_THREADS))"
@@ -56,12 +56,12 @@ export OMP_NUM_THREADS=$OMP_THREADS
 
 # Check if the binary exists
 if [ ! -f "./bin/search_engine" ]; then
-  echo "❌ Error: search_engine binary not found! Building the project..."
+  echo " Error: search_engine binary not found! Building the project..."
   make clean
   make
   
   if [ ! -f "./bin/search_engine" ]; then
-    echo "❌ Failed to build the search engine. Please check error messages above."
+    echo " Failed to build the search engine. Please check error messages above."
     exit 1
   fi
 fi
@@ -73,11 +73,11 @@ mpirun -np $MPI_PROCESSES ./bin/search_engine -np $MPI_PROCESSES -t $OMP_THREADS
 # Exit code handling
 EXIT_CODE=$?
 if [ $EXIT_CODE -ne 0 ]; then
-    echo "❌ Search engine exited with code $EXIT_CODE"
+    echo " Search engine exited with code $EXIT_CODE"
     exit $EXIT_CODE
 fi
 
 echo ""
-echo "✅ Search completed successfully!"
+echo " Search completed successfully!"
 echo "For performance benchmarking with different MPI/OpenMP configurations,"
 echo "run: ./scripts/performance_benchmark.sh"

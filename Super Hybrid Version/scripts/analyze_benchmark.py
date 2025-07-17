@@ -136,7 +136,7 @@ def analyze_scalability(df):
 
 def create_visualizations(df, output_dir):
     """Create comprehensive visualizations"""
-    print(f"\n📊 Creating visualizations in {output_dir}...")
+    print(f"\n Creating visualizations in {output_dir}...")
     os.makedirs(output_dir, exist_ok=True)
     
     # Set style
@@ -305,7 +305,7 @@ def create_visualizations(df, output_dir):
     plt.savefig(f'{output_dir}/super_hybrid_detailed_analysis.png', dpi=300, bbox_inches='tight')
     plt.close()
     
-    print(f"✅ Visualizations saved to {output_dir}/")
+    print(f" Visualizations saved to {output_dir}/")
 
 def generate_recommendations(df):
     """Generate performance optimization recommendations"""
@@ -326,7 +326,7 @@ def generate_recommendations(df):
     
     if len(tech_performance) > 1:
         best_tech = tech_performance.index[0]
-        recommendations.append(f"\n🔧 Best Technology Combination: {best_tech}")
+        recommendations.append(f"\n Best Technology Combination: {best_tech}")
         recommendations.append(f"   - Average throughput: {tech_performance.iloc[0]:.2f} docs/sec")
         
         if 'Super_Hybrid' in tech_performance.index:
@@ -346,7 +346,7 @@ def generate_recommendations(df):
         gpu_ratio_data['GPU_Ratio'] = gpu_ratio_data['Configuration'].str.extract(r'GPU_Ratio_([0-9.]+)').astype(float)
         best_ratio_idx = gpu_ratio_data['Throughput_Docs_Per_Sec'].idxmax()
         best_ratio = gpu_ratio_data.loc[best_ratio_idx, 'GPU_Ratio']
-        recommendations.append(f"\n🎯 Optimal GPU/CPU Ratio: {best_ratio:.1f}")
+        recommendations.append(f"\n Optimal GPU/CPU Ratio: {best_ratio:.1f}")
         recommendations.append(f"   - Throughput at optimal ratio: {gpu_ratio_data.loc[best_ratio_idx, 'Throughput_Docs_Per_Sec']:.2f} docs/sec")
     
     # Memory recommendations
@@ -381,10 +381,10 @@ def main():
     args = parser.parse_args()
     
     if not os.path.exists(args.csv_file):
-        print(f"❌ Error: CSV file not found: {args.csv_file}")
+        print(f" Error: CSV file not found: {args.csv_file}")
         sys.exit(1)
     
-    print("🔍 SUPER HYBRID SEARCH ENGINE BENCHMARK ANALYSIS")
+    print(" SUPER HYBRID SEARCH ENGINE BENCHMARK ANALYSIS")
     print("="*80)
     print(f"Analyzing: {args.csv_file}")
     print(f"Output directory: {args.output_dir}")
@@ -393,10 +393,10 @@ def main():
     df_all, df_success = load_and_clean_data(args.csv_file)
     
     if df_all is None or df_success.empty:
-        print("❌ Error: Could not load or no successful benchmark data found")
+        print(" Error: Could not load or no successful benchmark data found")
         sys.exit(1)
     
-    print(f"📊 Data loaded: {len(df_all)} total runs, {len(df_success)} successful runs")
+    print(f" Data loaded: {len(df_all)} total runs, {len(df_success)} successful runs")
     
     # Perform analysis
     df_analyzed = analyze_technology_performance(df_success)
@@ -407,7 +407,7 @@ def main():
         try:
             create_visualizations(df_success, args.output_dir)
         except Exception as e:
-            print(f"⚠️  Warning: Could not generate visualizations: {e}")
+            print(f"️  Warning: Could not generate visualizations: {e}")
     
     # Generate recommendations
     recommendations = generate_recommendations(df_success)
@@ -429,13 +429,13 @@ def main():
         
         f.write(f"\nDetailed statistics and visualizations available in: {args.output_dir}\n")
     
-    print(f"\n✅ Analysis completed!")
-    print(f"📁 Detailed report saved to: {report_file}")
+    print(f"\n Analysis completed!")
+    print(f" Detailed report saved to: {report_file}")
     
     if not args.no_viz:
-        print(f"📊 Visualizations saved to: {args.output_dir}/")
+        print(f" Visualizations saved to: {args.output_dir}/")
     
-    print("\n🎯 Quick Summary:")
+    print("\n Quick Summary:")
     if len(df_success) > 0:
         best_config = df_success.loc[df_success['Throughput_Docs_Per_Sec'].idxmax()]
         print(f"   Best Configuration: {best_config['Configuration']}")

@@ -131,7 +131,7 @@ NODES=$(cat /shared/hostfile | wc -l)
 MPI_PROCESSES=$NODES
 OMP_THREADS=2
 
-echo "🚀 Running HPC Search Engine on t2.medium cluster"
+echo " Running HPC Search Engine on t2.medium cluster"
 echo "Configuration:"
 echo "  - Nodes: $NODES"
 echo "  - MPI Processes: $MPI_PROCESSES"
@@ -162,7 +162,7 @@ chown ubuntu:ubuntu /shared/run_cluster.sh
 cat > /shared/monitor_cluster.sh << 'EOF'
 #!/bin/bash
 
-echo "📊 HPC Cluster Monitoring Dashboard"
+echo " HPC Cluster Monitoring Dashboard"
 echo "=================================="
 
 while true; do
@@ -174,9 +174,9 @@ while true; do
     while read -r line; do
         node=$(echo $line | awk '{print $1}')
         if ping -c 1 -W 1 $node > /dev/null 2>&1; then
-            echo "  ✅ $node: Online"
+            echo "   $node: Online"
         else
-            echo "  ❌ $node: Offline"
+            echo "  $node: Offline"
         fi
     done < /shared/hostfile
     
@@ -235,7 +235,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
     </style>
 </head>
 <body>
-    <h1>🚀 HPC Search Engine Cluster Dashboard</h1>
+    <h1> HPC Search Engine Cluster Dashboard</h1>
     <p><strong>Last Updated:</strong> {timestamp}</p>
     
     <h2>Cluster Status</h2>
@@ -264,11 +264,11 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                     ping_result = subprocess.run(['ping', '-c', '1', '-W', '1', node_name], 
                                                 capture_output=True)
                     if ping_result.returncode == 0:
-                        status_html += f'<div class="status online">✅ {node_name}: Online</div>'
+                        status_html += f'<div class="status online"> {node_name}: Online</div>'
                     else:
-                        status_html += f'<div class="status offline">❌ {node_name}: Offline</div>'
+                        status_html += f'<div class="status offline"> {node_name}: Offline</div>'
             except:
-                status_html = '<div class="status offline">❌ Unable to check node status</div>'
+                status_html = '<div class="status offline"> Unable to check node status</div>'
             
             # Get system metrics
             try:
@@ -282,7 +282,7 @@ class DashboardHandler(http.server.SimpleHTTPRequestHandler):
                 <div class="metric"><strong>Disk:</strong><pre>{disk_result.stdout}</pre></div>
                 """
             except:
-                metrics_html = '<div class="metric">❌ Unable to get system metrics</div>'
+                metrics_html = '<div class="metric"> Unable to get system metrics</div>'
             
             html = html.format(
                 timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),

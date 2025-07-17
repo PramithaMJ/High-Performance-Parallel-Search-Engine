@@ -1,7 +1,7 @@
 #!/bin/bash
 # Worker node health check script
 
-echo "🔍 Worker Node Health Check - $(hostname)"
+echo " Worker Node Health Check - $(hostname)"
 echo "========================================"
 
 # Initialize counters
@@ -17,11 +17,11 @@ check_status() {
     CHECKS_TOTAL=$((CHECKS_TOTAL + 1))
     
     if eval $check_command > /dev/null 2>&1; then
-        echo "✅ $service: OK - $description"
+        echo " $service: OK - $description"
         CHECKS_PASSED=$((CHECKS_PASSED + 1))
         return 0
     else
-        echo "❌ $service: FAILED - $description"
+        echo " $service: FAILED - $description"
         return 1
     fi
 }
@@ -75,7 +75,7 @@ CPU_USAGE=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | cut -d'%' -f1)
 MEMORY_USAGE=$(free | grep Mem | awk '{printf "%.1f", $3/$2 * 100.0}')
 LOAD_AVG=$(uptime | awk -F'load average:' '{print $2}' | awk '{print $1}' | sed 's/,//')
 
-echo "📊 Current Metrics:"
+echo " Current Metrics:"
 echo "   - CPU Usage: ${CPU_USAGE}%"
 echo "   - Memory Usage: ${MEMORY_USAGE}%"
 echo "   - Load Average: ${LOAD_AVG}"
@@ -100,17 +100,17 @@ fi
 echo ""
 echo "Health Check Summary:"
 echo "===================="
-echo "✅ Checks Passed: $CHECKS_PASSED"
-echo "❌ Checks Failed: $((CHECKS_TOTAL - CHECKS_PASSED))"
-echo "📊 Success Rate: $(echo "scale=1; $CHECKS_PASSED * 100 / $CHECKS_TOTAL" | bc)%"
+echo " Checks Passed: $CHECKS_PASSED"
+echo " Checks Failed: $((CHECKS_TOTAL - CHECKS_PASSED))"
+echo " Success Rate: $(echo "scale=1; $CHECKS_PASSED * 100 / $CHECKS_TOTAL" | bc)%"
 
 if [ $CHECKS_PASSED -eq $CHECKS_TOTAL ]; then
-    echo "🎉 All checks passed! Node is healthy."
+    echo " All checks passed! Node is healthy."
     exit 0
 elif [ $CHECKS_PASSED -gt $((CHECKS_TOTAL / 2)) ]; then
-    echo "⚠️  Some issues detected, but node is functional."
+    echo "️  Some issues detected, but node is functional."
     exit 1
 else
-    echo "🚨 Critical issues detected! Node may not function properly."
+    echo " Critical issues detected! Node may not function properly."
     exit 2
 fi

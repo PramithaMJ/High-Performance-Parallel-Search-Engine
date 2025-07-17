@@ -101,8 +101,8 @@ void print_super_hybrid_banner(void) {
         printf("║                    SUPER HYBRID SEARCH ENGINE v2.0                          ║\n");
         printf("║          CUDA + OpenMP + MPI Multi-Level Parallel Architecture              ║\n");
         printf("╠══════════════════════════════════════════════════════════════════════════════╣\n");
-        printf("║  🚀 GPU Acceleration: CUDA with thousands of parallel cores                  ║\n");
-        printf("║  🔄 Shared Memory: OpenMP multi-threading for CPU optimization              ║\n");
+        printf("║   GPU Acceleration: CUDA with thousands of parallel cores                  ║\n");
+        printf("║   Shared Memory: OpenMP multi-threading for CPU optimization              ║\n");
         printf("║  🌐 Distributed: MPI for cluster-wide parallel processing                   ║\n");
         printf("║  ⚡ Adaptive: Dynamic load balancing across all compute resources           ║\n");
         printf("╚══════════════════════════════════════════════════════════════════════════════╝\n");
@@ -153,7 +153,7 @@ void print_usage(const char* program_name) {
 
 int detect_system_capabilities(void) {
     if (g_mpi_rank == 0) {
-        printf("🔍 Detecting system capabilities...\n");
+        printf(" Detecting system capabilities...\n");
         
         // Detect CPU cores
         int cpu_cores = omp_get_max_threads();
@@ -342,7 +342,7 @@ int initialize_super_hybrid_engine(void) {
     }
     
     if (g_mpi_rank == 0) {
-        printf("✅ Super Hybrid Engine initialized successfully!\n");
+        printf(" Super Hybrid Engine initialized successfully!\n");
         printf("   Architecture: ");
         if (g_config.use_cuda) printf("CUDA ");
         if (g_config.use_openmp) printf("+ OpenMP ");
@@ -473,7 +473,7 @@ int process_super_hybrid_query(const char* query) {
     
     // Print results (only from rank 0)
     if (g_mpi_rank == 0) {
-        printf("\n🔍 Search Results for: \"%s\"\n", query);
+        printf("\n Search Results for: \"%s\"\n", query);
         printf("────────────────────────────────────────────────────────────────\n");
         
         // Call the actual ranking function
@@ -565,10 +565,10 @@ int main(int argc, char* argv[]) {
             
             if (g_mpi_rank == 0) {
                 if (crawl_result > 0) {
-                    printf("✅ Successfully crawled %d pages using Super Hybrid Engine\n", crawl_result);
+                    printf(" Successfully crawled %d pages using Super Hybrid Engine\n", crawl_result);
                     url_processed = 1;
                 } else {
-                    printf("❌ Failed to crawl website\n");
+                    printf(" Failed to crawl website\n");
                 }
             }
             i++;
@@ -600,7 +600,7 @@ int main(int argc, char* argv[]) {
     // Show system information if requested
     if (show_info) {
         if (g_mpi_rank == 0) {
-            printf("\n🔧 Super Hybrid Engine Configuration:\n");
+            printf("\n Super Hybrid Engine Configuration:\n");
             printf("   CUDA: %s (%d devices)\n", g_config.use_cuda ? "Enabled" : "Disabled", g_config.cuda_devices);
             printf("   OpenMP: %s (%d threads per process)\n", g_config.use_openmp ? "Enabled" : "Disabled", g_config.openmp_threads);
             printf("   MPI: %s (%d processes)\n", g_config.use_mpi ? "Enabled" : "Disabled", g_mpi_size);
@@ -626,7 +626,7 @@ int main(int argc, char* argv[]) {
     // If no specific action was taken, build index from dataset
     if (!url_processed && !direct_query && !benchmark_mode && !show_info) {
         if (g_mpi_rank == 0) {
-            printf("📁 Building index from dataset using Super Hybrid Engine...\n");
+            printf(" Building index from dataset using Super Hybrid Engine...\n");
         }
         
         // Build index using all available technologies
@@ -635,10 +635,10 @@ int main(int argc, char* argv[]) {
         
         if (g_mpi_rank == 0) {
             if (total_docs > 0) {
-                printf("✅ Successfully indexed %d documents\n", total_docs);
+                printf(" Successfully indexed %d documents\n", total_docs);
                 g_metrics.documents_processed = total_docs;
             } else {
-                printf("❌ No documents found in dataset directory\n");
+                printf(" No documents found in dataset directory\n");
             }
         }
     }
@@ -655,7 +655,7 @@ int main(int argc, char* argv[]) {
     }
     
     if (g_mpi_rank == 0) {
-        printf("\n🎯 Super Hybrid Search Engine execution completed!\n");
+        printf("\n Super Hybrid Search Engine execution completed!\n");
     }
     
     return 0;

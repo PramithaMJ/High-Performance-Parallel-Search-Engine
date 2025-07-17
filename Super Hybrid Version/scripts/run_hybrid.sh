@@ -35,7 +35,7 @@ else
 fi
 
 # Print configuration
-echo "📊 Running hybrid MPI+OpenMP search engine with:"
+echo " Running hybrid MPI+OpenMP search engine with:"
 echo "   - MPI Processes: $MPI_PROCS (distributed memory parallelism)"
 echo "   - OpenMP Threads per process: $OMP_THREADS (shared memory parallelism)"
 echo "   - Total parallel units: $(($MPI_PROCS * $OMP_THREADS))"

@@ -44,7 +44,7 @@ print_banner() {
     echo -e "${BLUE}"
     echo "╔══════════════════════════════════════════════════════════╗"
     echo "║                                                          ║"
-    echo "║        🚀 AWS HPC Search Engine Deployment 🚀            ║"
+    echo "║         AWS HPC Search Engine Deployment             ║"
     echo "║                                                          ║"
     echo "║  Hybrid MPI+OpenMP Parallel Search Engine               ║"
     echo "║  Target: 3x t2.medium instances                         ║"
@@ -298,7 +298,7 @@ deploy_application() {
 #!/bin/bash
 
 # AWS HPC Search Engine Run Script
-echo "🚀 Running HPC Search Engine on AWS Cluster"
+echo " Running HPC Search Engine on AWS Cluster"
 echo "============================================="
 
 # Configuration
@@ -307,7 +307,7 @@ CORES_PER_NODE=2
 MPI_PROCESSES=$NODES
 OMP_THREADS=$CORES_PER_NODE
 
-echo "📊 Cluster Configuration:"
+echo " Cluster Configuration:"
 echo "  - Instance Type: t2.medium"
 echo "  - Nodes: $NODES"
 echo "  - Cores per Node: $CORES_PER_NODE"
@@ -341,7 +341,7 @@ mpirun -np $MPI_PROCESSES \
        /shared/bin/search_engine "$@"
 
 echo ""
-echo "✅ Execution completed!"
+echo " Execution completed!"
 EOF
     
     chmod +x "$DEPLOY_DIR/run_aws.sh"
@@ -370,11 +370,11 @@ show_cluster_info() {
     
     echo ""
     echo -e "${GREEN}╔══════════════════════════════════════════════════════════╗${NC}"
-    echo -e "${GREEN}║                   🎉 DEPLOYMENT COMPLETE! 🎉              ║${NC}"
+    echo -e "${GREEN}║                    DEPLOYMENT COMPLETE!               ║${NC}"
     echo -e "${GREEN}╚══════════════════════════════════════════════════════════╝${NC}"
     echo ""
     
-    echo -e "${BLUE}📊 Cluster Information:${NC}"
+    echo -e "${BLUE} Cluster Information:${NC}"
     echo "   • Instance Type: t2.medium"
     echo "   • Cluster Size: 3 nodes"
     echo "   • Total Cores: 6"
@@ -387,7 +387,7 @@ show_cluster_info() {
     echo "   • Dashboard: http://${LB_DNS}"
     echo ""
     
-    echo -e "${BLUE}🚀 Quick Start Commands:${NC}"
+    echo -e "${BLUE} Quick Start Commands:${NC}"
     echo "   # Connect to cluster:"
     echo "   ssh -i ~/.ssh/${KEY_NAME}.pem ubuntu@${MASTER_IP}"
     echo ""
@@ -412,7 +412,7 @@ show_cluster_info() {
     echo "   cd /shared && ./run_aws.sh -q 'test search' > benchmark_results.txt"
     echo ""
     
-    echo -e "${YELLOW}💰 Cost Management:${NC}"
+    echo -e "${YELLOW} Cost Management:${NC}"
     echo "   • Current cost: ~$0.14/hour"
     echo "   • Daily cost: ~$3.36"
     echo "   • Remember to destroy cluster when done: terraform destroy"

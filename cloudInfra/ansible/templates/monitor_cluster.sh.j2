@@ -1,7 +1,7 @@
 #!/bin/bash
 # Cluster monitoring script
 
-echo "📊 HPC Cluster Monitoring Dashboard"
+echo " HPC Cluster Monitoring Dashboard"
 echo "==================================="
 
 while true; do
@@ -13,7 +13,7 @@ while true; do
     while read -r line; do
         node=$(echo $line | awk '{print $1}')
         if ping -c 1 -W 1 $node > /dev/null 2>&1; then
-            echo "  ✅ $node: Online"
+            echo "   $node: Online"
             # Get basic metrics
             if [ "$node" != "$(hostname)" ]; then
                 ssh -o ConnectTimeout=5 $node "echo '    Load:' \$(uptime | awk -F'load average:' '{print \$2}' | awk '{print \$1}' | sed 's/,//'); echo '    Memory:' \$(free | grep Mem | awk '{printf \"%.1f%%\", \$3/\$2 * 100.0}')" 2>/dev/null || echo "    Status: SSH failed"
@@ -22,7 +22,7 @@ while true; do
                 echo "    Memory: $(free | grep Mem | awk '{printf "%.1f%%", $3/$2 * 100.0}')"
             fi
         else
-            echo "  ❌ $node: Offline"
+            echo "  $node: Offline"
         fi
     done < {{ mpi_hostfile }}
     
@@ -50,6 +50,6 @@ while true; do
     echo "  - Process count: $(ps aux | wc -l)"
     
     echo ""
-    echo "🔄 Refreshing in 10 seconds... (Press Ctrl+C to exit)"
+    echo " Refreshing in 10 seconds... (Press Ctrl+C to exit)"
     sleep 10
 done

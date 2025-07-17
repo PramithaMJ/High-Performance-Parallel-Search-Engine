@@ -64,7 +64,7 @@ void merge_mpi_results(SuperHybridResult *local_results, int local_count,
 
 // Super Hybrid BM25 ranking function that uses all available technologies
 void rank_bm25_super_hybrid(const char *query, int total_docs, int max_results) {
-    printf("🚀 Starting Super Hybrid BM25 Ranking...\n");
+    printf(" Starting Super Hybrid BM25 Ranking...\n");
     printf("   Query: \"%s\"\n", query);
     printf("   Technologies: ");
 #ifdef USE_CUDA
@@ -92,7 +92,7 @@ void rank_bm25_super_hybrid(const char *query, int total_docs, int max_results) 
     // Initialize results array
     SuperHybridResult *results = calloc(total_docs, sizeof(SuperHybridResult));
     if (!results) {
-        printf("❌ Failed to allocate memory for results\n");
+        printf(" Failed to allocate memory for results\n");
         return;
     }
 
@@ -130,7 +130,7 @@ void rank_bm25_super_hybrid(const char *query, int total_docs, int max_results) 
     double openmp_end = get_current_time();
     g_ranking_metrics.openmp_ranking_time += (openmp_end - openmp_start);
     
-    printf("[MPI %d] 📊 Average document length: %.2f (calculated with OpenMP)\n", 
+    printf("[MPI %d]  Average document length: %.2f (calculated with OpenMP)\n", 
            mpi_rank, avg_doc_length);
 #else
     // Serial calculation
@@ -146,7 +146,7 @@ void rank_bm25_super_hybrid(const char *query, int total_docs, int max_results) 
     
     avg_doc_length = valid_docs > 0 ? (double)total_length / valid_docs : 1.0;
     
-    printf("[MPI %d] 📊 Average document length: %.2f (calculated serially)\n", 
+    printf("[MPI %d]  Average document length: %.2f (calculated serially)\n", 
            mpi_rank, avg_doc_length);
 #endif
 
@@ -172,7 +172,7 @@ void rank_bm25_super_hybrid(const char *query, int total_docs, int max_results) 
     }
     free(query_copy);
 
-    printf("[MPI %d] 🔍 Processing %d query terms\n", mpi_rank, num_query_terms);
+    printf("[MPI %d]  Processing %d query terms\n", mpi_rank, num_query_terms);
 
     // Phase 3: Calculate BM25 scores using different technologies
     
@@ -181,7 +181,7 @@ void rank_bm25_super_hybrid(const char *query, int total_docs, int max_results) 
     if (total_docs > 100) {
         double cuda_start = get_current_time();
         
-        printf("[MPI %d] 🔧 Using CUDA for BM25 scoring (%d documents)...\n", 
+        printf("[MPI %d]  Using CUDA for BM25 scoring (%d documents)...\n", 
                mpi_rank, total_docs);
         
         // Prepare data for GPU processing
@@ -240,7 +240,7 @@ void rank_bm25_super_hybrid(const char *query, int total_docs, int max_results) 
                 }
                 g_ranking_metrics.documents_scored_cuda = total_docs;
             } else {
-                printf("[MPI %d] ⚠️  CUDA scoring failed, falling back to CPU\n", mpi_rank);
+                printf("[MPI %d] ️  CUDA scoring failed, falling back to CPU\n", mpi_rank);
             }
         }
         
@@ -252,7 +252,7 @@ void rank_bm25_super_hybrid(const char *query, int total_docs, int max_results) 
         double cuda_end = get_current_time();
         g_ranking_metrics.cuda_ranking_time += (cuda_end - cuda_start);
         
-        printf("[MPI %d] ✅ CUDA BM25 scoring completed in %.3f seconds\n", 
+        printf("[MPI %d]  CUDA BM25 scoring completed in %.3f seconds\n", 
                mpi_rank, cuda_end - cuda_start);
     } else {
 #endif
@@ -260,7 +260,7 @@ void rank_bm25_super_hybrid(const char *query, int total_docs, int max_results) 
 #ifdef USE_OPENMP
         double openmp_start = get_current_time();
         
-        printf("[MPI %d] 🔄 Using OpenMP for BM25 scoring (%d documents)...\n", 
+        printf("[MPI %d]  Using OpenMP for BM25 scoring (%d documents)...\n", 
                mpi_rank, total_docs);
         
         // Process each query term in parallel
@@ -301,7 +301,7 @@ void rank_bm25_super_hybrid(const char *query, int total_docs, int max_results) 
         g_ranking_metrics.openmp_ranking_time += (openmp_end - openmp_start);
         g_ranking_metrics.documents_scored_openmp = total_docs;
         
-        printf("[MPI %d] ✅ OpenMP BM25 scoring completed in %.3f seconds\n", 
+        printf("[MPI %d]  OpenMP BM25 scoring completed in %.3f seconds\n", 
                mpi_rank, openmp_end - openmp_start);
 #else
         // Serial BM25 scoring fallback
@@ -339,7 +339,7 @@ void rank_bm25_super_hybrid(const char *query, int total_docs, int max_results) 
         g_ranking_metrics.serial_ranking_time += (serial_end - serial_start);
         g_ranking_metrics.documents_scored_serial = total_docs;
         
-        printf("[MPI %d] ✅ Serial BM25 scoring completed in %.3f seconds\n", 
+        printf("[MPI %d]  Serial BM25 scoring completed in %.3f seconds\n", 
                mpi_rank, serial_end - serial_start);
 #endif
 #ifdef USE_CUDA
@@ -394,7 +394,7 @@ void rank_bm25_super_hybrid(const char *query, int total_docs, int max_results) 
         double mpi_end = get_current_time();
         g_ranking_metrics.mpi_ranking_time += (mpi_end - mpi_start);
         
-        printf("[MPI %d] ✅ MPI result aggregation completed in %.3f seconds\n", 
+        printf("[MPI %d]  MPI result aggregation completed in %.3f seconds\n", 
                mpi_rank, mpi_end - mpi_start);
     }
 #endif
@@ -424,7 +424,7 @@ void rank_bm25_super_hybrid(const char *query, int total_docs, int max_results) 
         }
         
         printf("════════════════════════════════════════════════════════════════\n");
-        printf("📊 Ranking Performance Summary:\n");
+        printf(" Ranking Performance Summary:\n");
         printf("   Total Time: %.3f seconds\n", g_ranking_metrics.total_ranking_time);
         
 #ifdef USE_CUDA
@@ -488,7 +488,7 @@ float calculate_bm25_score(int tf, int doc_length, float avg_doc_length, float i
 // Advanced ranking with query expansion and relevance feedback
 void rank_bm25_advanced(const char *query, int total_docs, int max_results, 
                        const char **expansion_terms, int num_expansion_terms) {
-    printf("🔍 Advanced Super Hybrid Ranking with Query Expansion...\n");
+    printf(" Advanced Super Hybrid Ranking with Query Expansion...\n");
     
     // First, run standard BM25
     rank_bm25_super_hybrid(query, total_docs, max_results);
@@ -505,7 +505,7 @@ void rank_bm25_advanced(const char *query, int total_docs, int max_results,
                    sizeof(expanded_query) - strlen(expanded_query) - 1);
         }
         
-        printf("🔍 Expanded Query: \"%s\"\n", expanded_query);
+        printf(" Expanded Query: \"%s\"\n", expanded_query);
         rank_bm25_super_hybrid(expanded_query, total_docs, max_results);
     }
 }

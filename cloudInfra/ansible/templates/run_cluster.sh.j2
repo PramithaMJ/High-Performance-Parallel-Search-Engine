@@ -1,7 +1,7 @@
 #!/bin/bash
 # Cluster run script for t2.medium instances
 
-echo "🚀 Running HPC Search Engine on t2.medium cluster"
+echo " Running HPC Search Engine on t2.medium cluster"
 echo "=================================================="
 
 # Configuration for t2.medium (2 vCPUs, 4GB RAM)
@@ -42,5 +42,5 @@ mpirun -np $MPI_PROCESSES \
        {{ shared_dir }}/High-Performance-Parallel-Search-Engine/Hybrid\ Version/bin/search_engine "$@"
 
 echo ""
-echo "✅ Search completed!"
+echo " Search completed!"
 echo "Results should be available in the output directory."
