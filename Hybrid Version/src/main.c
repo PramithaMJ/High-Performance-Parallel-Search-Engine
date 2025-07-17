@@ -3,6 +3,7 @@
 #include <string.h>
 #include <omp.h>      // OpenMP for parallel processing
 #include <mpi.h>      // MPI for distributed parallelism
+#include <unistd.h>   // For gethostname
 #include "../include/parser.h"
 #include "../include/index.h"
 #include "../include/ranking.h"
@@ -75,6 +76,7 @@ int main(int argc, char* argv[])
     int thread_count = 4; // Default number of threads
     int mpi_procs_count = mpi_size; // Default number of MPI processes is already set
     int total_docs = 0; // Total documents in the index
+    int error_flag = 0; // Track if any process encountered an error
     
     // First clear any existing index to make sure we rebuild it from scratch
     extern void clear_index(); // Forward declaration for the function we'll add
@@ -91,7 +93,8 @@ int main(int argc, char* argv[])
                 url_processed = 1;
             } else {
                 printf("Failed to download content from URL\n");
-                return 1;
+                error_flag = 1;
+                goto cleanup;
             }
             
             // Skip the URL parameter
@@ -119,7 +122,8 @@ int main(int argc, char* argv[])
                 url_processed = 1;
             } else {
                 printf("Failed to crawl website from URL\n");
-                return 1;
+                error_flag = 1;
+                goto cleanup;
             }
             
             // Skip the URL parameter
@@ -167,7 +171,8 @@ int main(int argc, char* argv[])
                 url_processed = 1;
             } else {
                 printf("Failed to crawl Medium profile\n");
-                return 1;
+                error_flag = 1;
+                goto cleanup;
             }
             
             i++; // Skip the username parameter
@@ -211,7 +216,7 @@ int main(int argc, char* argv[])
             print_thread_info();
         } else if (strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
-            return 0;
+            goto cleanup;
         } else if (strcmp(argv[i], "-q") == 0 && i + 1 < argc) {
             // Direct query option from command line
             const char* direct_query = argv[i + 1];
@@ -240,6 +245,8 @@ int main(int argc, char* argv[])
                         printf("No documents found in dataset directory.\n");
                         printf("Please download content first using -u, -c, or -m options.\n");
                         printf("Example: %s -c https://medium.com/@lpramithamj -q \"microservice\"\n", argv[0]);
+                        error_flag = 1;
+                        goto cleanup;
                     } else {
                         // Print debug information about the index
                         extern void print_all_index_terms();
@@ -260,16 +267,9 @@ int main(int argc, char* argv[])
             if (total_docs > 0) {
                 rank_bm25(direct_query, total_docs, 10); // Top 10 results
             }
-            
             // All processes must call MPI_Finalize
             MPI_Barrier(MPI_COMM_WORLD); // Make sure all processes reach this point
-            
-            // Finalize MPI before exiting
-            if (mpi_initialized) {
-                MPI_Finalize();
-            }
-            
-            return total_docs > 0 ? 0 : 1; // Exit with error code if no docs
+            goto cleanup;
             
             i++; // Skip the query parameter
         }
@@ -391,13 +391,38 @@ int main(int argc, char* argv[])
         }
     }
     
+cleanup:
     // All processes wait here before finishing
     MPI_Barrier(MPI_COMM_WORLD);
+
+    // --- Distributed/Threaded Process Summary ---
+    char local_hostname[256];
+    gethostname(local_hostname, sizeof(local_hostname));
+    int local_threads = omp_get_max_threads();
+    char all_hostnames[128][256];
+    int all_threads[128];
+    int max_procs = 128;
     
+    MPI_Gather(local_hostname, 256, MPI_CHAR, all_hostnames, 256, MPI_CHAR, 0, MPI_COMM_WORLD);
+    MPI_Gather(&local_threads, 1, MPI_INT, all_threads, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (mpi_rank == 0) {
+        printf("\n==================== DISTRIBUTED PROCESS SUMMARY ====================\n");
+        printf("%-8s %-25s %-15s\n", "Rank", "Hostname", "OpenMP Threads");
+        printf("--------------------------------------------------------------------\n");
+        for (int i = 0; i < mpi_size && i < max_procs; i++) {
+            printf("%-8d %-25s %-15d\n", i, all_hostnames[i], all_threads[i]);
+        }
+        printf("--------------------------------------------------------------------\n");
+        printf("Total MPI Processes: %d\n", mpi_size);
+        if (error_flag) {
+            printf("\n[WARNING] One or more processes encountered an error.\n");
+        }
+    }
+
     // Finalize MPI if we initialized it
     if (mpi_initialized) {
         MPI_Finalize();
     }
-    
-    return 0;
+    return error_flag ? 1 : 0;
 }
