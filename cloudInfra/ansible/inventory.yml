@@ -1,0 +1,33 @@
+---
+# Ansible inventory for HPC Search Engine Cluster
+all:
+  children:
+    hpc_cluster:
+      children:
+        master:
+          hosts:
+            hpc-master:
+              ansible_host: "{{ master_public_ip }}"
+              ansible_user: ubuntu
+              ansible_ssh_private_key_file: "{{ ssh_key_path }}"
+              node_type: master
+        workers:
+          hosts:
+            hpc-worker-1:
+              ansible_host: "{{ worker_1_public_ip }}"
+              ansible_user: ubuntu
+              ansible_ssh_private_key_file: "{{ ssh_key_path }}"
+              node_type: worker
+              worker_index: 1
+            hpc-worker-2:
+              ansible_host: "{{ worker_2_public_ip }}"
+              ansible_user: ubuntu
+              ansible_ssh_private_key_file: "{{ ssh_key_path }}"
+              node_type: worker
+              worker_index: 2
+      vars:
+        ansible_ssh_common_args: '-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
+        project_name: hpc-search-engine
+        mpi_processes: 3
+        omp_threads: 2
+        shared_dir: /shared

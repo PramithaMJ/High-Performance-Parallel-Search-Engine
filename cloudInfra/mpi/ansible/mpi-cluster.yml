@@ -1,0 +1,93 @@
+---
+# Main Ansible playbook for MPI cluster setup
+# This playbook configures the entire MPI cluster after infrastructure deployment
+
+- name: Configure MPI Search Engine Cluster
+  hosts: all
+  become: yes
+  gather_facts: yes
+  
+  vars:
+    mpi_version: "4.1.4"
+    cluster_name: "mpi-search-engine"
+    shared_mount: "/shared"
+    mpi_user: "mpiuser"
+    
+  pre_tasks:
+    - name: Update apt cache
+      apt:
+        update_cache: yes
+        cache_valid_time: 3600
+      
+    - name: Install common packages
+      apt:
+        name:
+          - build-essential
+          - cmake
+          - git
+          - wget
+          - curl
+          - vim
+          - htop
+          - awscli
+          - nfs-common
+          - libcurl4-openssl-dev
+          - pkg-config
+          - python3
+          - python3-pip
+          - jq
+          - bc
+        state: present
+
+  roles:
+    - common
+    - mpi
+    - search-engine
+
+- name: Configure Master Node
+  hosts: master
+  become: yes
+  
+  roles:
+    - master-config
+
+- name: Configure Worker Nodes
+  hosts: workers
+  become: yes
+  
+  roles:
+    - worker-config
+
+- name: Final Cluster Setup
+  hosts: master
+  become: yes
+  
+  tasks:
+    - name: Generate final hostfile
+      template:
+        src: hostfile.j2
+        dest: "{{ shared_mount }}/hostfile"
+        owner: "{{ mpi_user }}"
+        group: "{{ mpi_user }}"
+        mode: '0644'
+      
+    - name: Test MPI installation
+      command: mpirun --version
+      become_user: "{{ mpi_user }}"
+      register: mpi_test
+      
+    - name: Display MPI version
+      debug:
+        var: mpi_test.stdout
+        
+    - name: Test cluster connectivity
+      command: >
+        mpirun --hostfile {{ shared_mount }}/hostfile
+        --map-by node -np {{ ansible_play_hosts | length }}
+        hostname
+      become_user: "{{ mpi_user }}"
+      register: cluster_test
+      
+    - name: Display cluster test results
+      debug:
+        var: cluster_test.stdout

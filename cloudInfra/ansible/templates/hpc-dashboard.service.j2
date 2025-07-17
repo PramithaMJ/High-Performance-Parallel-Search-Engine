@@ -1,0 +1,24 @@
+[Unit]
+Description=HPC Cluster Dashboard
+After=network.target multi-user.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory={{ shared_dir }}/dashboard
+ExecStart=/usr/bin/python3 {{ shared_dir }}/dashboard/server.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Security settings
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths={{ shared_dir }}
+
+[Install]
+WantedBy=multi-user.target

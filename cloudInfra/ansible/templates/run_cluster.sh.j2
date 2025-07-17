@@ -1,0 +1,46 @@
+#!/bin/bash
+# Cluster run script for t2.medium instances
+
+echo "🚀 Running HPC Search Engine on t2.medium cluster"
+echo "=================================================="
+
+# Configuration for t2.medium (2 vCPUs, 4GB RAM)
+NODES=$(cat {{ mpi_hostfile }} | wc -l)
+MPI_PROCESSES={{ mpi_processes }}
+OMP_THREADS={{ omp_threads }}
+
+echo "Configuration:"
+echo "  - Nodes: $NODES"
+echo "  - MPI Processes: $MPI_PROCESSES"
+echo "  - OpenMP Threads per process: $OMP_THREADS"
+echo "  - Total cores: $((MPI_PROCESSES * OMP_THREADS))"
+
+# Set environment variables for optimal performance
+export OMP_NUM_THREADS=$OMP_THREADS
+export OMP_PROC_BIND=true
+export OMP_PLACES=cores
+export OMP_STACKSIZE=512K
+
+# Reduce memory usage
+export MALLOC_TRIM_THRESHOLD=100000
+
+echo ""
+echo "Starting search engine..."
+echo "========================"
+
+# Run the search engine with optimized settings
+mpirun -np $MPI_PROCESSES \
+       --hostfile {{ mpi_hostfile }} \
+       --map-by node \
+       --bind-to core \
+       --report-bindings \
+       -x OMP_NUM_THREADS \
+       -x OMP_PROC_BIND \
+       -x OMP_PLACES \
+       -x OMP_STACKSIZE \
+       -x MALLOC_TRIM_THRESHOLD \
+       {{ shared_dir }}/High-Performance-Parallel-Search-Engine/Hybrid\ Version/bin/search_engine "$@"
+
+echo ""
+echo "✅ Search completed!"
+echo "Results should be available in the output directory."

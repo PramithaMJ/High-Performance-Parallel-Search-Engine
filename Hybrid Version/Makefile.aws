@@ -1,0 +1,99 @@
+# AWS-Optimized Makefile for t2.medium instances
+# Hybrid MPI+OpenMP Search Engine
+
+CC = mpicc
+CXX = mpicxx
+
+# AWS-optimized compiler flags for t2.medium (2 vCPUs, 4GB RAM)
+CFLAGS = -Wall -O2 -fopenmp -std=c99 -pipe -march=native
+CXXFLAGS = -Wall -O2 -fopenmp -std=c++11 -pipe -march=native
+
+# AWS memory-conscious settings
+CFLAGS += -DMAX_URLS=1000 -DMAX_PAGES=100 -DAWS_OPTIMIZED -DMAX_THREADS=2
+CXXFLAGS += -DMAX_URLS=1000 -DMAX_PAGES=100 -DAWS_OPTIMIZED -DMAX_THREADS=2
+
+# Libraries
+LDFLAGS = -fopenmp `pkg-config --libs libcurl` -lm
+CPPFLAGS = `pkg-config --cflags libcurl`
+
+# Directories
+SRC_DIR = src
+INC_DIR = include
+OBJ_DIR = obj
+BIN_DIR = bin
+TEST_DIR = tests
+
+# Include path
+INC_FLAGS = -I$(INC_DIR)
+
+# Source files
+SRC_FILES = $(wildcard $(SRC_DIR)/*.c)
+OBJ_FILES = $(patsubst $(SRC_DIR)/%.c,$(OBJ_DIR)/%.o,$(SRC_FILES))
+
+# Create directories
+$(shell mkdir -p $(OBJ_DIR) $(BIN_DIR))
+
+# Main target
+all: aws-optimize $(BIN_DIR)/search_engine
+
+# Production build for AWS
+production: aws-optimize $(BIN_DIR)/search_engine
+
+# AWS-specific optimizations
+aws-optimize:
+	@echo "🔧 Applying AWS optimizations for t2.medium instances..."
+	@echo "   - Setting MAX_URLS=1000"
+	@echo "   - Setting MAX_PAGES=100" 
+	@echo "   - Setting MAX_THREADS=2"
+	@echo "   - Enabling AWS_OPTIMIZED flag"
+
+# Object file compilation
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c
+	@echo "🔨 Compiling $< for AWS..."
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(INC_FLAGS) -c $< -o $@
+
+# Main executable
+$(BIN_DIR)/search_engine: $(OBJ_FILES)
+	@echo "🔗 Linking search engine for AWS cluster..."
+	$(CC) -o $@ $(filter-out $(OBJ_DIR)/evaluate.o $(OBJ_DIR)/test_%.o, $(OBJ_FILES)) $(LDFLAGS)
+	@echo "✅ AWS-optimized search engine built successfully!"
+
+# Test targets (if needed)
+$(BIN_DIR)/test_url_normalization: $(SRC_DIR)/test_url_normalization.c $(filter-out $(OBJ_DIR)/main.o $(OBJ_DIR)/evaluate.o, $(OBJ_FILES))
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(INC_FLAGS) -o $@ $< $(filter-out $(OBJ_DIR)/main.o $(OBJ_DIR)/evaluate.o, $(OBJ_FILES)) $(LDFLAGS)
+
+$(BIN_DIR)/test_medium_urls: $(SRC_DIR)/test_medium_urls.c $(filter-out $(OBJ_DIR)/main.o $(OBJ_DIR)/evaluate.o, $(OBJ_FILES))
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(INC_FLAGS) -o $@ $< $(filter-out $(OBJ_DIR)/main.o $(OBJ_DIR)/evaluate.o, $(OBJ_FILES)) $(LDFLAGS)
+
+$(BIN_DIR)/evaluate: $(SRC_DIR)/evaluate.c $(filter-out $(OBJ_DIR)/main.o $(OBJ_DIR)/evaluate.o, $(OBJ_FILES))
+	$(CC) $(CFLAGS) $(CPPFLAGS) $(INC_FLAGS) -o $@ $< $(filter-out $(OBJ_DIR)/main.o $(OBJ_DIR)/evaluate.o, $(OBJ_FILES)) $(LDFLAGS)
+
+# Install to shared directory (for AWS cluster)
+install: $(BIN_DIR)/search_engine
+	@echo "📦 Installing to AWS shared directory..."
+	mkdir -p /shared/bin
+	cp $(BIN_DIR)/search_engine /shared/bin/
+	chmod +x /shared/bin/search_engine
+
+# Clean build artifacts
+clean:
+	@echo "🧹 Cleaning build artifacts..."
+	rm -rf $(OBJ_DIR) $(BIN_DIR)
+
+# Full clean including AWS optimizations
+clean-all: clean
+	@echo "🧹 Full clean complete"
+
+# Display AWS configuration
+info:
+	@echo "📊 AWS Cluster Configuration:"
+	@echo "   - Target: t2.medium instances"
+	@echo "   - Cores per node: 2"
+	@echo "   - Memory per node: 4GB"
+	@echo "   - Max URLs: 1000"
+	@echo "   - Max pages: 100"
+	@echo "   - OpenMP threads: 2"
+	@echo "   - Compiler: $(CC)"
+	@echo "   - Optimization: -O2"
+
+.PHONY: all production aws-optimize clean clean-all install info

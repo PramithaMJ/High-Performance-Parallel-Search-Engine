@@ -1,0 +1,344 @@
+#!/usr/bin/env python3
+"""
+HPC Cluster Dashboard
+A simple web interface for monitoring the cluster status
+"""
+
+import http.server
+import socketserver
+import subprocess
+import json
+import threading
+import time
+import os
+from datetime import datetime
+
+class DashboardHandler(http.server.SimpleHTTPRequestHandler):
+    def do_GET(self):
+        if self.path == '/' or self.path == '/index.html':
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            
+            html = self.generate_dashboard()
+            self.wfile.write(html.encode())
+            
+        elif self.path == '/health':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            
+            health_data = self.get_health_data()
+            self.wfile.write(json.dumps(health_data).encode())
+            
+        elif self.path == '/api/cluster':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            
+            cluster_data = self.get_cluster_data()
+            self.wfile.write(json.dumps(cluster_data).encode())
+            
+        else:
+            super().do_GET()
+
+    def generate_dashboard(self):
+        """Generate the main dashboard HTML"""
+        cluster_data = self.get_cluster_data()
+        
+        html = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>HPC Search Engine Cluster Dashboard</title>
+    <meta http-equiv="refresh" content="30">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background-color: #f5f5f5;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-left: 4px solid #667eea;
+        }
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #333;
+        }
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+        .node-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .node-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .node-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .status-online { 
+            background-color: #d4edda; 
+            border-left-color: #28a745;
+            color: #155724;
+        }
+        .status-offline { 
+            background-color: #f8d7da; 
+            border-left-color: #dc3545;
+            color: #721c24;
+        }
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .online { background-color: #28a745; }
+        .offline { background-color: #dc3545; }
+        .metric-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .actions {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 5px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .btn:hover {
+            background: #5a6fd8;
+        }
+        .footer {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 HPC Search Engine Cluster Dashboard</h1>
+        <p>t2.medium Cluster - Last Updated: {timestamp}</p>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value">{total_nodes}</div>
+            <div class="stat-label">Total Nodes</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{online_nodes}</div>
+            <div class="stat-label">Online Nodes</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{total_cores}</div>
+            <div class="stat-label">Total Cores</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value">{total_memory}GB</div>
+            <div class="stat-label">Total Memory</div>
+        </div>
+    </div>
+    
+    <h2>Cluster Nodes</h2>
+    <div class="node-grid">
+        {nodes_html}
+    </div>
+    
+    <div class="actions">
+        <h2>Quick Actions</h2>
+        <a href="/api/cluster" class="btn">📊 API Data</a>
+        <a href="/health" class="btn">🔍 Health Check</a>
+        <a href="javascript:location.reload()" class="btn">🔄 Refresh</a>
+    </div>
+    
+    <div class="footer">
+        <p>HPC Search Engine Cluster Dashboard v1.0 | Powered by {{ project_name }}</p>
+    </div>
+</body>
+</html>
+"""
+        
+        # Generate nodes HTML
+        nodes_html = ""
+        for node in cluster_data['nodes']:
+            status_class = "online" if node['status'] == 'online' else "offline"
+            card_class = "status-online" if node['status'] == 'online' else "status-offline"
+            
+            nodes_html += f"""
+            <div class="node-card {card_class}">
+                <div class="node-header">
+                    <div class="status-indicator {status_class}"></div>
+                    <h3>{node['name']}</h3>
+                </div>
+                <div class="metric-row">
+                    <span>Type:</span>
+                    <span>{node['type']}</span>
+                </div>
+                <div class="metric-row">
+                    <span>Status:</span>
+                    <span>{node['status'].title()}</span>
+                </div>
+                <div class="metric-row">
+                    <span>Load:</span>
+                    <span>{node.get('load', 'N/A')}</span>
+                </div>
+                <div class="metric-row">
+                    <span>Memory:</span>
+                    <span>{node.get('memory', 'N/A')}</span>
+                </div>
+            </div>
+            """
+        
+        return html.format(
+            timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            total_nodes=cluster_data['total_nodes'],
+            online_nodes=cluster_data['online_nodes'],
+            total_cores=cluster_data['total_cores'],
+            total_memory=cluster_data['total_memory'],
+            nodes_html=nodes_html
+        )
+
+    def get_cluster_data(self):
+        """Get cluster status data"""
+        try:
+            # Read hostfile
+            with open('{{ mpi_hostfile }}', 'r') as f:
+                hostfile_lines = f.readlines()
+            
+            nodes = []
+            online_count = 0
+            
+            for line in hostfile_lines:
+                if line.strip():
+                    node_name = line.split()[0]
+                    node_type = 'master' if 'master' in node_name else 'worker'
+                    
+                    # Check if node is online
+                    try:
+                        result = subprocess.run(['ping', '-c', '1', '-W', '1', node_name], 
+                                              capture_output=True, timeout=5)
+                        is_online = result.returncode == 0
+                        if is_online:
+                            online_count += 1
+                    except:
+                        is_online = False
+                    
+                    # Get additional metrics if online
+                    load = memory = "N/A"
+                    if is_online:
+                        try:
+                            if node_name == subprocess.run(['hostname'], capture_output=True, text=True).stdout.strip():
+                                # Local node
+                                load_result = subprocess.run(['uptime'], capture_output=True, text=True)
+                                if load_result.returncode == 0:
+                                    load = load_result.stdout.split('load average:')[1].split(',')[0].strip()
+                                
+                                mem_result = subprocess.run(['free'], capture_output=True, text=True)
+                                if mem_result.returncode == 0:
+                                    lines = mem_result.stdout.split('\n')
+                                    for line in lines:
+                                        if line.startswith('Mem:'):
+                                            parts = line.split()
+                                            total = int(parts[1])
+                                            used = int(parts[2])
+                                            memory = f"{used/total*100:.1f}%"
+                                            break
+                        except:
+                            pass
+                    
+                    nodes.append({
+                        'name': node_name,
+                        'type': node_type,
+                        'status': 'online' if is_online else 'offline',
+                        'load': load,
+                        'memory': memory
+                    })
+            
+            return {
+                'total_nodes': len(nodes),
+                'online_nodes': online_count,
+                'total_cores': len(nodes) * 2,  # t2.medium has 2 cores
+                'total_memory': len(nodes) * 4,  # t2.medium has 4GB RAM
+                'nodes': nodes,
+                'timestamp': datetime.now().isoformat()
+            }
+            
+        except Exception as e:
+            return {
+                'error': str(e),
+                'total_nodes': 0,
+                'online_nodes': 0,
+                'total_cores': 0,
+                'total_memory': 0,
+                'nodes': [],
+                'timestamp': datetime.now().isoformat()
+            }
+
+    def get_health_data(self):
+        """Get health check data"""
+        return {
+            "status": "healthy",
+            "timestamp": datetime.now().isoformat(),
+            "version": "1.0",
+            "cluster_type": "t2.medium HPC"
+        }
+
+def main():
+    PORT = 8080
+    
+    print(f"🌐 Starting HPC Cluster Dashboard on port {PORT}")
+    print(f"📊 Dashboard URL: http://localhost:{PORT}")
+    
+    with socketserver.TCPServer(("", PORT), DashboardHandler) as httpd:
+        try:
+            httpd.serve_forever()
+        except KeyboardInterrupt:
+            print("\n👋 Dashboard server stopped")
+
+if __name__ == "__main__":
+    main()
