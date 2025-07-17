@@ -81,7 +81,7 @@ void tokenize(char *text, int doc_id)
             
             // Debug output for important terms
             if (strlen(token) > 5) {
-                printf("DEBUG: Token '%s' stemmed to '%s'\n", token, stemmed);
+                // printf("DEBUG: Token '%s' stemmed to '%s'\n", token, stemmed);
             }
             
             add_token(stemmed, doc_id);
@@ -90,8 +90,8 @@ void tokenize(char *text, int doc_id)
         token = strtok(NULL, " \t\n\r.,;:!?\"()[]{}<>");
     }
     
-    printf("DEBUG: Tokenized %d tokens, added %d terms for doc_id %d\n", 
-           token_count, added_count, doc_id);
+    // printf("DEBUG: Tokenized %d tokens, added %d terms for doc_id %d\n", 
+        //    token_count, added_count, doc_id);
     
     // Record tokenizing time
     metrics.tokenizing_time += stop_timer();
