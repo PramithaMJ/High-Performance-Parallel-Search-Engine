@@ -90,7 +90,7 @@ all: super
 super: $(BIN_DIR)/super_hybrid_engine
 
 $(BIN_DIR)/super_hybrid_engine: $(COMMON_OBJECTS) $(OBJ_DIR)/super_hybrid_main.o
-	@echo "🔗 Linking Super Hybrid Engine (CUDA + OpenMP + MPI)..."
+	@echo " Linking Super Hybrid Engine (CUDA + OpenMP + MPI)..."
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 	@echo " Super Hybrid Engine built successfully!"
 
@@ -99,7 +99,7 @@ hybrid: USE_CUDA=0
 hybrid: $(BIN_DIR)/hybrid_engine
 
 $(BIN_DIR)/hybrid_engine: $(COMMON_OBJECTS) $(OBJ_DIR)/main.o
-	@echo "🔗 Linking Hybrid Engine (OpenMP + MPI)..."
+	@echo " Linking Hybrid Engine (OpenMP + MPI)..."
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 	@echo " Hybrid Engine built successfully!"
 
@@ -108,7 +108,7 @@ cuda: USE_MPI=0
 cuda: $(BIN_DIR)/cuda_engine
 
 $(BIN_DIR)/cuda_engine: $(COMMON_OBJECTS) $(OBJ_DIR)/super_hybrid_main.o
-	@echo "🔗 Linking CUDA Engine..."
+	@echo " Linking CUDA Engine..."
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 	@echo " CUDA Engine built successfully!"
 
@@ -118,7 +118,7 @@ openmp: USE_MPI=0
 openmp: $(BIN_DIR)/openmp_engine
 
 $(BIN_DIR)/openmp_engine: $(COMMON_OBJECTS) $(OBJ_DIR)/main.o
-	@echo "🔗 Linking OpenMP Engine..."
+	@echo " Linking OpenMP Engine..."
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 	@echo " OpenMP Engine built successfully!"
 
@@ -128,7 +128,7 @@ mpi: USE_OPENMP=0
 mpi: $(BIN_DIR)/mpi_engine
 
 $(BIN_DIR)/mpi_engine: $(COMMON_OBJECTS) $(OBJ_DIR)/main.o
-	@echo "🔗 Linking MPI Engine..."
+	@echo " Linking MPI Engine..."
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 	@echo " MPI Engine built successfully!"
 
@@ -139,7 +139,7 @@ serial: USE_MPI=0
 serial: $(BIN_DIR)/serial_engine
 
 $(BIN_DIR)/serial_engine: $(COMMON_OBJECTS) $(OBJ_DIR)/main.o
-	@echo "🔗 Linking Serial Engine..."
+	@echo " Linking Serial Engine..."
 	gcc $(filter-out -fopenmp,$(CFLAGS)) -o $@ $^ $(filter-out $(OPENMP_LIBS),$(LIBS))
 	@echo " Serial Engine built successfully!"
 

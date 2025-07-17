@@ -382,7 +382,7 @@ show_cluster_info() {
     echo "   • Cost: ~$0.14/hour"
     echo ""
     
-    echo -e "${BLUE}🔗 Access Information:${NC}"
+    echo -e "${BLUE} Access Information:${NC}"
     echo "   • Master SSH: ssh -i ~/.ssh/${KEY_NAME}.pem ubuntu@${MASTER_IP}"
     echo "   • Dashboard: http://${LB_DNS}"
     echo ""
