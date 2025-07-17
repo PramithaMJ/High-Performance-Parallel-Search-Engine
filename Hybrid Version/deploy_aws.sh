@@ -401,7 +401,7 @@ show_cluster_info() {
     echo "   /shared/dashboard/server.py"
     echo ""
     
-    echo -e "${BLUE}📈 Example Workloads:${NC}"
+    echo -e "${BLUE} Example Workloads:${NC}"
     echo "   # Crawl and index a website:"
     echo "   /shared/run_aws.sh -c 'https://medium.com/@lpramithamj' -d 2 -p 50"
     echo ""

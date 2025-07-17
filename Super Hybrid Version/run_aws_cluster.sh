@@ -234,7 +234,7 @@ run_search_engine() {
         # Show results if available
         if [ -f "aws_hybrid_metrics.csv" ]; then
             echo ""
-            echo -e "${BLUE}📈 Performance Summary:${NC}"
+            echo -e "${BLUE} Performance Summary:${NC}"
             tail -5 "aws_hybrid_metrics.csv"
         fi
         

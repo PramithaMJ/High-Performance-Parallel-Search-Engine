@@ -253,7 +253,7 @@ echo " Search completed!"
 
 # Display performance metrics
 if [ -f "hybrid_metrics.csv" ]; then
-    echo "📈 Performance Summary:"
+    echo " Performance Summary:"
     tail -5 hybrid_metrics.csv
 fi
 ````

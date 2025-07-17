@@ -201,7 +201,7 @@ benchmark: $(BIN_DIR)/super_hybrid_engine
 
 # Performance comparison
 compare: all
-	@echo "📈 Running performance comparison..."
+	@echo " Running performance comparison..."
 	@bash $(SCRIPTS_DIR)/performance_comparison.sh
 
 # System detection and optimization

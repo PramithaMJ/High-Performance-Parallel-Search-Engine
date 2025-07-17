@@ -377,7 +377,7 @@ int build_super_hybrid_index(const char *folder_path) {
     double total_time = total_end_time - total_start_time;
     
     if (mpi_rank == 0) {
-        printf("\n📈 Super Hybrid Indexing Performance Summary:\n");
+        printf("\n Super Hybrid Indexing Performance Summary:\n");
         printf("╔══════════════════════════════════════════════════════════════════╗\n");
         printf("║                    INDEXING PERFORMANCE METRICS                 ║\n");
         printf("╠══════════════════════════════════════════════════════════════════╣\n");

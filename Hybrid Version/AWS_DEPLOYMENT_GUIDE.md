@@ -323,7 +323,7 @@ ls -la /shared/
 
 ---
 
-## 📈 Performance Benchmarks
+##  Performance Benchmarks
 
 ### Expected Performance (t2.medium cluster)
 
