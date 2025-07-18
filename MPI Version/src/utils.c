@@ -33,5 +33,5 @@ int is_stopword(const char *word)
 // Stub: you can implement full Porter stemmer later
 char *stem(char *word)
 {
-    return word; // no-op for now
+    return word;
 }

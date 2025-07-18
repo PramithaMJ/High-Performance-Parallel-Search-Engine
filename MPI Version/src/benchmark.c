@@ -12,11 +12,11 @@ void init_baseline_metrics(const char* filepath) {
     if (!file) {
         printf("Warning: Could not open baseline metrics file %s\n", filepath);
         // Set default baseline values if file can't be opened
-        speedup_metrics.baseline_crawling_time = 1000.0;    // 1 second default
-        speedup_metrics.baseline_parsing_time = 200.0;      // 200ms default
-        speedup_metrics.baseline_tokenizing_time = 300.0;   // 300ms default
-        speedup_metrics.baseline_indexing_time = 500.0;     // 500ms default
-        speedup_metrics.baseline_query_time = 50.0;         // 50ms default
+        speedup_metrics.baseline_crawling_time = 1000.0;
+        speedup_metrics.baseline_parsing_time = 200.0;
+        speedup_metrics.baseline_tokenizing_time = 300.0;
+        speedup_metrics.baseline_indexing_time = 500.0;
+        speedup_metrics.baseline_query_time = 50.0;
         return;
     }
 
@@ -49,10 +49,8 @@ void init_baseline_metrics(const char* filepath) {
 }
 
 void calculate_speedup(SpeedupMetrics* speedup) {
-    // Get the global metrics variable declared in metrics.c
     extern SearchEngineMetrics metrics;
     
-    // Set current metrics from global metrics structure
     speedup->current_crawling_time = speedup->current_crawling_time > 0 ? 
                                     speedup->current_crawling_time : 
                                     metrics.crawling_time;
@@ -61,7 +59,6 @@ void calculate_speedup(SpeedupMetrics* speedup) {
     speedup->current_indexing_time = metrics.indexing_time;
     speedup->current_query_time = metrics.query_processing_time;
 
-    // Avoid division by zero
     double crawl_speedup = speedup->current_crawling_time > 0 ? 
                           speedup->baseline_crawling_time / speedup->current_crawling_time : 0;
     double parse_speedup = speedup->current_parsing_time > 0 ? 
@@ -97,10 +94,8 @@ void save_as_baseline(const char* filepath) {
         return;
     }
 
-    // Write header
     fprintf(file, "Metric,Value\n");
     
-    // Write metrics
     fprintf(file, "CrawlingTime_ms,%.2f\n", metrics.crawling_time);
     fprintf(file, "ParsingTime_ms,%.2f\n", metrics.parsing_time);
     fprintf(file, "TokenizingTime_ms,%.2f\n", metrics.tokenizing_time);

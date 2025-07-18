@@ -188,7 +188,7 @@ void add_token(const char *token, int doc_id)
     omp_unset_lock(&doc_length_lock);
 }
 
-// Optimized parallel version for batch token processing
+
 void add_tokens_batch(const char **tokens, int *doc_ids, int count)
 {
     #pragma omp parallel for schedule(dynamic, 10)

@@ -8,9 +8,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <mpi.h>
-#include <stddef.h>  // For offsetof
+#include <stddef.h>
 
-// Forward declaration of get_doc_filename
 extern const char* get_doc_filename(int doc_id);
 
 typedef struct
@@ -32,7 +31,6 @@ void rank_bm25(const char *query, int total_docs, int top_k)
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
     
-    // Debug information - check document filenames
     if (mpi_rank == 0) {
         printf("Debug: Verifying document filenames before search\n");
         for (int i = 0; i < total_docs && i < 5; i++) {
@@ -40,13 +38,12 @@ void rank_bm25(const char *query, int total_docs, int top_k)
         }
     }
     
-    // Start timing for query processing (only on rank 0)
     if (mpi_rank == 0) {
         start_timer();
     }
     
     // Calculate document range for this process
-    int docs_per_proc = (total_docs + mpi_size - 1) / mpi_size;  // Ceiling division
+    int docs_per_proc = (total_docs + mpi_size - 1) / mpi_size;
     int start_doc = mpi_rank * docs_per_proc;
     int end_doc = (mpi_rank == mpi_size - 1) ? total_docs : start_doc + docs_per_proc;
     
@@ -110,14 +107,12 @@ void rank_bm25(const char *query, int total_docs, int top_k)
         token = strtok(NULL, " \t\n\r");
     }
 
-    // Sort local results
     qsort(local_results, local_result_count, sizeof(Result), cmp);
     
     // Gather top results from all processes
-    Result gathered_results[1000 * 32];  // Assume max 32 processes
+    Result gathered_results[1000 * 32];
     int gathered_count = 0;
     
-    // Get top local results (limit to prevent overflow)
     int local_top = (local_result_count < top_k * 2) ? local_result_count : top_k * 2;
     
     // Create MPI datatype for Result struct if not already created
@@ -152,25 +147,20 @@ void rank_bm25(const char *query, int total_docs, int top_k)
             displacements[i] = displacements[i-1] + all_counts[i-1];
             gathered_count += all_counts[i];
         }
-        
-        // Gather all results using the custom datatype
+    
         // Each process sends local_top results, receives local_top from each process
         MPI_Gather(local_results, local_top, MPI_RESULT_TYPE,
                   gathered_results, local_top, MPI_RESULT_TYPE, 0, MPI_COMM_WORLD);
         
-        // Sort all gathered results
         qsort(gathered_results, gathered_count, sizeof(Result), cmp);
         
-        // Record query processing time
         double query_time = stop_timer();
         metrics.query_processing_time = query_time;
         
-        // Record query latency for statistical purposes
         record_query_latency(query_time);
         
         printf("Query processed in %.2f ms\n", query_time);
         
-        // Print top results
         int printed = 0;
         for (int i = 0; i < gathered_count && printed < top_k; ++i)
         {
@@ -193,8 +183,6 @@ void rank_bm25(const char *query, int total_docs, int top_k)
             printf("No results found for the query.\n");
         }
     } else {
-        // Non-root processes just send their results using the custom datatype
-        // The receive parameters are ignored on non-root processes, but must match root's send count
         MPI_Gather(local_results, local_top, MPI_RESULT_TYPE,
                   NULL, local_top, MPI_RESULT_TYPE, 0, MPI_COMM_WORLD);
     }

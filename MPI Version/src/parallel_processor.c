@@ -99,7 +99,7 @@ void process_documents_parallel(ParallelProcessor* processor,
                 // No more work, send completion signal
                 int done = -1;
                 MPI_Send(&done, 1, MPI_INT, worker, TASK_ASSIGN_TAG, MPI_COMM_WORLD);
-                worker_status[worker] = 0;  // Mark worker as done
+                worker_status[worker] = 0; 
             }
         }
         
@@ -122,13 +122,9 @@ void process_documents_parallel(ParallelProcessor* processor,
         
         // Process files until receiving completion signal
         while (file_index >= 0 && file_index < file_count) {
-            // Process file
             callback(file_paths[file_index], file_index, processor);
             
-            // Send result notification
             MPI_Send(&file_index, 1, MPI_INT, 0, TASK_RESULT_TAG, MPI_COMM_WORLD);
-            
-            // Receive next work
             MPI_Recv(&file_index, 1, MPI_INT, 0, TASK_ASSIGN_TAG, MPI_COMM_WORLD, &status);
         }
     }
@@ -166,11 +162,9 @@ void process_tokens_parallel(ParallelProcessor* processor,
     int start_idx = rank * tokens_per_process + (rank < remaining_tokens ? rank : remaining_tokens);
     int end_idx = start_idx + tokens_per_process + (rank < remaining_tokens ? 1 : 0);
     
-    // Each process handles its portion of tokens
     for (int i = start_idx; i < end_idx; i++) {
         callback(tokens[i], i, processor);
     }
     
-    // Synchronize all processes
     MPI_Barrier(MPI_COMM_WORLD);
 }

@@ -12,7 +12,6 @@ extern SearchEngineMetrics metrics;
 
 int parse_file(const char *filepath, int doc_id)
 {
-    // Start timing for parsing
     start_timer();
     
     FILE *fp = fopen(filepath, "r");
@@ -26,7 +25,7 @@ int parse_file(const char *filepath, int doc_id)
     rewind(fp);
     
     // Guard against very large files
-    if (len > 10000000) { // 10MB limit
+    if (len > 10000000) {
         printf("File too large: %s (%ld bytes)\n", filepath, len);
         fclose(fp);
         return 0;
@@ -46,17 +45,14 @@ int parse_file(const char *filepath, int doc_id)
     tokenize(content, doc_id);
     free(content);
     
-    // Record parsing time
     metrics.parsing_time += stop_timer();
     return 1;
 }
 
 void tokenize(char *text, int doc_id)
 {
-    // Start timing for tokenization
     start_timer();
     
-    // Debug counters
     int token_count = 0;
     int added_count = 0;
     
@@ -66,20 +62,16 @@ void tokenize(char *text, int doc_id)
         token_count++;
         to_lowercase(token);
         
-        // Special debug for microservice term
         if (strstr(token, "microservice") != NULL) {
             printf("DEBUG: Found 'microservice' in token: '%s'\n", token);
         }
         
         if (!is_stopword(token))
         {
-            // Start timing stemming
             start_timer();
             char *stemmed = stem(token);
-            // Record stemming time
             metrics.stemming_time += stop_timer();
             
-            // Debug output for important terms
             if (strlen(token) > 5) {
                 // printf("DEBUG: Token '%s' stemmed to '%s'\n", token, stemmed);
             }
@@ -106,7 +98,6 @@ void to_lowercase(char *str)
 // Parallel version of parse_file function
 int parse_file_parallel(const char *filepath, int doc_id)
 {
-    // Start timing for parsing
     start_timer();
     
     FILE *fp = fopen(filepath, "r");
@@ -120,7 +111,7 @@ int parse_file_parallel(const char *filepath, int doc_id)
     rewind(fp);
     
     // Guard against very large files
-    if (len > 10000000) { // 10MB limit
+    if (len > 10000000) {
         printf("File too large: %s (%ld bytes)\n", filepath, len);
         fclose(fp);
         return 0;
@@ -137,11 +128,9 @@ int parse_file_parallel(const char *filepath, int doc_id)
     content[read_bytes] = '\0';
     fclose(fp);
 
-    // Use tokenize function (which already has OpenMP parallelism)
     tokenize(content, doc_id);
     free(content);
     
-    // Record parsing time
     metrics.parsing_time += stop_timer();
     return 1;
 }
