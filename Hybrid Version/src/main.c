@@ -71,15 +71,14 @@ int main(int argc, char* argv[])
     
     // Process command line arguments
     int url_processed = 0;
-    int max_depth = 2;  // Default crawl depth
-    int max_pages = 10; // Default max pages to crawl
-    int thread_count = 4; // Default number of threads
-    int mpi_procs_count = mpi_size; // Default number of MPI processes is already set
-    int total_docs = 0; // Total documents in the index
-    int error_flag = 0; // Track if any process encountered an error
+    int max_depth = 2;
+    int max_pages = 10;
+    int thread_count = 4;
+    int mpi_procs_count = mpi_size;
+    int total_docs = 0;
+    int error_flag = 0;
     
-    // First clear any existing index to make sure we rebuild it from scratch
-    extern void clear_index(); // Forward declaration for the function we'll add
+    extern void clear_index();
     
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "-u") == 0 && i + 1 < argc) {
@@ -110,7 +109,7 @@ int main(int argc, char* argv[])
                 
                 // For Medium profile URLs, use more aggressive crawling
                 if (strstr(url, "medium.com/@") != NULL) {
-                    if (max_pages < 20) max_pages = 20; // Increase default for profiles
+                    if (max_pages < 20) max_pages = 20;
                     printf("Medium profile detected. Will crawl up to %d pages.\n", max_pages);
                 }
             }
@@ -147,11 +146,9 @@ int main(int argc, char* argv[])
             }
             i++;
         } else if (strcmp(argv[i], "-m") == 0 && i + 1 < argc) {
-            // Special option for Medium profile crawling
             const char* username = argv[i + 1];
             char medium_url[256];
             
-            // Check if it already has @ prefix
             if (username[0] == '@') {
                 snprintf(medium_url, sizeof(medium_url), "https://medium.com/%s", username);
             } else {
@@ -160,7 +157,7 @@ int main(int argc, char* argv[])
             
             printf("Crawling Medium profile: %s\n", medium_url);
             
-            // Use higher limits for Medium profiles
+            // Use  limits for Medium profiles
             int profile_max_depth = 3;
             int profile_max_pages = 25;
             
@@ -175,14 +172,12 @@ int main(int argc, char* argv[])
                 goto cleanup;
             }
             
-            i++; // Skip the username parameter
+            i++;
         } else if (strcmp(argv[i], "-np") == 0 && i + 1 < argc) {
-            // Set number of MPI processes
             mpi_procs_count = atoi(argv[i+1]);
             if (mpi_procs_count < 1) mpi_procs_count = 1;
             
-            // Note: We can't change the actual number of MPI processes after MPI_Init
-            // This is just for informational purposes in this context
+            // can't change the actual number of MPI processes after MPI_Init
             if (mpi_rank == 0) {
                 if (mpi_size != mpi_procs_count) {
                     printf("Note: MPI was already initialized with %d processes\n", mpi_size);
@@ -211,17 +206,14 @@ int main(int argc, char* argv[])
             }
             i++;
         } else if (strcmp(argv[i], "-i") == 0) {
-            // Print OpenMP information
             extern void print_thread_info();
             print_thread_info();
         } else if (strcmp(argv[i], "-h") == 0) {
             print_usage(argv[0]);
             goto cleanup;
         } else if (strcmp(argv[i], "-q") == 0 && i + 1 < argc) {
-            // Direct query option from command line
             const char* direct_query = argv[i + 1];
             
-            // Build the index if needed
             if (!url_processed) {
                 if (mpi_rank == 0) {
                     printf("Initializing stopwords...\n");
@@ -230,7 +222,6 @@ int main(int argc, char* argv[])
                 if (mpi_rank == 0) {
                     printf("Stopwords loaded.\n");
                     
-                    // Clear any existing index
                     clear_index();
                     
                     printf("Building index from dataset directory...\n");
@@ -248,7 +239,6 @@ int main(int argc, char* argv[])
                         error_flag = 1;
                         goto cleanup;
                     } else {
-                        // Print debug information about the index
                         extern void print_all_index_terms();
                         print_all_index_terms();
                     }
@@ -265,17 +255,15 @@ int main(int argc, char* argv[])
             }
             
             if (total_docs > 0) {
-                rank_bm25(direct_query, total_docs, 10); // Top 10 results
+                rank_bm25(direct_query, total_docs, 10);
             }
-            // All processes must call MPI_Finalize
-            MPI_Barrier(MPI_COMM_WORLD); // Make sure all processes reach this point
+            MPI_Barrier(MPI_COMM_WORLD);
             goto cleanup;
             
-            i++; // Skip the query parameter
+            i++;
         }
     }
     
-    // If we just processed a URL, let the user know we'll continue with search
     if (url_processed) {
         printf("\nURL content has been downloaded and will be included in the search index.\n");
         printf("Continuing with search engine startup...\n\n");
@@ -285,41 +273,33 @@ int main(int argc, char* argv[])
     is_stopword("test");
     printf("Stopwords loaded.\n");
     
-    // Clear any existing index
     clear_index();
     
     printf("Building index from dataset directory...\n");
     total_docs = build_index("dataset");
     printf("Indexed %d documents.\n", total_docs);
     
-    // If we made it here, we can search
-    // Ensure only rank 0 handles the interactive query input
     char user_query[256] = {0};
     
-    // MPI barrier to ensure all processes are ready
     MPI_Barrier(MPI_COMM_WORLD);
     
     // Only rank 0 collects the query from the user
     if (mpi_rank == 0) {
-        // Add some visual separation after crawling output
         printf("\n==================================================\n");
         printf("                SEARCH ENGINE READY                \n");
         printf("==================================================\n\n");
         
         printf("Enter your search query: ");
-        fflush(stdout); // Make sure the prompt is displayed immediately
+        fflush(stdout);
         
-        // Clear any input buffer before reading
         int c;
         while ((c = getchar()) != '\n' && c != EOF && c != '\0') { /* discard */ }
         
         // Read user input for search
         if (fgets(user_query, sizeof(user_query), stdin) == NULL) {
             printf("Error reading input. Please try again.\n");
-            // Handle the error by setting an empty query
             user_query[0] = '\0';
         } else {
-            // Remove newline character if present
             int len = strlen(user_query);
             if (len > 0 && user_query[len-1] == '\n') {
                 user_query[len-1] = '\0';
@@ -328,7 +308,6 @@ int main(int argc, char* argv[])
         }
     }
     
-    // Broadcast the query from rank 0 to all processes
     MPI_Bcast(user_query, sizeof(user_query), MPI_CHAR, 0, MPI_COMM_WORLD);
     
     // Check if query is empty
@@ -337,19 +316,14 @@ int main(int argc, char* argv[])
             printf("No search query entered. Please restart the program and enter a query.\n");
         }
     } else {
-        // Only rank 0 displays the search messages
         if (mpi_rank == 0) {
             printf("\nSearching for: \"%s\"\n", user_query);
             printf("\nTop results (BM25):\n");
         }
-        
         // Only search if we have documents
         if (total_docs > 0) {
-            // Wait for all processes before searching
             MPI_Barrier(MPI_COMM_WORLD);
-            rank_bm25(user_query, total_docs, 10); // Top 10 results
-            
-            // After search is complete, display completion message (only on rank 0)
+            rank_bm25(user_query, total_docs, 10);
             if (mpi_rank == 0) {
                 printf("\n==================================================\n");
                 printf("              SEARCH COMPLETED                    \n");
@@ -369,16 +343,15 @@ int main(int argc, char* argv[])
     
     // Load baseline metrics and calculate speedup
     init_baseline_metrics("data/serial_metrics.csv");
-    extern SpeedupMetrics speedup_metrics;  // Declare the external variable
+    extern SpeedupMetrics speedup_metrics;
     calculate_speedup(&speedup_metrics);
     
-    // Option to save current metrics as new baseline (only for rank 0)
     if (mpi_rank == 0) {
         char save_option;
         char input_buffer[10];
         
         printf("\nSave current performance as new baseline? (y/n): ");
-        fflush(stdout); // Make sure prompt is displayed immediately
+        fflush(stdout);
         
         if (fgets(input_buffer, sizeof(input_buffer), stdin) != NULL) {
             save_option = input_buffer[0];
@@ -392,7 +365,6 @@ int main(int argc, char* argv[])
     }
     
 cleanup:
-    // All processes wait here before finishing
     MPI_Barrier(MPI_COMM_WORLD);
 
     // --- Distributed/Threaded Process Summary ---

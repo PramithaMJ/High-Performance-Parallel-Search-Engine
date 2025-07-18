@@ -4,7 +4,6 @@
 #include <string.h>
 #include <mpi.h>
 
-// Buffer for non-blocking communication
 static void *comm_buffer = NULL;
 static size_t comm_buffer_size = 0;
 static MPI_Request *request_pool = NULL;
@@ -12,11 +11,9 @@ static int request_count = 0;
 static int max_requests = 32;
 
 void init_mpi_comm() {
-    // Initialize the communication buffer with a default size
-    comm_buffer_size = 1024 * 1024; // 1MB default
+    comm_buffer_size = 1024 * 1024;
     comm_buffer = malloc(comm_buffer_size);
     
-    // Create request pool for non-blocking operations
     request_pool = (MPI_Request*)malloc(max_requests * sizeof(MPI_Request));
     request_count = 0;
 }
@@ -44,7 +41,6 @@ void wait_all_requests() {
 
 int add_request(MPI_Request request) {
     if (request_count >= max_requests) {
-        // Resize the request pool
         max_requests *= 2;
         request_pool = (MPI_Request*)realloc(request_pool, max_requests * sizeof(MPI_Request));
         if (!request_pool) {
@@ -84,7 +80,6 @@ void optimized_scatter(void *sendbuf, int sendcount, MPI_Datatype sendtype,
         // Copy root's portion directly
         memcpy(recvbuf, (char*)sendbuf + rank * sendcount * type_size, recvcount * type_size);
         
-        // Send to other processes
         for (int i = 0; i < size; i++) {
             if (i != root) {
                 MPI_Isend((char*)sendbuf + i * sendcount * type_size, 
@@ -95,7 +90,6 @@ void optimized_scatter(void *sendbuf, int sendcount, MPI_Datatype sendtype,
         // Wait for all sends to complete
         MPI_Waitall(size - 1, requests, MPI_STATUSES_IGNORE);
     } else {
-        // Receive from root
         MPI_Recv(recvbuf, recvcount, recvtype, root, 0, comm, MPI_STATUS_IGNORE);
     }
 }
@@ -114,7 +108,7 @@ void optimized_gather(void *sendbuf, int sendcount, MPI_Datatype sendtype,
     MPI_Type_size(sendtype, &type_size);
     size_t total_size = recvcount * size * type_size;
     
-    if (total_size < 1024 * 1024) { // Less than 1MB
+    if (total_size < 1024 * 1024) {
         MPI_Gather(sendbuf, sendcount, sendtype, recvbuf, recvcount, recvtype, root, comm);
         return;
     }
@@ -124,7 +118,6 @@ void optimized_gather(void *sendbuf, int sendcount, MPI_Datatype sendtype,
         MPI_Request requests[size - 1];
         int req_idx = 0;
         
-        // Copy root's portion directly
         memcpy((char*)recvbuf + rank * recvcount * type_size, sendbuf, sendcount * type_size);
         
         // Receive from other processes
@@ -138,7 +131,6 @@ void optimized_gather(void *sendbuf, int sendcount, MPI_Datatype sendtype,
         // Wait for all receives to complete
         MPI_Waitall(size - 1, requests, MPI_STATUSES_IGNORE);
     } else {
-        // Send to root
         MPI_Send(sendbuf, sendcount, sendtype, root, 0, comm);
     }
 }

@@ -262,7 +262,7 @@ function updateDemoStats(version, processed, total, elapsed) {
     // Calculate efficiency (simplified)
     let efficiency = 100;
     if (processed > 0 && elapsed > 0) {
-        const serialTime = processed * 400; // Baseline serial time per doc
+        const serialTime = processed * 400; 
         const speedup = serialTime / elapsed;
         efficiency = Math.min((speedup / units) * 100, 100);
         
@@ -427,7 +427,7 @@ function startMPIDemo() {
     let currentDoc = 0;
     const totalDocs = 32;
     const processes = 4;
-    const processingTime = 200; // ms per document
+    const processingTime = 200;
     
     updateDemoStats(0, 0, processes, 0);
     

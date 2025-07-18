@@ -1,53 +1,44 @@
 #include "../include/index.h"
 #include "../include/parser.h"
 #include "../include/metrics.h"
-#include "../include/dist_index.h"  // Include the distributed index header
-#include "../include/parallel_processor.h" // Include the parallel processor header
-#include "../include/mpi_comm.h" // Include MPI communications header
-#include "../include/load_balancer.h" // Include load balancer header
+#include "../include/dist_index.h";
+#include "../include/parallel_processor.h"
+#include "../include/mpi_comm.h"
+#include "../include/load_balancer.h"
 #include <dirent.h>
 #include <stdio.h>
-#include <stdlib.h> // For free function
+#include <stdlib.h>
 #include <string.h>
-#include <libgen.h> // For basename function
-#include <mpi.h>    // MPI header
+#include <libgen.h>
+#include <mpi.h>
 
-// Forward declaration for helper function
 char* get_node_name(void);
 
-// Forward declaration for process_document function
 void process_document(const char* file_path, int file_index, ParallelProcessor* proc);
 
-// Forward declaration for monitor function
 void monitor_distributed_status(void);
 
 InvertedIndex index_data[10000];
 int index_size = 0;
 int doc_lengths[1000] = {0};
-Document documents[1000]; // Array to store document filenames
+Document documents[1000];
 
-// MPI process info
 int mpi_rank = 0;
 int mpi_size = 1;
 
-// Distributed index instance
 DistributedIndex* dist_index = NULL;
 
-// Parallel processor instance
 ParallelProcessor* processor = NULL;
 
-// Initialize MPI info
 void init_mpi_info() 
 {
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
 }
 
-// No locks needed in MPI version as processes have separate memory spaces
-void init_locks() { /* No operation needed */ }
-void destroy_locks() { /* No operation needed */ }
+void init_locks() {  }
+void destroy_locks() {  }
 
-// Function to monitor and display distributed processing status
 void monitor_distributed_status() {
     char hostname[MPI_MAX_PROCESSOR_NAME];
     int name_len;
@@ -99,7 +90,6 @@ void monitor_distributed_status() {
         
         printf("╚══════════════════════════════════════════════════════════════════╝\n");
         
-        // Show load balance analysis
         if (mpi_size > 1) {
             int max_terms = 0, min_terms = all_index_sizes[0];
             int max_docs = 0, min_docs = all_docs_processed[0];
@@ -133,17 +123,15 @@ void monitor_distributed_status() {
 
 int build_index(const char *folder_path)
 {
-    // Initialize MPI info
     init_mpi_info();
 
-    // Start measuring indexing time (only on rank 0)
     if (mpi_rank == 0) {
         start_timer();
         printf("Opening directory: %s\n", folder_path);
     }
     
     // Only the root process (rank 0) reads the directory
-    char file_paths[1000][256]; // Assuming max 1000 files
+    char file_paths[1000][256];
     int file_count = 0;
     
     if (mpi_rank == 0) {
@@ -154,7 +142,6 @@ int build_index(const char *folder_path)
             return 0;
         }
 
-        // First pass: collect all file names
         struct dirent *entry;
 
         while ((entry = readdir(dir)) != NULL && file_count < 1000)
@@ -182,7 +169,8 @@ int build_index(const char *folder_path)
     int remaining_files = file_count % mpi_size;
     int start_idx = mpi_rank * files_per_process + (mpi_rank < remaining_files ? mpi_rank : remaining_files);
     int end_idx = start_idx + files_per_process + (mpi_rank < remaining_files ? 1 : 0);
-      // Each process reports its workload with detailed machine information
+    
+    // Each process reports its workload with detailed machine information
     char hostname[MPI_MAX_PROCESSOR_NAME];
     int name_len;
     MPI_Get_processor_name(hostname, &name_len);
@@ -195,7 +183,7 @@ int build_index(const char *folder_path)
     
     // Parallel file processing with MPI
     int successful_docs = 0;
-    int local_successful = 0;    // Process each file in our assigned range with enhanced monitoring
+    int local_successful = 0;
     for (int i = start_idx; i < end_idx; i++) {
         printf(" Process %d [%s] processing file: %s\n", mpi_rank, hostname, file_paths[i]);
         if (parse_file_parallel(file_paths[i], i)) {
@@ -216,7 +204,7 @@ int build_index(const char *folder_path)
     }
     
     // Sum up successful documents across all processes
-    MPI_Reduce(&local_successful, &successful_docs, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);    // Record indexing time with enhanced distributed reporting
+    MPI_Reduce(&local_successful, &successful_docs, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     if (mpi_rank == 0) {
         metrics.indexing_time = stop_timer();
         printf("\n DISTRIBUTED INDEXING COMPLETED\n");
@@ -231,11 +219,12 @@ int build_index(const char *folder_path)
         printf("   ├─ Average docs per process: %.1f\n", (float)successful_docs / mpi_size);
         printf("   ├─ Processing efficiency: %.2f docs/ms/process\n", 
                (float)successful_docs / (metrics.indexing_time * mpi_size));
-        printf("   └─ Distributed speedup factor: ~%.1fx\n", (float)mpi_size * 0.8); // Estimated with communication overhead
-    }    // Synchronize all processes
+        printf("   └─ Distributed speedup factor: ~%.1fx\n", (float)mpi_size * 0.8);
+    }    
+    
+    // Synchronize all processes
     MPI_Barrier(MPI_COMM_WORLD);
     
-    // Monitor distributed processing status before merging
     if (mpi_rank == 0) {
         printf("\n Monitoring distributed processing status...\n");
     }
@@ -247,22 +236,18 @@ int build_index(const char *folder_path)
     }
     merge_mpi_index();
     
-    // Update index statistics
     update_index_stats(successful_docs, metrics.total_tokens, index_size);
 
-    // Cleanup locks
     destroy_locks();
 
     return successful_docs;
 }
 
-// Define a callback function for processing documents
 void process_document(const char* file_path, int file_index, ParallelProcessor* proc) {
     printf("Process %d processing file: %s\n", mpi_rank, file_path);
     
     if (parse_file_parallel(file_path, file_index))
     {
-        // Store the filename (basename) for this document
         char *path_copy = strdup(file_path);
         char *filename = basename(path_copy);
 
@@ -283,13 +268,11 @@ void process_document(const char* file_path, int file_index, ParallelProcessor* 
 // MPI-compatible version of add_token
 void add_token(const char *token, int doc_id)
 {
-    // Skip empty tokens or tokens that are too long
     if (!token || strlen(token) == 0 || strlen(token) > 100)
     {
         return;
     }
 
-    // Count the token for metrics (no need for atomic operation in MPI)
     metrics.total_tokens++;
 
     // In MPI, each process has its own memory space, so no locks needed
@@ -328,7 +311,6 @@ void add_token(const char *token, int doc_id)
     }
     else if (index_size < 10000 && strlen(token) < sizeof(index_data[0].term) - 1)
     {
-        // Add new term
         strcpy(index_data[index_size].term, token);
         index_data[index_size].postings[0] = (Posting){doc_id, 1};
         index_data[index_size].posting_count = 1;
@@ -385,14 +367,11 @@ const char *get_doc_filename(int doc_id)
 void clear_index()
 {
     // Each process resets its own copy of the data
-    
-    // Reset index data
+
     index_size = 0;
     
-    // Reset document lengths
     memset(doc_lengths, 0, sizeof(doc_lengths));
     
-    // Reset documents array
     memset(documents, 0, sizeof(documents));
     
     // Make sure all processes complete the reset before continuing
@@ -433,7 +412,6 @@ void print_index()
         }
     }
     
-    // Make sure all processes wait until printing is done
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
@@ -446,7 +424,6 @@ int parallel_search_term(const char *term, Posting **results, int *result_count)
     int local_found = -1;
     int global_found = -1;
     
-    // Divide the index range among processes
     int terms_per_process = index_size / mpi_size;
     int remaining_terms = index_size % mpi_size;
     int start_idx = mpi_rank * terms_per_process + (mpi_rank < remaining_terms ? mpi_rank : remaining_terms);
@@ -616,10 +593,8 @@ void distribute_files_across_nodes(const char* folder_path,
         printf("Found %d files to process\n", *file_count);
     }
     
-    // Broadcast the file count to all processes
     MPI_Bcast(file_count, 1, MPI_INT, 0, MPI_COMM_WORLD);
     
-    // Broadcast all file paths to all processes
     MPI_Bcast(file_paths, (*file_count) * 256, MPI_CHAR, 0, MPI_COMM_WORLD);
     
     // Calculate optimal work distribution based on node ID
@@ -668,7 +643,6 @@ void merge_mpi_index() {
     
     MPI_Allgather(&index_size, 1, MPI_INT, all_sizes, 1, MPI_INT, MPI_COMM_WORLD);
     
-    // Variables needed by all processes
     int merged_size = index_size;
     
     // Process 0 will collect all index data
@@ -722,24 +696,19 @@ void merge_mpi_index() {
                 
                 // Merge received data into merged_data
                 for (int i = 0; i < all_sizes[proc] && merged_size < total_size; i++) {
-                    // Check for duplicates in already merged data
                     int found_duplicate = 0;
                     for (int j = 0; j < merged_size; j++) {
                         if (strcmp(merged_data[j].term, temp_data[i].term) == 0) {
-                            // Merge postings for duplicate term
                             for (int k = 0; k < temp_data[i].posting_count; k++) {
-                                // Check if this doc_id already exists
                                 int doc_exists = 0;
                                 for (int l = 0; l < merged_data[j].posting_count; l++) {
                                     if (merged_data[j].postings[l].doc_id == temp_data[i].postings[k].doc_id) {
-                                        // Update frequency
                                         merged_data[j].postings[l].freq += temp_data[i].postings[k].freq;
                                         doc_exists = 1;
                                         break;
                                     }
                                 }
                                 
-                                // Add new posting if doc_id doesn't exist and we have space
                                 if (!doc_exists && merged_data[j].posting_count < 1000) {
                                     merged_data[j].postings[merged_data[j].posting_count] = temp_data[i].postings[k];
                                     merged_data[j].posting_count++;
@@ -750,7 +719,6 @@ void merge_mpi_index() {
                         }
                     }
                     
-                    // If not a duplicate, add as new term
                     if (!found_duplicate) {
                         memcpy(&merged_data[merged_size], &temp_data[i], sizeof(InvertedIndex));
                         merged_size++;
@@ -761,7 +729,6 @@ void merge_mpi_index() {
             }
         }
         
-        // Copy merged data back to index_data
         index_size = (merged_size < 10000) ? merged_size : 10000;
         memset(index_data, 0, sizeof(index_data));
         for (int i = 0; i < index_size; i++) {
@@ -784,7 +751,7 @@ void merge_mpi_index() {
     // Broadcast merged index size to all processes
     MPI_Bcast(&index_size, 1, MPI_INT, 0, MPI_COMM_WORLD);
     
-    // Broadcast the merged index to all processes (only if it's not empty)
+    // Broadcast the merged index to all processes
     if (index_size > 0) {
         MPI_Bcast(index_data, index_size * sizeof(InvertedIndex), MPI_BYTE, 0, MPI_COMM_WORLD);
     }

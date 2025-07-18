@@ -17,10 +17,8 @@ static double *process_load_metrics = NULL;
 void init_load_balancer(int mpi_size) {
     process_load_metrics = (double*)calloc(mpi_size, sizeof(double));
     
-    // Default to static balancing initially
     current_strategy = STRATEGY_STATIC;
     
-    // Check if we should use a different strategy based on environment variables
     char *strategy_env = getenv("SEARCH_ENGINE_LOAD_STRATEGY");
     if (strategy_env) {
         if (strcmp(strategy_env, "dynamic") == 0) {
@@ -38,7 +36,7 @@ void free_load_balancer() {
     }
 }
 
-// Static distribution - similar to current implementation but with file size consideration
+// similar to current implementation but with file size
 void static_distribute_workload(int mpi_rank, int mpi_size, int file_count, 
                                 char file_paths[][256], int *start_idx, int *end_idx) {
     // Get file sizes for better balancing
@@ -93,7 +91,7 @@ void static_distribute_workload(int mpi_rank, int mpi_size, int file_count,
 // Dynamic work distribution with master-worker pattern
 void dynamic_distribute_workload(int mpi_rank, int mpi_size, int file_count, 
                                 char file_paths[][256], int *files_to_process, int *file_indices) {
-    int work_unit_size = 5; // Process 5 files at a time
+    int work_unit_size = 5;
     int current_file = 0;
     MPI_Status status;
     
@@ -170,7 +168,7 @@ void distribute_workload(int strategy, int mpi_rank, int mpi_size, int file_coun
         // For static or initial adaptive distribution
         static_distribute_workload(mpi_rank, mpi_size, file_count, file_paths, start_idx, end_idx);
     } else if (strategy == STRATEGY_DYNAMIC) {
-        // For dynamic distribution, we handle it differently - not using start/end indices
+        // For dynamic distribution, handle it differently - not using start/end indices
         // This requires restructuring the calling code to use dynamic work allocation
         int files_to_process[1];
         int file_indices[file_count];

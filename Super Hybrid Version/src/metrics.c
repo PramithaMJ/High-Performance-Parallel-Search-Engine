@@ -21,7 +21,6 @@ double stop_timer() {
     struct timespec timer_end;
     clock_gettime(CLOCK_MONOTONIC, &timer_end);
     
-    // Calculate time in milliseconds
     double elapsed = (timer_end.tv_sec - timer_start.tv_sec) * 1000.0;
     elapsed += (timer_end.tv_nsec - timer_start.tv_nsec) / 1000000.0;
     
@@ -31,7 +30,6 @@ double stop_timer() {
 long get_current_memory_usage() {
     struct rusage usage;
     getrusage(RUSAGE_SELF, &usage);
-    // Return in kilobytes
     return usage.ru_maxrss;
 }
 

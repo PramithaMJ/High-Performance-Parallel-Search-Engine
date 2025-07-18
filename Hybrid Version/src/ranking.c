@@ -5,12 +5,10 @@
 #include "../include/metrics.h"
 #include <mpi.h>
 
-// Conditionally include OpenMP header
 #ifdef _OPENMP
   #include <omp.h>
 #endif
 
-// Forward declaration of get_doc_filename
 extern const char* get_doc_filename(int doc_id);
 #include <math.h>
 #include <stdio.h>
@@ -23,7 +21,6 @@ typedef struct
     double score;
 } Result;
 
-// Custom MPI datatype for Result struct
 MPI_Datatype MPI_RESULT_TYPE;
 
 int cmp(const void *a, const void *b)
@@ -33,18 +30,14 @@ int cmp(const void *a, const void *b)
     return (r2->score > r1->score) - (r2->score < r1->score);
 }
 
-// Function to create MPI Result datatype
 void create_result_datatype() {
-    // Define the struct layout for MPI
     MPI_Datatype types[2] = {MPI_INT, MPI_DOUBLE};
     int blocklengths[2] = {1, 1};
     MPI_Aint offsets[2];
     
-    // Calculate offsets
     offsets[0] = offsetof(Result, doc_id);
     offsets[1] = offsetof(Result, score);
     
-    // Create the MPI datatype
     MPI_Type_create_struct(2, blocklengths, offsets, types, &MPI_RESULT_TYPE);
     MPI_Type_commit(&MPI_RESULT_TYPE);
 }
@@ -59,7 +52,6 @@ void rank_bm25(const char *query, int total_docs, int top_k)
         MPI_Init_thread(NULL, NULL, MPI_THREAD_MULTIPLE, &provided);
         create_result_datatype();
         
-        // Log thread support level if verbose is enabled
         if (provided != MPI_THREAD_MULTIPLE) {
             printf("Warning: MPI implementation doesn't fully support MPI_THREAD_MULTIPLE\n");
             printf("Provided threading level: %d\n", provided);
@@ -76,7 +68,6 @@ void rank_bm25(const char *query, int total_docs, int top_k)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     
-    // Debug information - check document filenames
     if (rank == 0) {
         printf("Debug: Verifying document filenames before search\n");
         for (int i = 0; i < total_docs && i < 5; i++) {
@@ -84,17 +75,15 @@ void rank_bm25(const char *query, int total_docs, int top_k)
         }
     }
     
-    // Start timing for query processing (only on rank 0)
     if (rank == 0) {
         start_timer();
     }
     
     // Calculate document range for this process with better load balancing
-    int docs_per_proc = (total_docs + size - 1) / size;  // Ceiling division for more even distribution
+    int docs_per_proc = (total_docs + size - 1) / size;
     int start_doc = rank * docs_per_proc;
     int end_doc = (rank == size - 1) ? total_docs : start_doc + docs_per_proc;
     
-    // Debug info about document distribution
     if (rank == 0) {
         printf("Distributing %d documents across %d MPI processes\n", total_docs, size);
     }
@@ -102,7 +91,7 @@ void rank_bm25(const char *query, int total_docs, int top_k)
     char query_copy[256];
     strcpy(query_copy, query);
 
-    char *query_terms[32]; // Store query terms for parallel processing
+    char *query_terms[32]; 
     int num_terms = 0;
     
     // Tokenize query and store terms
@@ -146,7 +135,7 @@ void rank_bm25(const char *query, int total_docs, int top_k)
     {
         // Thread-local results to avoid critical sections
         Result *thread_results = (Result *)calloc(total_docs, sizeof(Result));
-        if (thread_results) {  // Check allocation success
+        if (thread_results) {
             for (int i = 0; i < total_docs; i++) {
                 thread_results[i].doc_id = i;
                 thread_results[i].score = 0.0;
@@ -156,7 +145,6 @@ void rank_bm25(const char *query, int total_docs, int top_k)
             for (int term_idx = 0; term_idx < num_terms; term_idx++) {
                 char *term = query_terms[term_idx];
                 
-                // Debug information for the search term
                 #pragma omp critical
                 {
                     if (rank == 0) {
@@ -172,7 +160,6 @@ void rank_bm25(const char *query, int total_docs, int top_k)
                         int df = index_data[i].posting_count;
                         double idf = log((total_docs - df + 0.5) / (df + 0.5) + 1.0);
                         
-                        // Debug information for the found term
                         #pragma omp critical
                         {
                             if (rank == 0) {
@@ -216,12 +203,10 @@ void rank_bm25(const char *query, int total_docs, int top_k)
         }
     }
     
-    // Free query terms
     for (int i = 0; i < num_terms; i++) {
         free(query_terms[i]);
     }
     
-    // Sort local results
     qsort(local_results, total_docs, sizeof(Result), cmp);
     
     // Send top-k local results to rank 0
@@ -236,14 +221,11 @@ void rank_bm25(const char *query, int total_docs, int top_k)
     
     // Root process combines and sorts all results
     if (rank == 0) {
-        // Sort all gathered results
         qsort(all_results, size * top_k, sizeof(Result), cmp);
         
-        // Record query processing time
         double query_time = stop_timer();
         metrics.query_processing_time = query_time;
         
-        // Record query latency for statistical purposes
         record_query_latency(query_time);
         
         printf("Query processed in %.2f ms\n", query_time);
@@ -275,5 +257,4 @@ void rank_bm25(const char *query, int total_docs, int top_k)
     
     free(local_results);
     
-    // Don't finalize MPI here, as it may be needed for other operations
 }

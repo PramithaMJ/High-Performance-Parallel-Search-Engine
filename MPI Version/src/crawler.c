@@ -20,14 +20,11 @@ static int has_visited(const char* url);
 static void mark_visited(const char* url);
 static void extract_links(const char* html, const char* base_url, char** urls, int* url_count, int max_urls);
 
-// Callback function for libcurl to write data to a file
-// Structure to hold the downloaded data
 struct MemoryStruct {
     char *memory;
     size_t size;
 };
 
-// Callback function for libcurl to write data to memory
 static size_t write_data_callback(void *contents, size_t size, size_t nmemb, void *userp) {
     size_t realsize = size * nmemb;
     struct MemoryStruct *mem = (struct MemoryStruct *)userp;
@@ -46,22 +43,17 @@ static size_t write_data_callback(void *contents, size_t size, size_t nmemb, voi
     return realsize;
 }
 
-// Write filtered content to a file
 static size_t write_callback(void *contents, size_t size, size_t nmemb, void *userp) {
     FILE *file = (FILE *)userp;
     size_t written = fwrite(contents, size, nmemb, file);
     return written;
 }
 
-// Function to extract a filename from URL
 static char* get_url_filename(const char* url) {
-    // Start with a default name
     static char filename[256];
     
-    // Try to get the last part of the URL after the last slash
     const char *last_slash = strrchr(url, '/');
     if (last_slash && strlen(last_slash) > 1) {
-        // Remove query parameters
         char *query = strchr(last_slash + 1, '?');
         if (query) {
             int len = query - (last_slash + 1);
@@ -71,7 +63,6 @@ static char* get_url_filename(const char* url) {
                 return filename;
             }
         } else {
-            // Use the last part of the URL
             if (strlen(last_slash + 1) > 0 && strlen(last_slash + 1) < 50) {
                 strcpy(filename, last_slash + 1);
                 return filename;
@@ -99,17 +90,14 @@ static void ensure_dataset_directory() {
     }
 }
 
-// Function to check if a string starts with another string
 static int starts_with(const char* str, const char* prefix) {
     return strncasecmp(str, prefix, strlen(prefix)) == 0;
 }
 
 // Function to determine if text is likely machine-generated or useless
 static int is_useful_content(const char* text, int length) {
-    // Skip empty content
     if (length < 10) return 0;
     
-    // Count certain characters that might indicate useful text
     int alpha_count = 0;
     int space_count = 0;
     int punct_count = 0;
@@ -120,15 +108,12 @@ static int is_useful_content(const char* text, int length) {
         else if (ispunct(text[i])) punct_count++;
     }
     
-    // Heuristic: useful text usually has a good mix of letters, spaces, and some punctuation
     float alpha_ratio = (float)alpha_count / length;
     float space_ratio = (float)space_count / length;
     
-    // Text should have a decent amount of alphabetic characters and spaces
     return (alpha_ratio > 0.4 && space_ratio > 0.05 && space_ratio < 0.3);
 }
 
-// A more robust HTML to text conversion with special handling for Medium articles
 static void html_to_text(const char *html, FILE *output) {
     int in_tag = 0;
     int in_script = 0;
@@ -142,21 +127,17 @@ static void html_to_text(const char *html, FILE *output) {
     int content_written = 0;
     size_t html_len = strlen(html);
     
-    // Buffer for collecting text from specific elements
     char text_buffer[10000] = {0};
     int buffer_pos = 0;
     int in_title = 0;
     int in_paragraph = 0;
     int in_heading = 0;
     
-    // First, try to find the main article content for Medium pages
     const char* article_tag = NULL;
     if (strstr(html, "medium.com") != NULL) {
-        // Look for article tag or main content section
         article_tag = strstr(html, "<article");
         
         if (!article_tag) {
-            // Alternative: look for main section
             article_tag = strstr(html, "<section class=\"section-inner");
         }
         
@@ -165,7 +146,6 @@ static void html_to_text(const char *html, FILE *output) {
         }
     }
     
-    // First, look for the body tag to skip header content if we didn't find article
     if (!article_tag) {
         const char *body_start = strstr(html, "<body");
         if (body_start) {
@@ -174,14 +154,13 @@ static void html_to_text(const char *html, FILE *output) {
     }
     
     for (size_t i = 0; html[i]; i++) {
-        // Handle HTML comments
         if (i + 3 < html_len && !in_comment && !in_tag && strncmp(&html[i], "<!--", 4) == 0) {
             in_comment = 1;
-            i += 3; // Skip past opening comment
+            i += 3;
             continue;
         } else if (in_comment && i + 2 < html_len && strncmp(&html[i], "-->", 3) == 0) {
             in_comment = 0;
-            i += 2; // Skip past closing comment
+            i += 2;
             continue;
         }
         
@@ -189,7 +168,6 @@ static void html_to_text(const char *html, FILE *output) {
             continue;
         }
         
-        // Check for key HTML sections
         if (!in_tag && (i + 6 < html_len) && starts_with(&html[i], "<head>")) {
             in_head = 1;
             in_tag = 1;
@@ -198,7 +176,7 @@ static void html_to_text(const char *html, FILE *output) {
         else if (in_head && (i + 7 < html_len) && starts_with(&html[i], "</head>")) {
             in_head = 0;
             in_tag = 1;
-            i += 6;  // Skip to end of tag
+            i += 6;
             continue;
         }
         else if (!in_tag && (i + 8 < html_len) && starts_with(&html[i], "<script")) {
@@ -211,24 +189,23 @@ static void html_to_text(const char *html, FILE *output) {
         }
         else if (in_script && (i + 9 < html_len) && starts_with(&html[i], "</script>")) {
             in_script = 0;
-            i += 8;  // Skip to end of tag
+            i += 8;
             continue;
         }
         else if (in_style && (i + 8 < html_len) && starts_with(&html[i], "</style>")) {
             in_style = 0;
-            i += 7;  // Skip to end of tag
+            i += 7;
             continue;
         }
         else if (!in_tag && (i + 7 < html_len) && starts_with(&html[i], "<title>")) {
             in_title = 1;
             buffer_pos = 0;
-            i += 6;  // Skip past <title>
+            i += 6;
             continue;
         }
         else if (in_title && (i + 8 < html_len) && starts_with(&html[i], "</title>")) {
             in_title = 0;
-            i += 7;  // Skip past </title>
-            // Add title with emphasis
+            i += 7;
             if (buffer_pos > 0) {
                 text_buffer[buffer_pos] = '\0';
                 fprintf(output, "\n\n# %s\n\n", text_buffer);
@@ -238,18 +215,17 @@ static void html_to_text(const char *html, FILE *output) {
             continue;
         }
         
-        // Special handling for Medium blog articles
         else if (!in_tag && strstr(html, "medium.com") != NULL) {
             if ((i + 3 < html_len) && starts_with(&html[i], "<h1")) {
                 in_heading = 1;
                 buffer_pos = 0;
-                i += 2;  // Skip past <h1/>
+                i += 2;
                 in_tag = 1;
                 continue;
             }
             else if (in_heading && (i + 5 < html_len) && starts_with(&html[i], "</h1>")) {
                 in_heading = 0;
-                i += 4;  // Skip past </h1>
+                i += 4;
                 
                 if (buffer_pos > 0) {
                     text_buffer[buffer_pos] = '\0';
@@ -262,7 +238,7 @@ static void html_to_text(const char *html, FILE *output) {
             else if ((i + 3 < html_len) && starts_with(&html[i], "<h2")) {
                 in_heading = 1;
                 buffer_pos = 0;
-                i += 2;  // Skip past <h2
+                i += 2;
                 in_tag = 1;
                 continue;
             }
@@ -728,7 +704,7 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
     const char* base_domain = extract_base_domain(base_url);
     if (!base_domain || base_domain[0] == '\0') return;
     
-    *url_count = 0;  // Initialize count
+    *url_count = 0;
     
     // Special handling for Medium profiles
     int is_medium_profile = strstr(base_url, "medium.com/@") != NULL;
@@ -740,10 +716,9 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
     MPI_Comm_rank(MPI_COMM_WORLD, &mpi_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
     
-    // For Medium profiles, use fewer processes
     int active_processes = mpi_size;
     if (is_medium_profile && active_processes > 2) {
-        active_processes = 2; // Use fewer processes to avoid splitting link structures
+        active_processes = 2;
         if (mpi_rank == 0) {
             printf("  Using %d processes for Medium profile link extraction\n", active_processes);
         }
@@ -751,18 +726,15 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
     
     // Only processes with rank < active_processes participate
     if (mpi_rank < active_processes) {
-        // Each process handles a section of HTML
         size_t chunk_size = html_len / active_processes;
         size_t start_pos = mpi_rank * chunk_size;
         size_t end_pos = (mpi_rank == active_processes - 1) ? html_len : (mpi_rank + 1) * chunk_size;
         
-        // For all processes except first, find the first '<' character to get a clean start point
         if (mpi_rank > 0) {
             while (start_pos < end_pos && html[start_pos] != '<')
                 start_pos++;
         }
         
-        // Thread-local buffer for URLs before adding to shared list
         char* local_urls[100];
         int local_count = 0;
         
@@ -770,9 +742,7 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
         const char* ptr = html + start_pos;
         const char* end_ptr = html + end_pos;
         
-        // For Medium profiles, look for specific link patterns
         if (is_medium_profile) {
-            // Medium profiles have links in different formats
             const char* article_patterns[] = {
                 "href=\"/", 
                 "href=\"https://medium.com/",
@@ -787,34 +757,29 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
                     const char* pattern_start = strstr(search_ptr, article_patterns[i]);
                     if (!pattern_start || pattern_start >= end_ptr) break;
                     
-                    // Find the starting position after the pattern
                     const char* url_start = pattern_start + strlen(article_patterns[i]);
                     if (strcmp(article_patterns[i], "href=\"/") == 0) {
-                        // Special case for relative URLs
                         char rel_url[MAX_URL_LENGTH] = "https://medium.com";
                         strncat(rel_url, url_start - 1, MAX_URL_LENGTH - strlen(rel_url) - 1);
                         const char* quote_end = strchr(rel_url, '"');
                         if (quote_end) {
-                            ((char*)quote_end)[0] = '\0'; // Remove end quote
+                            ((char*)quote_end)[0] = '\0';
                             
-                            // Process the relative URL if it's valid
                             if (strlen(rel_url) > strlen("https://medium.com")) {
                                 process_extracted_url(rel_url, strlen(rel_url), base_url, base_domain, 
                                                      local_urls, &local_count, 100);
                             }
                         }
                     } else if (strncmp(article_patterns[i], "href=\"@", 7) == 0) {
-                        // Handle username references
                         char username_url[MAX_URL_LENGTH] = "https://medium.com/";
                         strncat(username_url, url_start - 1, MAX_URL_LENGTH - strlen(username_url) - 1);
                         const char* quote_end = strchr(username_url, '"');
                         if (quote_end) {
-                            ((char*)quote_end)[0] = '\0'; // Remove end quote
+                            ((char*)quote_end)[0] = '\0';
                             process_extracted_url(username_url, strlen(username_url), base_url, base_domain, 
                                                 local_urls, &local_count, 100);
                         }
                     } else {
-                        // Regular URL handling
                         const char* url_end = strchr(url_start, '"');
                         if (url_end && url_end < end_ptr) {
                             int url_len = url_end - url_start;
@@ -824,30 +789,25 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
                             }
                         }
                     }
-                    // Move past this URL for next iteration
                     search_ptr = url_start + 1;
                 }
             }
         } else {
-            // Regular URL extraction for non-Medium profiles
             while (ptr < end_ptr && local_count < 100) {
-                // Look for href attributes
                 const char* href_start = NULL;
                 const char* href_end = NULL;
                 
-                // Search for "href=" in both quote styles
                 const char* href_double = strstr(ptr, "href=\"");
                 const char* href_single = strstr(ptr, "href='");
                 
                 if (!href_double && !href_single) break;
                 
                 if (href_double && href_single) {
-                    // Use whichever comes first
                     if (href_double < href_single) {
-                        href_start = href_double + 6;  // Skip past href="
+                        href_start = href_double + 6;
                         href_end = strchr(href_start, '"');
                     } else {
-                        href_start = href_single + 6;  // Skip past href='
+                        href_start = href_single + 6;
                         href_end = strchr(href_start, '\'');
                     }
                 } else if (href_double) {
@@ -858,38 +818,32 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
                     href_end = strchr(href_start, '\'');
                 }
                 
-                // If we found both start and end of the URL and it's within our chunk
                 if (href_start && href_end && href_end < end_ptr) {
                     int url_len = href_end - href_start;
                     if (url_len > 0 && url_len < MAX_URL_LENGTH) {
                         process_extracted_url(href_start, url_len, base_url, base_domain, 
                                             local_urls, &local_count, 100);
                     }
-                    ptr = href_end + 1;  // Move past this URL
+                    ptr = href_end + 1;
                 } else {
-                    // If we found the start but not the end within this chunk
                     if (href_start && !href_end) {
-                        ptr = end_ptr;  // End processing for this thread
+                        ptr = end_ptr;
                     } else {
-                        ptr++;  // Move forward one character
+                        ptr++;
                     }
                 }
             }
         }
         
-        // After processing, merge thread-local URLs into the global list with lock protection
         if (local_count > 0) {
-            // omp_set_lock(&url_lock);
             for (int i = 0; i < local_count && *url_count < max_urls; i++) {
                 if (local_urls[i]) {
                     urls[*url_count] = local_urls[i];
                     (*url_count)++;
-                    local_urls[i] = NULL; // Prevent double-free
+                    local_urls[i] = NULL; 
                 }
             }
-            // omp_unset_lock(&url_lock);
             
-            // Free any remaining URLs that didn't make it to the global list
             for (int i = 0; i < local_count; i++) {
                 if (local_urls[i]) {
                     free(local_urls[i]);
@@ -899,35 +853,27 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
         }
     }
     
-    // Clean up
-    // omp_destroy_lock(&url_lock);
 }
 
-// Function to extract page title from HTML
 static char* extract_title(const char* html) {
     static char title[256];
     memset(title, 0, sizeof(title));
     
-    // Find start of title tag
     const char* title_start = strstr(html, "<title");
     if (!title_start) return title;
     
-    // Find end of title tag opening
     title_start = strchr(title_start, '>');
     if (!title_start) return title;
-    title_start++; // Move past '>'
+    title_start++;
     
-    // Find end of title content
     const char* title_end = strstr(title_start, "</title>");
     if (!title_end) return title;
     
-    // Calculate length and copy title
     size_t title_len = title_end - title_start;
     if (title_len > 0 && title_len < sizeof(title) - 1) {
         strncpy(title, title_start, title_len);
         title[title_len] = '\0';
         
-        // Convert HTML entities in title
         char* amp = strstr(title, "&amp;");
         while (amp) {
             *amp = '&';
@@ -935,7 +881,6 @@ static char* extract_title(const char* html) {
             amp = strstr(amp + 1, "&amp;");
         }
         
-        // Do the same for other common entities
         char* lt = strstr(title, "&lt;");
         while (lt) {
             *lt = '<';
@@ -954,14 +899,11 @@ static char* extract_title(const char* html) {
     return title;
 }
 
-// Function to get a better filename for medium URLs
 static char* get_medium_filename(const char* url, const char* html) {
     static char filename[256];
     
-    // Extract title from HTML if possible
     char* title = extract_title(html);
     if (strlen(title) > 0) {
-        // Convert title to a valid filename
         char safe_title[256];
         int j = 0;
         
@@ -973,19 +915,16 @@ static char* get_medium_filename(const char* url, const char* html) {
         }
         safe_title[j] = '\0';
         
-        // Make sure we have something usable
         if (strlen(safe_title) > 0) {
             snprintf(filename, sizeof(filename), "medium_%s.txt", safe_title);
             return filename;
         }
     }
     
-    // Fallback: use username for profiles
     if (strstr(url, "medium.com/@") != NULL) {
         const char* username = strstr(url, "@") + 1;
         char safe_username[100] = {0};
         
-        // Copy until end of username (next slash or end of string)
         int i;
         for (i = 0; username[i] && username[i] != '/' && username[i] != '?' && i < 99; i++) {
             safe_username[i] = username[i];
@@ -998,13 +937,10 @@ static char* get_medium_filename(const char* url, const char* html) {
         }
     }
     
-    // Ultimate fallback: use default URL hash
     return get_url_filename(url);
 }
 
-// Function to determine content type from URL and headers
 static int is_html_content(const char* url, const char* content_type) {
-    // Check URL extension first
     const char* ext = strrchr(url, '.');
     if (ext) {
         if (strcasecmp(ext, ".jpg") == 0 || strcasecmp(ext, ".jpeg") == 0 || 
@@ -1015,7 +951,6 @@ static int is_html_content(const char* url, const char* content_type) {
         }
     }
     
-    // If we have content type, check it
     if (content_type) {
         if (strstr(content_type, "text/html") || strstr(content_type, "application/xhtml+xml")) {
             return 1;
@@ -1026,11 +961,9 @@ static int is_html_content(const char* url, const char* content_type) {
         }
     }
     
-    // Default to treating it as HTML
     return 1;
 }
 
-// Function to download a URL and save it to the dataset directory
 char* download_url(const char* url) {
     CURL *curl;
     CURLcode res;
@@ -1040,7 +973,6 @@ char* download_url(const char* url) {
     struct MemoryStruct chunk;
     char content_type[256] = {0};
     
-    // Initialize memory chunk
     chunk.memory = malloc(1);
     chunk.size = 0;
     
@@ -1051,30 +983,25 @@ char* download_url(const char* url) {
         return NULL;
     }
     
-    // Set up curl options to download to memory first
     curl_easy_setopt(curl, CURLOPT_URL, url);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data_callback);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&chunk);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (compatible; SearchEngine/1.0)");
     curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
-    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); // For simplicity
+    curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L); 
     
-    // Add headers to mimic a browser request
     struct curl_slist *headers = NULL;
     headers = curl_slist_append(headers, "Accept: text/html,application/xhtml+xml,application/xml");
     headers = curl_slist_append(headers, "Accept-Language: en-US,en;q=0.9");
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
     
-    // Capture content-type header
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, write_data_callback);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, &content_type);
     
-    // Perform the request
     printf("Downloading %s...\n", url);
     res = curl_easy_perform(curl);
     
-    // Get content type from CURL
     char *ct = NULL;
     curl_easy_getinfo(curl, CURLINFO_CONTENT_TYPE, &ct);
     if (ct) {
@@ -1090,7 +1017,6 @@ char* download_url(const char* url) {
         return NULL;
     }
     
-    // Check if content is HTML and has enough content
     if (!is_html_content(url, content_type) || chunk.size < 100) {
         printf("Skipping non-HTML content or too small content (size: %zu, type: %s)\n", 
                chunk.size, content_type[0] ? content_type : "unknown");
@@ -1098,10 +1024,8 @@ char* download_url(const char* url) {
         return NULL;
     }
     
-    // Ensure dataset directory exists
     ensure_dataset_directory();
     
-    // Create a filename based on the content
     if (strstr(url, "medium.com") != NULL) {
         filename = get_medium_filename(url, chunk.memory);
     } else {
@@ -1110,7 +1034,6 @@ char* download_url(const char* url) {
     
     snprintf(filepath, sizeof(filepath), "dataset/%s", filename);
     
-    // Open file for writing
     file = fopen(filepath, "wb");
     if (!file) {
         fprintf(stderr, "Failed to open file for writing: %s\n", filepath);
@@ -1118,14 +1041,11 @@ char* download_url(const char* url) {
         return NULL;
     }
     
-    // Write URL at the top of the file for reference
     fprintf(file, "Source URL: %s\n\n", url);
     
-    // Convert HTML to text and save to file
     printf("Processing HTML content (%zu bytes)...\n", chunk.size);
     html_to_text(chunk.memory, file);
     
-    // Clean up
     fclose(file);
     free(chunk.memory);
     
@@ -1135,17 +1055,14 @@ char* download_url(const char* url) {
 
 // Function to check if a URL is valid for crawling
 static int is_valid_crawl_url(const char* url, const char* base_domain) {
-    // Skip empty URLs
     if (!url || strlen(url) == 0) {
         return 0;
     }
     
-    // Must be HTTP or HTTPS
     if (strncmp(url, "http://", 7) != 0 && strncmp(url, "https://", 8) != 0) {
         return 0;
     }
     
-    // Skip common file types that are not useful for text search
     const char* file_extensions[] = {
         ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".svg", ".ico", ".tiff", 
         ".pdf", ".doc", ".docx", ".ppt", ".pptx", ".xls", ".xlsx",
@@ -1159,9 +1076,7 @@ static int is_valid_crawl_url(const char* url, const char* base_domain) {
         }
     }
     
-    // For medium.com URLs, add special handling
     if (strstr(url, "medium.com") != NULL) {
-        // Exclude specific Medium paths that cause issues
         if (strstr(url, "medium.com/m/signin") != NULL || 
             strstr(url, "medium.com/m/signout") != NULL ||
             strstr(url, "medium.com/plans") != NULL ||
@@ -1176,22 +1091,20 @@ static int is_valid_crawl_url(const char* url, const char* base_domain) {
         }
         
         // Allow specific Medium paths
-        if (strstr(url, "medium.com/@") != NULL ||       // Profile pages
-            strstr(url, "/p/") != NULL ||                // Article pages
-            strstr(url, "/tag/") != NULL ||              // Tag pages
-            strstr(url, "/topics/") != NULL ||           // Topic pages
-            strstr(url, "medium.com/") != NULL) {        // Publication pages
+        if (strstr(url, "medium.com/@") != NULL ||
+            strstr(url, "/p/") != NULL ||
+            strstr(url, "/tag/") != NULL ||
+            strstr(url, "/topics/") != NULL ||
+            strstr(url, "medium.com/") != NULL) {
             return 1;
         }
     } else if (base_domain != NULL && strstr(url, base_domain) != NULL) {
-        // For other domains, require that the URL contains our base domain
         return 1;
     }
     
     return 0;
 }
 
-// MPI work sharing structure
 typedef struct {
     char url[MAX_URL_LENGTH];
     int depth;
@@ -1199,13 +1112,11 @@ typedef struct {
     int processed;
 } MPIWorkItem;
 
-// Global work queue shared among all MPI processes
 static MPIWorkItem mpi_work_queue[MAX_URLS];
 static int mpi_queue_size = 0;
 static int global_pages_crawled = 0;
 static int work_distribution_round = 0;
 
-// Traditional queue variables for compatibility
 static char* queue[MAX_URLS];
 static int depth[MAX_URLS];
 static int front = 0;
@@ -1216,11 +1127,9 @@ static int failed_downloads = 0;
 // Function to distribute work among MPI processes
 static void distribute_mpi_work(const char* start_url, int maxDepth, int maxPages) {
     if (mpi_rank == 0) {
-        // Master process initializes the work queue
         mpi_queue_size = 0;
         global_pages_crawled = 0;
         
-        // Add initial URL to work queue
         strcpy(mpi_work_queue[0].url, start_url);
         mpi_work_queue[0].depth = 1;
         mpi_work_queue[0].assigned_rank = 0;
@@ -1238,9 +1147,8 @@ static void distribute_mpi_work(const char* start_url, int maxDepth, int maxPage
 
 // Function to get next work item for this MPI process
 static int get_mpi_work_item(char* url_out, int* depth_out, int maxPages) {
-    // Check if we've reached the page limit
     if (global_pages_crawled >= maxPages) {
-        return 0; // No more work
+        return 0;
     }
     
     // Look for unassigned work items
@@ -1258,13 +1166,13 @@ static int get_mpi_work_item(char* url_out, int* depth_out, int maxPages) {
                 
                 printf("Process %d took work item %d: %s (depth %d)\n", 
                        mpi_rank, i, url_out, *depth_out);
-                return 1; // Got work
+                return 1;
             }
             work_distribution_round++;
         }
     }
     
-    return 0; // No work available for this process
+    return 0;
 }
 
 // Function to add new URLs to the shared work queue
@@ -1274,7 +1182,6 @@ static void add_mpi_work_items(char** urls, int* depths, int url_count, int maxD
     int added_count = 0;
     for (int i = 0; i < url_count && mpi_queue_size < MAX_URLS && added_count < 50; i++) {
         if (urls[i] && depths[i] <= maxDepth) {
-            // Check if URL is already in queue
             int already_exists = 0;
             for (int j = 0; j < mpi_queue_size; j++) {
                 if (strcmp(mpi_work_queue[j].url, urls[i]) == 0) {
@@ -1305,7 +1212,7 @@ static void add_mpi_work_items(char** urls, int* depths, int url_count, int maxD
 
 // Function to synchronize work queues across all MPI processes
 static void sync_mpi_work_queues() {
-    // Each process contributes its local queue updates
+    // local queue updates
     MPIWorkItem temp_queue[MAX_URLS];
     int temp_queue_size = mpi_queue_size;
     
@@ -1313,7 +1220,6 @@ static void sync_mpi_work_queues() {
     int all_queue_sizes[mpi_size];
     MPI_Allgather(&temp_queue_size, 1, MPI_INT, all_queue_sizes, 1, MPI_INT, MPI_COMM_WORLD);
     
-    // Find the process with the largest queue (most up-to-date)
     int max_size = 0;
     int master_process = 0;
     for (int i = 0; i < mpi_size; i++) {
@@ -1332,20 +1238,16 @@ static void sync_mpi_work_queues() {
 
 // Function to recursively crawl a website starting from a URL using MPI parallelization
 int crawl_website(const char* start_url, int maxDepth, int maxPages) {
-    // Start measuring crawling time
     if (mpi_rank == 0) {
         start_timer();
     }
     
-    // Initialize MPI info if not already initialized
     if (!mpi_initialized) {
         init_mpi_crawler_info();
     }
     
-    // Reset the visited URLs on all processes
     visited_count = 0;
     
-    // Normalize start URL
     char* normalized_start_url = normalize_url(start_url);
     if (!normalized_start_url || normalized_start_url[0] == '\0') {
         if (mpi_rank == 0) {
@@ -1382,7 +1284,6 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
         char current_url[MAX_URL_LENGTH];
         int current_depth;
         
-        // Synchronize work queues every few iterations
         if (sync_counter % 5 == 0) {
             sync_mpi_work_queues();
             
@@ -1394,12 +1295,10 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
         
         // Get next work item for this process
         if (!get_mpi_work_item(current_url, &current_depth, maxPages)) {
-            // No work available, wait a bit and try again
-            usleep(100000); // 100ms
+            usleep(100000);
             continue;
         }
         
-        // Check if URL is valid for crawling
         if (!is_valid_crawl_url(current_url, base_domain)) {
             printf("Process %d: Skipping invalid URL: %s\n", mpi_rank, current_url);
             continue;
@@ -1408,7 +1307,6 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
         printf("Process %d crawling [%d/%d]: %s (depth %d/%d)\n", 
                mpi_rank, global_pages_crawled + 1, maxPages, current_url, current_depth, maxDepth);
             
-        // Download the URL content
         struct MemoryStruct chunk;
         chunk.memory = malloc(1);
         chunk.size = 0;
@@ -1421,9 +1319,8 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
             curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
             curl_easy_setopt(curl, CURLOPT_USERAGENT, "Mozilla/5.0 (compatible; SearchEngine-Crawler/1.1)");
             curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
-            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);  // Disable SSL verification for simplicity
+            curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
             
-            // Add headers to mimic a browser request
             struct curl_slist *headers = NULL;
             headers = curl_slist_append(headers, "Accept: text/html,application/xhtml+xml,application/xml");
             headers = curl_slist_append(headers, "Accept-Language: en-US,en;q=0.9");
@@ -1433,22 +1330,19 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
         curl_slist_free_all(headers);
         curl_easy_cleanup(curl);
         
-        if (res == CURLE_OK && chunk.size > 100) {  // Ensure we have some content
+        if (res == CURLE_OK && chunk.size > 100) {
             char* filename = download_url(current_url);
             if (filename) {
                 printf("  Process %d downloaded to %s (%zu bytes)\n", mpi_rank, filename, chunk.size);
                 local_pages_crawled++;
                 
-                // If we have not reached max depth, extract links and add to queue
                 if (current_depth < maxDepth) {
                     char* extracted_urls[MAX_URLS];
                     int url_count = 0;
                     
-                    // Extract links from HTML
                     extract_links(chunk.memory, current_url, extracted_urls, &url_count, MAX_URLS);
                     printf("  Process %d found %d links\n", mpi_rank, url_count);
                     
-                    // Add new URLs to the MPI work queue
                     if (url_count > 0) {
                         int* depths = malloc(url_count * sizeof(int));
                         for (int i = 0; i < url_count; i++) {
@@ -1457,7 +1351,6 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
                         add_mpi_work_items(extracted_urls, depths, url_count, maxDepth);
                         free(depths);
                         
-                        // Free extracted URLs
                         for (int i = 0; i < url_count; i++) {
                             if (extracted_urls[i]) {
                                 free(extracted_urls[i]);
@@ -1475,7 +1368,6 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
             local_failed_downloads++;
         }
         
-        // Safely free the memory chunk
         if (chunk.memory) {
             free(chunk.memory);
             chunk.memory = NULL;
@@ -1485,11 +1377,9 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
         fprintf(stderr, "  Process %d failed to initialize curl for: %s\n", mpi_rank, current_url);
     }
     
-    // Add a small delay between requests to be nice to servers (200-500ms)
     usleep((rand() % 300 + 200) * 1000);
-} // End of while loop
+}
 
-// Clean up any remaining URLs in the queue
 while (front != rear) {
     if (queue[front] != NULL) {
         free(queue[front]);
@@ -1498,16 +1388,12 @@ while (front != rear) {
     front = (front + 1) % MAX_URLS;
 }
 
-// Clean up curl global state
 curl_global_cleanup();
 
-// Synchronize all processes before final cleanup
 MPI_Barrier(MPI_COMM_WORLD);
 
-// Calculate final global page count
 MPI_Allreduce(&local_pages_crawled, &global_pages_crawled, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-// Record crawling time (only on master process)
 if (mpi_rank == 0) {
     extern SearchEngineMetrics metrics;
     metrics.crawling_time = stop_timer();

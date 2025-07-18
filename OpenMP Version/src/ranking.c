@@ -29,13 +29,6 @@ int cmp(const void *a, const void *b)
     return (r2->score > r1->score) - (r2->score < r1->score);
 }
 
-/**
- * Enhanced BM25 ranking function with improved parallelism
- * - Uses parallel tokenization and term processing
- * - Uses thread-local storage for deterministic results
- * - Implements more efficient memory management
- * - Uses OpenMP optimizations for better performance
- */
 void rank_bm25(const char *query, int total_docs, int top_k)
 {
     // Start timing for query processing
@@ -91,10 +84,8 @@ void rank_bm25(const char *query, int total_docs, int top_k)
         // Skip stopwords in parallel
         if (!is_stopword(token))
         {
-            // Standard term processing for all query terms
             char *term = stem(token);
             
-            // Find the term in the index
             for (int i = 0; i < index_size; ++i)
             {
                 if (strcmp(index_data[i].term, term) == 0)
@@ -103,8 +94,6 @@ void rank_bm25(const char *query, int total_docs, int top_k)
                     double idf = log((total_docs - df + 0.5) / (df + 0.5) + 1.0);
                     term_found_array[term_idx] = 1;
                     
-                    // Process all postings for this term
-                    // Use a cache-friendly access pattern
                     for (int j = 0; j < df; ++j)
                     {
                         int d = index_data[i].postings[j].doc_id;
@@ -118,27 +107,20 @@ void rank_bm25(const char *query, int total_docs, int top_k)
                 }
             }
             
-            // If the term wasn't found, try variations (singular/plural forms)
             if (!term_found_array[term_idx]) {
-                // Use a thread-safe buffer for the alternative term
                 char alternative_term[256] = {0};
                 
-                // Get length of the original term safely
                 int len = strlen(term);
                 if (len >= sizeof(alternative_term)) {
-                    len = sizeof(alternative_term) - 2;  // Leave room for potential 's'
+                    len = sizeof(alternative_term) - 2; 
                 }
                 
-                // Try plural form if term doesn't end with 's'
                 if (len > 0 && term[len-1] != 's') {
-                    // Create plural form - safely
                     strncpy(alternative_term, term, len);
                     alternative_term[len] = 's';
                     alternative_term[len+1] = '\0';
                 } 
-                // Try singular form if term ends with 's'
                 else if (len > 1) {
-                    // Create singular form - safely
                     strncpy(alternative_term, term, len-1);
                     alternative_term[len-1] = '\0';
                 }
@@ -149,10 +131,8 @@ void rank_bm25(const char *query, int total_docs, int top_k)
                         int df = index_data[i].posting_count;
                         double idf = log((total_docs - df + 0.5) / (df + 0.5) + 1.0);
                         
-                        // Apply same scoring factor for alternative forms (no penalty)
-                        double alt_factor = 1.0; // Treat singular/plural the same
+                        double alt_factor = 1.0; 
                         
-                        // Process alternative term scores directly into the term scores array
                         for (int j = 0; j < df; ++j) {
                             int d = index_data[i].postings[j].doc_id;
                             int tf = index_data[i].postings[j].freq;
@@ -163,7 +143,7 @@ void rank_bm25(const char *query, int total_docs, int top_k)
                             term_scores[d] = score;
                         }
                         
-                        term_found_array[term_idx] = 1; // Mark as found to avoid showing "no results" message
+                        term_found_array[term_idx] = 1;
                         break;
                     }
                 }
@@ -175,7 +155,6 @@ void rank_bm25(const char *query, int total_docs, int top_k)
     for (int term_idx = 0; term_idx < query_token_count; term_idx++) {
         double *term_scores = term_scores_array[term_idx];
         
-        // Add this term's scores to the final results
         for (int d = 0; d < total_docs; ++d) {
             if (term_scores[d] > 0) {
                 results[d].doc_id = d;
@@ -188,11 +167,9 @@ void rank_bm25(const char *query, int total_docs, int top_k)
 
     qsort(results, result_count, sizeof(Result), cmp);
     
-    // Record query processing time
     double query_time = stop_timer();
     metrics.query_processing_time = query_time;
     
-    // Record query latency for statistical purposes
     record_query_latency(query_time);
     
     printf("Query processed in %.2f ms\n", query_time);
@@ -247,7 +224,6 @@ void rank_bm25(const char *query, int total_docs, int top_k)
         printf("\nFound %d matching document(s) for query: \"%s\"\n", results_found, query);
     }
     
-    // Clean up resources
     if (result_strings) {
         for (int i = 0; i < top_k; i++) {
             free(result_strings[i]);
@@ -255,7 +231,6 @@ void rank_bm25(const char *query, int total_docs, int top_k)
         free(result_strings);
     }
     
-    // Free token and score arrays
     for (int i = 0; i < query_token_count; i++) {
         free(query_tokens[i]);
         free(term_scores_array[i]);

@@ -11,7 +11,7 @@ static unsigned int hash_string(const char *str) {
     int c;
     
     while ((c = *str++)) {
-        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+        hash = ((hash << 5) + hash) + c;
     }
     
     return hash;
@@ -51,7 +51,6 @@ DistributedIndex* create_distributed_index(int mpi_rank, int mpi_size) {
     return index;
 }
 
-// Free a distributed index
 void free_distributed_index(DistributedIndex* index) {
     if (!index) return;
     
@@ -73,10 +72,8 @@ void dist_add_term(DistributedIndex* index, const char* term, int doc_id, int fr
     int owner = get_term_owner(index, term);
     
     if (owner == index->mpi_rank) {
-        // This process owns the term
         int found = -1;
         
-        // Search for existing term
         for (int i = 0; i < index->local_size; i++) {
             if (strcmp(index->local_entries[i].term, term) == 0) {
                 found = i;
@@ -85,28 +82,22 @@ void dist_add_term(DistributedIndex* index, const char* term, int doc_id, int fr
         }
         
         if (found != -1) {
-            // Term exists, add document to postings
             DistIndexEntry* entry = &index->local_entries[found];
             
-            // Check if document already exists in postings
             for (int i = 0; i < entry->posting_count; i++) {
                 if (entry->postings[i].doc_id == doc_id) {
-                    // Update frequency
                     entry->postings[i].freq += freq;
                     return;
                 }
             }
             
-            // Add new posting
             if (entry->posting_count < DIST_MAX_POSTINGS) {
                 entry->postings[entry->posting_count].doc_id = doc_id;
                 entry->postings[entry->posting_count].freq = freq;
                 entry->posting_count++;
             }
         } else {
-            // New term
             if (index->local_size >= index->local_capacity) {
-                // Resize local entries
                 int new_capacity = index->local_capacity * 2;
                 DistIndexEntry* new_entries = (DistIndexEntry*)realloc(
                     index->local_entries, new_capacity * sizeof(DistIndexEntry));
@@ -119,7 +110,6 @@ void dist_add_term(DistributedIndex* index, const char* term, int doc_id, int fr
                 index->local_entries = new_entries;
                 index->local_capacity = new_capacity;
                 
-                // Initialize new entries
                 for (int i = index->local_size; i < index->local_capacity; i++) {
                     index->local_entries[i].term[0] = '\0';
                     index->local_entries[i].posting_count = 0;
@@ -136,19 +126,15 @@ void dist_add_term(DistributedIndex* index, const char* term, int doc_id, int fr
             index->local_size++;
         }
     } else {
-        // Send term to owner
-        // Package data: term, doc_id, freq
+
         char buffer[DIST_MAX_TERM_LENGTH + 2 * sizeof(int)];
         
-        // Copy term
         strncpy(buffer, term, DIST_MAX_TERM_LENGTH - 1);
         buffer[DIST_MAX_TERM_LENGTH - 1] = '\0';
         
-        // Copy doc_id and freq
         memcpy(buffer + DIST_MAX_TERM_LENGTH, &doc_id, sizeof(int));
         memcpy(buffer + DIST_MAX_TERM_LENGTH + sizeof(int), &freq, sizeof(int));
         
-        // Send to owner
         MPI_Request request;
         MPI_Isend(buffer, DIST_MAX_TERM_LENGTH + 2 * sizeof(int), MPI_CHAR, 
                  owner, DIST_INDEX_TAG, MPI_COMM_WORLD, &request);
@@ -191,13 +177,10 @@ void dist_process_incoming_terms(DistributedIndex* index) {
 
 // Synchronize the distributed index
 void dist_sync_index(DistributedIndex* index) {
-    // Process all incoming terms first
     dist_process_incoming_terms(index);
     
-    // Wait for all outgoing messages to complete
     wait_all_requests();
     
-    // Make sure all processes have processed their messages
     MPI_Barrier(MPI_COMM_WORLD);
     
     // Gather index statistics
@@ -232,12 +215,10 @@ DistSearchResult dist_search_term(DistributedIndex* index, const char* term) {
         // Search local index
         for (int i = 0; i < index->local_size; i++) {
             if (strcmp(index->local_entries[i].term, term) == 0) {
-                // Found term, create result
                 result.posting_count = index->local_entries[i].posting_count;
                 result.postings = (DistPosting*)malloc(
                     result.posting_count * sizeof(DistPosting));
                 
-                // Copy postings
                 for (int j = 0; j < result.posting_count; j++) {
                     result.postings[j] = index->local_entries[i].postings[j];
                 }
@@ -246,17 +227,13 @@ DistSearchResult dist_search_term(DistributedIndex* index, const char* term) {
             }
         }
         
-        // Broadcast result to all processes
-        // First broadcast posting count
         MPI_Bcast(&result.posting_count, 1, MPI_INT, owner, MPI_COMM_WORLD);
         
         if (result.posting_count > 0) {
-            // Broadcast postings
             MPI_Bcast(result.postings, result.posting_count * sizeof(DistPosting),
                      MPI_CHAR, owner, MPI_COMM_WORLD);
         }
     } else {
-        // Receive result from owner
         // First receive posting count
         MPI_Bcast(&result.posting_count, 1, MPI_INT, owner, MPI_COMM_WORLD);
         
@@ -274,7 +251,6 @@ DistSearchResult dist_search_term(DistributedIndex* index, const char* term) {
     return result;
 }
 
-// Free a search result
 void free_dist_search_result(DistSearchResult* result) {
     if (result->postings) {
         free(result->postings);

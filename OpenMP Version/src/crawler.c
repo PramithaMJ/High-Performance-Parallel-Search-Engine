@@ -8,10 +8,10 @@
 #include <curl/curl.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <dirent.h>    // For directory operations
-#include <time.h>      // For thread-specific random seeding
-#include <math.h>      // For pow(), sqrt() in thread statistics
-#include <limits.h>    // For INT_MAX constant
+#include <dirent.h>
+#include <time.h>
+#include <math.h> 
+#include <limits.h>
 
 // On macOS we need special handling for OpenMP
 #ifdef __APPLE__
@@ -22,14 +22,12 @@
     #include <omp.h>
   #endif
 #else
-  #include <omp.h>    // OpenMP for parallel processing
+  #include <omp.h>
 #endif
 
-// Define constants - these are moved to the top for global reference
 #define MAX_URLS 1000
 #define MAX_URL_LENGTH 512
 
-// Forward declarations
 static char* normalize_url(const char* url);
 static char* extract_base_domain(const char* url);
 static int has_visited(const char* url);
@@ -38,14 +36,12 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
 static void show_crawling_progress(int thread_id, const char* message);
 static void show_thread_distribution(int num_threads, int* thread_pages);
 
-// Callback function for libcurl to write data to a file
-// Structure to hold the downloaded data
 struct MemoryStruct {
     char *memory;
     size_t size;
 };
 
-// Callback function for libcurl to write data to memory
+//  libcurl to write data to memory
 static size_t write_data_callback(void *contents, size_t size, size_t nmemb, void *userp) {
     size_t realsize = size * nmemb;
     struct MemoryStruct *mem = (struct MemoryStruct *)userp;
@@ -73,13 +69,10 @@ static size_t write_callback(void *contents, size_t size, size_t nmemb, void *us
 
 // Function to extract a filename from URL
 static char* get_url_filename(const char* url) {
-    // Start with a default name
     static char filename[256];
     
-    // Try to get the last part of the URL after the last slash
     const char *last_slash = strrchr(url, '/');
     if (last_slash && strlen(last_slash) > 1) {
-        // Remove query parameters
         char *query = strchr(last_slash + 1, '?');
         if (query) {
             int len = query - (last_slash + 1);
@@ -89,7 +82,6 @@ static char* get_url_filename(const char* url) {
                 return filename;
             }
         } else {
-            // Use the last part of the URL
             if (strlen(last_slash + 1) > 0 && strlen(last_slash + 1) < 50) {
                 strcpy(filename, last_slash + 1);
                 return filename;
@@ -97,7 +89,6 @@ static char* get_url_filename(const char* url) {
         }
     }
     
-    // Use a hash of the URL
     unsigned int hash = 0;
     for (int i = 0; url[i]; i++) {
         hash = 31 * hash + url[i];
@@ -106,7 +97,6 @@ static char* get_url_filename(const char* url) {
     return filename;
 }
 
-// Function to ensure the dataset directory exists
 static void ensure_dataset_directory() {
     struct stat st = {0};
     if (stat("dataset", &st) == -1) {
@@ -118,17 +108,13 @@ static void ensure_dataset_directory() {
     }
 }
 
-// Function to check if a string starts with another string
 static int starts_with(const char* str, const char* prefix) {
     return strncasecmp(str, prefix, strlen(prefix)) == 0;
 }
 
-// Function to determine if text is likely machine-generated or useless
 static int is_useful_content(const char* text, int length) {
-    // Skip empty content
     if (length < 10) return 0;
     
-    // Count certain characters that might indicate useful text
     int alpha_count = 0;
     int space_count = 0;
     int punct_count = 0;
@@ -139,15 +125,12 @@ static int is_useful_content(const char* text, int length) {
         else if (ispunct(text[i])) punct_count++;
     }
     
-    // Heuristic: useful text usually has a good mix of letters, spaces, and some punctuation
     float alpha_ratio = (float)alpha_count / length;
     float space_ratio = (float)space_count / length;
     
-    // Text should have a decent amount of alphabetic characters and spaces
     return (alpha_ratio > 0.4 && space_ratio > 0.05 && space_ratio < 0.3);
 }
 
-// A more robust HTML to text conversion with special handling for Medium articles
 static void html_to_text(const char *html, FILE *output) {
     int in_tag = 0;
     int in_script = 0;
@@ -161,21 +144,17 @@ static void html_to_text(const char *html, FILE *output) {
     int content_written = 0;
     size_t html_len = strlen(html);
     
-    // Buffer for collecting text from specific elements
     char text_buffer[10000] = {0};
     int buffer_pos = 0;
     int in_title = 0;
     int in_paragraph = 0;
     int in_heading = 0;
     
-    // First, try to find the main article content for Medium pages
     const char* article_tag = NULL;
     if (strstr(html, "medium.com") != NULL) {
-        // Look for article tag or main content section
         article_tag = strstr(html, "<article");
         
         if (!article_tag) {
-            // Alternative: look for main section
             article_tag = strstr(html, "<section class=\"section-inner");
         }
         
@@ -184,7 +163,6 @@ static void html_to_text(const char *html, FILE *output) {
         }
     }
     
-    // First, look for the body tag to skip header content if we didn't find article
     if (!article_tag) {
         const char *body_start = strstr(html, "<body");
         if (body_start) {
@@ -196,11 +174,11 @@ static void html_to_text(const char *html, FILE *output) {
         // Handle HTML comments
         if (i + 3 < html_len && !in_comment && !in_tag && strncmp(&html[i], "<!--", 4) == 0) {
             in_comment = 1;
-            i += 3; // Skip past opening comment
+            i += 3;
             continue;
         } else if (in_comment && i + 2 < html_len && strncmp(&html[i], "-->", 3) == 0) {
             in_comment = 0;
-            i += 2; // Skip past closing comment
+            i += 2;
             continue;
         }
         
@@ -217,7 +195,7 @@ static void html_to_text(const char *html, FILE *output) {
         else if (in_head && (i + 7 < html_len) && starts_with(&html[i], "</head>")) {
             in_head = 0;
             in_tag = 1;
-            i += 6;  // Skip to end of tag
+            i += 6;
             continue;
         }
         else if (!in_tag && (i + 8 < html_len) && starts_with(&html[i], "<script")) {
@@ -230,24 +208,23 @@ static void html_to_text(const char *html, FILE *output) {
         }
         else if (in_script && (i + 9 < html_len) && starts_with(&html[i], "</script>")) {
             in_script = 0;
-            i += 8;  // Skip to end of tag
+            i += 8;
             continue;
         }
         else if (in_style && (i + 8 < html_len) && starts_with(&html[i], "</style>")) {
             in_style = 0;
-            i += 7;  // Skip to end of tag
+            i += 7;
             continue;
         }
         else if (!in_tag && (i + 7 < html_len) && starts_with(&html[i], "<title>")) {
             in_title = 1;
             buffer_pos = 0;
-            i += 6;  // Skip past <title>
+            i += 6;
             continue;
         }
         else if (in_title && (i + 8 < html_len) && starts_with(&html[i], "</title>")) {
             in_title = 0;
-            i += 7;  // Skip past </title>
-            // Add title with emphasis
+            i += 7;
             if (buffer_pos > 0) {
                 text_buffer[buffer_pos] = '\0';
                 fprintf(output, "\n\n# %s\n\n", text_buffer);
@@ -257,18 +234,17 @@ static void html_to_text(const char *html, FILE *output) {
             continue;
         }
         
-        // Special handling for Medium blog articles
         else if (!in_tag && strstr(html, "medium.com") != NULL) {
             if ((i + 3 < html_len) && starts_with(&html[i], "<h1")) {
                 in_heading = 1;
                 buffer_pos = 0;
-                i += 2;  // Skip past <h1
+                i += 2;
                 in_tag = 1;
                 continue;
             }
             else if (in_heading && (i + 5 < html_len) && starts_with(&html[i], "</h1>")) {
                 in_heading = 0;
-                i += 4;  // Skip past </h1>
+                i += 4;
                 
                 if (buffer_pos > 0) {
                     text_buffer[buffer_pos] = '\0';
@@ -281,13 +257,13 @@ static void html_to_text(const char *html, FILE *output) {
             else if ((i + 3 < html_len) && starts_with(&html[i], "<h2")) {
                 in_heading = 1;
                 buffer_pos = 0;
-                i += 2;  // Skip past <h2
+                i += 2;
                 in_tag = 1;
                 continue;
             }
             else if (in_heading && (i + 5 < html_len) && starts_with(&html[i], "</h2>")) {
                 in_heading = 0;
-                i += 4;  // Skip past </h2>
+                i += 4;
                 
                 if (buffer_pos > 0) {
                     text_buffer[buffer_pos] = '\0';
@@ -300,12 +276,12 @@ static void html_to_text(const char *html, FILE *output) {
             else if ((i + 3 < html_len) && starts_with(&html[i], "<p>")) {
                 in_paragraph = 1;
                 buffer_pos = 0;
-                i += 2;  // Skip past <p>
+                i += 2;
                 continue;
             }
             else if (in_paragraph && (i + 4 < html_len) && starts_with(&html[i], "</p>")) {
                 in_paragraph = 0;
-                i += 3;  // Skip past </p>
+                i += 3;
                 
                 if (buffer_pos > 0) {
                     text_buffer[buffer_pos] = '\0';
@@ -329,11 +305,9 @@ static void html_to_text(const char *html, FILE *output) {
             continue;
         }
         
-        // Handle tags
         if (html[i] == '<') {
             in_tag = 1;
             
-            // Check for specific tags that should add paragraph breaks
             if ((i + 4 < html_len) && (starts_with(&html[i], "<p>") || 
                                       starts_with(&html[i], "<br") ||
                                       starts_with(&html[i], "<li") ||
@@ -355,10 +329,8 @@ static void html_to_text(const char *html, FILE *output) {
             continue;
         }
         
-        // Handle content in special elements that we're collecting in buffer
         if (in_title || in_heading || in_paragraph) {
             if (buffer_pos < sizeof(text_buffer) - 1) {
-                // Convert common HTML entities within special elements
                 if (html[i] == '&') {
                     if ((i + 5 < html_len) && strncmp(&html[i], "&amp;", 5) == 0) {
                         text_buffer[buffer_pos++] = '&';
@@ -379,7 +351,6 @@ static void html_to_text(const char *html, FILE *output) {
                         text_buffer[buffer_pos++] = '\'';
                         i += 5;
                     } else {
-                        // For other HTML entities, try to skip them
                         size_t j = i;
                         while (html[j] && html[j] != ';' && j - i < 10) j++;
                         if (html[j] == ';') {
@@ -389,7 +360,6 @@ static void html_to_text(const char *html, FILE *output) {
                         }
                     }
                 } else if (isspace((unsigned char)html[i])) {
-                    // Handle spaces in buffer
                     if (buffer_pos > 0 && !isspace((unsigned char)text_buffer[buffer_pos-1])) {
                         text_buffer[buffer_pos++] = ' ';
                     }
@@ -400,7 +370,6 @@ static void html_to_text(const char *html, FILE *output) {
             continue;
         }
         
-        // Handle regular text content (outside special elements)
         if (isspace((unsigned char)html[i])) {
             if (consecutive_spaces == 0) {
                 fputc(' ', output);
@@ -408,7 +377,6 @@ static void html_to_text(const char *html, FILE *output) {
                 content_written = 1;
             }
         } else {
-            // Convert common HTML entities
             if (html[i] == '&') {
                 if ((i + 5 < html_len) && strncmp(&html[i], "&amp;", 5) == 0) {
                     fputc('&', output);
@@ -429,7 +397,6 @@ static void html_to_text(const char *html, FILE *output) {
                     fputc('\'', output);
                     i += 5;
                 } else {
-                    // For other HTML entities, try to skip them
                     size_t j = i;
                     while (html[j] && html[j] != ';' && j - i < 10) j++;
                     if (html[j] == ';') {
@@ -439,7 +406,6 @@ static void html_to_text(const char *html, FILE *output) {
                     }
                 }
             } else {
-                // Regular character
                 fputc(html[i], output);
             }
             consecutive_spaces = 0;
@@ -447,7 +413,6 @@ static void html_to_text(const char *html, FILE *output) {
         }
     }
     
-    // Add a note if no content was found
     if (!content_written) {
         fprintf(output, "No readable content could be extracted from this page.");
     }
@@ -456,22 +421,18 @@ static void html_to_text(const char *html, FILE *output) {
 #define MAX_URLS 1000
 #define MAX_URL_LENGTH 512
 
-// Store already visited URLs to avoid duplicates
 static char visited_urls[MAX_URLS][MAX_URL_LENGTH];
 static int visited_count = 0;
-static omp_lock_t visited_lock; // Lock for thread-safe access to visited URLs
+static omp_lock_t visited_lock;
 
-// Function to check if a URL has been visited
 static int has_visited(const char* url) {
-    if (!url) return 1;  // Treat NULL URLs as already visited
+    if (!url) return 1;
     
-    // First normalize the URL for consistent comparison
     char* normalized = normalize_url(url);
-    if (!normalized || normalized[0] == '\0') return 1; // Treat empty URLs as visited
+    if (!normalized || normalized[0] == '\0') return 1;
     
     int result = 0;
     
-    // Add lock to protect the read operation
     omp_set_lock(&visited_lock);
     
     // Safe comparison with visited URLs
@@ -487,25 +448,21 @@ static int has_visited(const char* url) {
     return result;
 }
 
-// Function to mark a URL as visited
 static void mark_visited(const char* url) {
-    if (!url) return;  // Don't try to mark NULL URLs
+    if (!url) return;
     
-    // First normalize the URL for consistent storage
     char* normalized = normalize_url(url);
     if (!normalized || normalized[0] == '\0') return; // Don't mark empty URLs
     
     omp_set_lock(&visited_lock);
     
-    // Check if already in our visited list
     for (int i = 0; i < visited_count; i++) {
         if (visited_urls[i][0] != '\0' && strcmp(visited_urls[i], normalized) == 0) {
             omp_unset_lock(&visited_lock);
-            return; // Already marked
+            return;
         }
     }
     
-    // Add to visited list if space is available
     if (visited_count < MAX_URLS) {
         strncpy(visited_urls[visited_count], normalized, MAX_URL_LENGTH - 1);
         visited_urls[visited_count][MAX_URL_LENGTH - 1] = '\0';
@@ -515,9 +472,7 @@ static void mark_visited(const char* url) {
     omp_unset_lock(&visited_lock);
 }
 
-// Function to extract the base domain from a URL
 static char* extract_base_domain(const char* url) {
-    // Thread-local static buffer to avoid issues with multiple calls
     static __thread char domain[MAX_URL_LENGTH];
     
     if (!url || strlen(url) == 0) {
@@ -525,53 +480,40 @@ static char* extract_base_domain(const char* url) {
         return domain;
     }
     
-    // Initialize the domain
     strncpy(domain, url, MAX_URL_LENGTH - 1);
     domain[MAX_URL_LENGTH - 1] = '\0';
     
-    // Find the protocol part
     char* protocol = strstr(domain, "://");
     if (!protocol) return domain;
     
-    // Find the domain part (after protocol)
     char* domain_start = protocol + 3;
     
-    // Find the end of domain (first slash after protocol)
     char* path = strchr(domain_start, '/');
     if (path) *path = '\0';
     
     return domain;
 }
 
-// Function to normalize a URL (remove tracking params, fragments, etc.)
 static char* normalize_url(const char* url) {
-    // Use thread-local static buffer to avoid issues with multiple calls
     static __thread char normalized[MAX_URL_LENGTH * 2];
     
-    // Always initialize to empty string first
     memset(normalized, 0, sizeof(normalized));
     
     if (!url || strlen(url) == 0) {
         return normalized;
     }
     
-    // Safe copy with null termination
     strncpy(normalized, url, MAX_URL_LENGTH * 2 - 1);
     normalized[MAX_URL_LENGTH * 2 - 1] = '\0';
     
-    // Remove fragment identifiers (#)
     char* fragment = strchr(normalized, '#');
     if (fragment) *fragment = '\0';
     
-    // Remove common tracking parameters
     char* query = strchr(normalized, '?');
     if (query) {
-        // For medium.com, remove all query params as they're typically tracking
         if (strstr(normalized, "medium.com") != NULL) {
             *query = '\0';
         } else {
-            // For other sites, try to keep important query params but remove common tracking ones
-            // This is just a simple example - could be extended with more parameters
             if (strstr(query, "utm_") != NULL || 
                 strstr(query, "fbclid=") != NULL || 
                 strstr(query, "gclid=") != NULL) {
@@ -580,7 +522,6 @@ static char* normalize_url(const char* url) {
         }
     }
     
-    // Ensure the URL doesn't end with a slash (for consistency)
     size_t len = strlen(normalized);
     if (len > 0 && normalized[len-1] == '/') {
         normalized[len-1] = '\0';
@@ -589,8 +530,6 @@ static char* normalize_url(const char* url) {
     return normalized;
 }
 
-// Process a URL found in HTML and add it to the list if valid
-// Enhanced with intelligent URL prioritization and validation
 static void process_extracted_url(const char* url_text, int url_len, const char* base_url, const char* base_domain, 
                                 char** urls, int* url_count, int max_urls) {
     if (url_len <= 0 || url_len >= MAX_URL_LENGTH || *url_count >= max_urls) 
@@ -603,39 +542,35 @@ static void process_extracted_url(const char* url_text, int url_len, const char*
     strncpy(new_url, url_text, url_len);
     new_url[url_len] = '\0';
     
-    // Skip irrelevant URLs and common non-content paths with expanded filters
     if (strncmp(new_url, "javascript:", 11) == 0 ||
         strncmp(new_url, "mailto:", 7) == 0 ||
         strncmp(new_url, "tel:", 4) == 0 ||
         strncmp(new_url, "data:", 5) == 0 ||
         strncmp(new_url, "file:", 5) == 0 ||
         strncmp(new_url, "ftp:", 4) == 0 ||
-        strncmp(new_url, "#", 1) == 0 ||         // Skip page anchors
-        strstr(new_url, "/cdn-cgi/") != NULL ||  // Cloudflare internal paths
-        strstr(new_url, "/wp-json/") != NULL ||  // WordPress API paths
-        strstr(new_url, "/wp-admin/") != NULL || // WordPress admin paths
-        strstr(new_url, "/wp-content/") != NULL || // WordPress content paths (usually images)
-        strstr(new_url, "/api/") != NULL ||      // API endpoints
-        strstr(new_url, ".jpg") != NULL ||       // Common media files
+        strncmp(new_url, "#", 1) == 0 ||
+        strstr(new_url, "/cdn-cgi/") != NULL ||
+        strstr(new_url, "/wp-json/") != NULL ||
+        strstr(new_url, "/wp-admin/") != NULL ||
+        strstr(new_url, "/wp-content/") != NULL ||
+        strstr(new_url, "/api/") != NULL ||
+        strstr(new_url, ".jpg") != NULL ||
         strstr(new_url, ".jpeg") != NULL ||
         strstr(new_url, ".png") != NULL ||
         strstr(new_url, ".gif") != NULL ||
         strstr(new_url, ".svg") != NULL ||
         strstr(new_url, ".ico") != NULL ||
-        strstr(new_url, ".js") != NULL ||        // JavaScript files
-        strstr(new_url, ".css") != NULL) {       // CSS files
+        strstr(new_url, ".js") != NULL ||
+        strstr(new_url, ".css") != NULL) {
         free(new_url);
         return;
     }
     
-    // Special handling for Medium URLs with improved detection
     int is_medium_url = strstr(base_url, "medium.com") != NULL;
     int is_medium_profile = is_medium_url && strstr(base_url, "medium.com/@") != NULL;
     
     if (is_medium_url) {
-        // Check for special Medium profile cases
         if (new_url[0] == '@') {
-            // Convert @username to full URL
             char* absolute_url = malloc(MAX_URL_LENGTH * 2);
             if (!absolute_url) {
                 free(new_url);
@@ -646,7 +581,6 @@ static void process_extracted_url(const char* url_text, int url_len, const char*
             new_url = absolute_url;
         }
         
-        // Skip Medium internal/utility pages that don't contain content
         if (strstr(new_url, "medium.com/m/signin") != NULL ||
             strstr(new_url, "medium.com/m/account") != NULL ||
             strstr(new_url, "medium.com/plans") != NULL ||
@@ -659,9 +593,7 @@ static void process_extracted_url(const char* url_text, int url_len, const char*
         }
     }
     
-    // Handle relative URLs with improved path handling
     if (strncmp(new_url, "http", 4) != 0) {
-        // Convert relative URL to absolute URL
         char* absolute_url = malloc(MAX_URL_LENGTH * 2);
         if (!absolute_url) {
             free(new_url);
@@ -670,32 +602,25 @@ static void process_extracted_url(const char* url_text, int url_len, const char*
         
         if (new_url[0] == '/') {
             if (new_url[1] == '/') {
-                // Protocol-relative URL (//example.com/path)
-                // Extract protocol from base_url
                 const char* protocol_end = strstr(base_url, "://");
                 if (protocol_end) {
-                    int protocol_len = protocol_end - base_url + 1; // Include the colon
+                    int protocol_len = protocol_end - base_url + 1;
                     strncpy(absolute_url, base_url, protocol_len);
                     absolute_url[protocol_len] = '\0';
-                    strcat(absolute_url, new_url + 2); // Skip the //
+                    strcat(absolute_url, new_url + 2);
                 } else {
-                    // Default to https if we can't determine
                     sprintf(absolute_url, "https:%s", new_url);
                 }
             } else {
-                // URL starts with /, so append to domain
                 sprintf(absolute_url, "%s%s", base_domain, new_url);
             }
         } else {
-            // URL is relative to current page
             strcpy(absolute_url, base_url);
             
-            // Remove everything after the last slash in base_url
             char* last_slash = strrchr(absolute_url, '/');
             if (last_slash && last_slash != absolute_url + strlen(absolute_url) - 1) {
                 *(last_slash + 1) = '\0';
             } else if (!last_slash) {
-                // If no slash in the URL after domain, add one
                 strcat(absolute_url, "/");
             }
             
@@ -706,34 +631,27 @@ static void process_extracted_url(const char* url_text, int url_len, const char*
         new_url = absolute_url;
     }
     
-    // Normalize the URL to avoid duplicates
     char* normalized_url = normalize_url(new_url);
     
-    // Only duplicate valid normalized URLs
     char* final_url = NULL;
     if (normalized_url && normalized_url[0] != '\0') {
         final_url = strdup(normalized_url);
     }
     
-    // Free the original URL - only if it's not NULL
     if (new_url) {
         free(new_url);
         new_url = NULL;
     }
     
-    // Early return if no valid URL
     if (!final_url) return;
     
-    // Check if the URL is valid and not already visited/queued
     int is_valid = 0;
     int is_duplicate = 0;
-    int url_priority = 1;  // Default priority (higher = more important)
+    int url_priority = 1;
     
-    // Check if it's already visited
     if (has_visited(final_url)) {
         is_duplicate = 1;
     } else {
-        // Also check if it's already in our current extraction list
         for (int i = 0; i < *url_count; i++) {
             if (urls[i] && strcmp(urls[i], final_url) == 0) {
                 is_duplicate = 1;
@@ -743,87 +661,68 @@ static void process_extracted_url(const char* url_text, int url_len, const char*
     }
     
     if (!is_duplicate) {
-        // For Medium sites, use special handling
         if (strstr(base_url, "medium.com") != NULL) {
             if (strstr(final_url, "medium.com") != NULL) {
-                // For Medium we allow all URLs within medium.com
                 is_valid = 1;
                 
-                // Give higher priority to story URLs over profile pages
                 if (strstr(final_url, "/tagged/") != NULL) {
-                    url_priority = 3;  // Tag pages are valuable for crawling
+                    url_priority = 3; 
                 } else if (strstr(final_url, "/@") != NULL && strstr(final_url, "/followers") == NULL) {
-                    // Profile URLs are high priority, except followers pages
                     url_priority = 4;
                 } else if (strstr(final_url, "/p/") != NULL) {
-                    // Story URLs are highest priority
                     url_priority = 5;
                 }
             }
         } else if (base_domain && strstr(final_url, base_domain) != NULL) {
-            // For other sites, use stricter domain checking but with enhanced prioritization
             is_valid = 1;
             
-            // Prioritize content pages over navigational ones
-            // Check for common content patterns
             if (strstr(final_url, "/article/") != NULL || 
                 strstr(final_url, "/post/") != NULL || 
                 strstr(final_url, "/blog/") != NULL ||
                 strstr(final_url, "/story/") != NULL) {
-                url_priority = 4;  // Content pages get high priority
+                url_priority = 4;
             } else if (strstr(final_url, "/category/") != NULL ||
                       strstr(final_url, "/tag/") != NULL ||
                       strstr(final_url, "/topics/") != NULL) {
-                url_priority = 3;  // Category/tag pages get medium priority
+                url_priority = 3;
             } else if (strstr(final_url, "/page/") != NULL ||
                       strstr(final_url, "?page=") != NULL) {
-                url_priority = 2;  // Pagination gets lower priority
+                url_priority = 2;
             }
         }
     }
     
-    // Add URL to the list or free it with enhanced priority-based positioning
     if (is_valid && !is_duplicate && *url_count < max_urls) {
-        // Calculate URL diversity score to help thread distribution
-        // URLs with different patterns will be distributed better across threads
         int url_diversity = 0;
         if (strstr(final_url, "/tag/") || strstr(final_url, "/topic/") || strstr(final_url, "/category/"))
-            url_diversity = 2;  // These paths lead to diverse content
+            url_diversity = 2;
         else if (strstr(final_url, "/@") || strstr(final_url, "/author/"))
-            url_diversity = 3;  // Author/profile pages have unique content
+            url_diversity = 3;
         
-        // Combine priority and diversity for better insertion position
         int combined_score = url_priority + url_diversity;
         
-        // If this is a high-priority URL, try to insert it strategically in the list
-        // This improves thread workload distribution while maintaining priority
         if (combined_score > 3 && *url_count > 0) {
-            // Use different insertion strategies based on combined score
             int insert_pos;
             
             if (combined_score >= 7) {
-                insert_pos = 0;  // Top priority: place at beginning
+                insert_pos = 0;
             } else if (combined_score >= 5) {
-                insert_pos = *url_count / 4;  // High priority: first quarter
+                insert_pos = *url_count / 4;
             } else {
-                insert_pos = *url_count / 2;  // Medium priority: middle
+                insert_pos = *url_count / 2;
             }
             
-            // Only move if we're not inserting at the end
             if (insert_pos < *url_count) {
-                // Make room by shifting elements
                 for (int i = *url_count; i > insert_pos; i--) {
                     urls[i] = urls[i-1];
                 }
                 
-                // Insert at the calculated position
                 urls[insert_pos] = final_url;
                 (*url_count)++;
                 return;
             }
         }
         
-        // Default case: add to the end of the list
         urls[*url_count] = final_url;
         (*url_count)++;
     } else {
@@ -886,17 +785,15 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
     const char* scan_ptr = html;
     while ((scan_ptr = strstr(scan_ptr, "href=")) != NULL) {
         estimated_link_count++;
-        scan_ptr += 5; // Move past 'href='
+        scan_ptr += 5; 
     }
     printf("  Estimated link count: %d\n", estimated_link_count);
     
-    // Track time spent in extraction for performance tuning
     double start_time = omp_get_wtime();
     
     // Improved workload distribution with dynamic scheduling and better chunk sizing
     #pragma omp parallel num_threads(num_threads) shared(html, base_url, base_domain, urls, url_count, url_lock, urls_per_thread)
     {
-        // Each thread processes a section of HTML with better boundary detection
         int thread_id = omp_get_thread_num();
         
         // Calculate chunk size based on estimated links for more even distribution
@@ -904,20 +801,15 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
         size_t start_pos = thread_id * chunk_size;
         size_t end_pos = (thread_id == num_threads - 1) ? html_len : (thread_id + 1) * chunk_size;
         
-        // For all threads except first, find a better starting point:
-        // We look for an opening tag to get a cleaner HTML fragment
         if (thread_id > 0) {
-            // First move backward a bit to find a good tag boundary if possible
             size_t look_back = start_pos > 500 ? 500 : start_pos;
             size_t potential_start = start_pos - look_back;
             
             // Find the first '<' after potential_start
             const char* tag_start = strchr(html + potential_start, '<');
             if (tag_start && tag_start < html + start_pos + 200) {
-                // Use this clean boundary if it's reasonably close
                 start_pos = tag_start - html;
             } else {
-                // If we can't find a good boundary looking back, look forward
                 while (start_pos < end_pos && html[start_pos] != '<')
                     start_pos++;
             }
@@ -953,7 +845,6 @@ static void extract_links(const char* html, const char* base_url, char** urls, i
                     // Find the starting position after the pattern
                     const char* url_start = pattern_start + strlen(article_patterns[i]);
                     if (strcmp(article_patterns[i], "href=\"/") == 0) {
-                        // Special case for relative URLs
                         char rel_url[MAX_URL_LENGTH] = "https://medium.com";
                         strncat(rel_url, url_start - 1, MAX_URL_LENGTH - strlen(rel_url) - 1);
                         const char* quote_end = strchr(rel_url, '"');
@@ -1536,7 +1427,6 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
               (rear - front + MAX_URLS) % MAX_URLS);
     }
     
-    // Start crawling in parallel with explicitly fixed number of threads and improved coordination
     #pragma omp parallel num_threads(num_threads) shared(queue, depth, front, rear, queue_lock, \
                                                          total_pages_crawled, total_failed_downloads, \
                                                          thread_active, active_threads, thread_pages)
@@ -1545,13 +1435,11 @@ int crawl_website(const char* start_url, int maxDepth, int maxPages) {
         int thread_id = omp_get_thread_num();
         int local_pages_crawled = 0;
         int local_failed_downloads = 0;
-        int consecutive_empty = 0;  // Track consecutive empty queue encounters
+        int consecutive_empty = 0; 
         
         // Print initial thread info
         show_crawling_progress(thread_id, "Thread started and ready to crawl");
-        
-        // Set random seed differently for each thread to avoid synchronization issues
-        // Plus use a better seed with microsecond precision if available
+     
         struct timespec ts;
         unsigned int thread_seed;
         if (clock_gettime(CLOCK_MONOTONIC, &ts) == 0) {
